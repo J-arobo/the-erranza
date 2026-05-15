@@ -9,6 +9,7 @@ Route::get('/user', function (Request $request) {
 
 
 //To test if the API is working, you can create a simple route that returns a JSON response. Add the following code to your `routes/api.php` file:
+// Then call it from: http://localhost:8000/api/test
     Route::get('/test', function () {
         return response()->json([
             'message' => 'Laravel & React are connected! 🎉',
