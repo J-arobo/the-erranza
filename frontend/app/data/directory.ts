@@ -1,0 +1,61 @@
+import { Listing } from './stays'
+
+export const directory: Listing[] = [
+  {
+    id: '1',
+    location: 'Nairobi',
+    title: 'Tour guides',
+    price: 'From Ksh 2,000',
+    rating: 4.9,
+    image: 'https://images.unsplash.com/photo-1530789253388-582c481c54b0?w=400&q=80',
+  },
+  {
+    id: '2',
+    location: 'Nairobi',
+    title: 'Chefs for hire',
+    price: 'From Ksh 3,500',
+    rating: 4.8,
+    image: 'https://images.unsplash.com/photo-1556910103-1c02745aae4d?w=400&q=80',
+  },
+  {
+    id: '3',
+    location: 'Mombasa',
+    title: 'Airport transfers',
+    price: 'From Ksh 1,800',
+    rating: 4.7,
+    image: 'https://images.unsplash.com/photo-1449965408869-eaa3f722e40d?w=400&q=80',
+  },
+  {
+    id: '4',
+    location: 'Kenya-wide',
+    title: 'Wellness & Spa',
+    price: 'From Ksh 4,000',
+    rating: 4.9,
+    image: 'https://images.unsplash.com/photo-1544161515-4ab6ce6db874?w=400&q=80',
+    badge: 'Top rated',
+  },
+  {
+    id: '5',
+    location: 'Nairobi',
+    title: 'Event photographers',
+    price: 'From Ksh 8,000',
+    rating: 4.8,
+    image: 'https://images.unsplash.com/photo-1452587925148-ce544e77e70d?w=400&q=80',
+  },
+  {
+    id: '6',
+    location: 'Kenya-wide',
+    title: 'Private security',
+    price: 'From Ksh 5,000',
+    rating: 4.6,
+    image: 'https://images.unsplash.com/photo-1521791055366-0d553872952f?w=400&q=80',
+  },
+  {
+    id: '7',
+    location: 'Nairobi',
+    title: 'Personal shoppers',
+    price: 'From Ksh 2,500',
+    rating: 4.7,
+    image: 'https://images.unsplash.com/photo-1483985988355-763728e1935b?w=400&q=80',
+  },
+]

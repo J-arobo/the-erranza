@@ -1,0 +1,62 @@
+import { Listing } from './stays'
+
+export const experiences: Listing[] = [
+  {
+    id: '1',
+    location: 'Nairobi',
+    title: 'Cooking class',
+    price: 'Ksh 3,500',
+    rating: 4.9,
+    image: 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=400&q=80',
+  },
+  {
+    id: '2',
+    location: 'Nairobi CBD',
+    title: 'City walking tour',
+    price: 'Ksh 1,500',
+    rating: 4.8,
+    image: 'https://images.unsplash.com/photo-1551632436-cbf8dd35adfa?w=400&q=80',
+  },
+  {
+    id: '3',
+    location: 'Diani Beach',
+    title: 'Snorkelling trip',
+    price: 'Ksh 4,000',
+    rating: 4.7,
+    image: 'https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=400&q=80',
+  },
+  {
+    id: '4',
+    location: 'Maasai Mara',
+    title: 'Sunrise hot air balloon',
+    price: 'Ksh 28,000',
+    rating: 5.0,
+    image: 'https://images.unsplash.com/photo-1507608616759-54f48f0af0ee?w=400&q=80',
+    badge: 'Premier',
+  },
+  {
+    id: '5',
+    location: 'Naivasha',
+    title: 'Boat & hippo tour',
+    price: 'Ksh 2,500',
+    rating: 4.6,
+    image: 'https://images.unsplash.com/photo-1516426122078-c23e76319801?w=400&q=80',
+  },
+  {
+    id: '6',
+    location: 'Lamu Island',
+    title: 'Dhow sailing trip',
+    price: 'Ksh 5,000',
+    rating: 4.9,
+    image: 'https://images.unsplash.com/photo-1534190760961-74e8c1c5c3da?w=400&q=80',
+    badge: 'Top rated',
+  },
+  {
+    id: '7',
+    location: 'Watamu',
+    title: 'Sea turtle encounter',
+    price: 'Ksh 3,800',
+    rating: 4.8,
+    image: 'https://images.unsplash.com/photo-1544551763-77ef2d0cfc6c?w=400&q=80',
+  },
+]

@@ -1,0 +1,57 @@
+@import url('https://fonts.googleapis.com/css2?family=Buenard:wght@400;700&display=swap');
+@import "tailwindcss";
+
+:root {
+  --lightgray: #faf8f1;
+  --font-buenard: 'Buenard', serif;
+  --font-poppins: 'Poppins', sans-serif;
+  --dark-green: #304333;
+  --cream-border: #e0d9cc;
+  --green-dark: #2c4a1e;
+  --green-mid: #3d6b28;
+  --green-light: #d4e8c2;
+}
+
+html, body {
+  background-color: #faf8f1;
+  font-family: Arial, Helvetica, sans-serif;
+  overflow-x: hidden;
+  max-width: 100vw; 
+}
+
+/* Touch fix for all interactive elements */
+button, a, [role="button"] {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  cursor: pointer;
+}
+
+@layer utilities {
+  .text-buenard { font-family: var(--font-buenard); }
+  .text-41      { font-size: 41px; }
+  .text-poppins { font-family: var(--font-poppins); }
+}
+
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+
+input[type="text"], input[type="tel"], input[type="email"] {
+  -webkit-appearance: none;
+  appearance: none;
+}
+.unavailable-date {
+  position: relative;
+}
+.unavailable-date::after {
+  content: "";
+  position: absolute;
+  width: 100%;
+  height: 2px;
+  background: #78716c; 
+  top: 50%;
+  left: 0;
+  transform: rotate(-20deg);
+}
+
+
+

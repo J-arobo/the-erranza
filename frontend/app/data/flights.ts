@@ -1,0 +1,62 @@
+import { Listing } from './stays'
+
+export const flights: Listing[] = [
+  {
+    id: '1',
+    location: 'Nairobi → Mombasa',
+    title: 'Daily shuttle flight',
+    price: 'Ksh 6,500',
+    rating: 4.7,
+    image: 'https://images.unsplash.com/photo-1436491865332-7a61a109cc05?w=400&q=80',
+  },
+  {
+    id: '2',
+    location: 'Nairobi → Kisumu',
+    title: 'Morning express',
+    price: 'Ksh 5,800',
+    rating: 4.5,
+    image: 'https://images.unsplash.com/photo-1464037866556-6812c9d1c72e?w=400&q=80',
+  },
+  {
+    id: '3',
+    location: 'Nairobi → Malindi',
+    title: 'Coastal getaway flight',
+    price: 'Ksh 7,200',
+    rating: 4.8,
+    image: 'https://images.unsplash.com/photo-1542296332-2e4473faf563?w=400&q=80',
+    badge: 'Popular',
+  },
+  {
+    id: '4',
+    location: 'Nairobi → Lamu',
+    title: 'Island hopper',
+    price: 'Ksh 9,500',
+    rating: 4.9,
+    image: 'https://images.unsplash.com/photo-1559628129-67cf63b72248?w=400&q=80',
+    badge: 'Top rated',
+  },
+  {
+    id: '5',
+    location: 'Mombasa → Malindi',
+    title: 'Scenic coast flight',
+    price: 'Ksh 4,200',
+    rating: 4.6,
+    image: 'https://images.unsplash.com/photo-1530521954074-e64f6810b32d?w=400&q=80',
+  },
+  {
+    id: '6',
+    location: 'Nairobi → Amboseli',
+    title: 'Safari air transfer',
+    price: 'Ksh 12,000',
+    rating: 4.8,
+    image: 'https://images.unsplash.com/photo-1579154204601-01588f351e67?w=400&q=80',
+  },
+  {
+    id: '7',
+    location: 'Nairobi → Eldoret',
+    title: 'Highland connector',
+    price: 'Ksh 5,200',
+    rating: 4.5,
+    image: 'https://images.unsplash.com/photo-1488085061387-422e29b40080?w=400&q=80',
+  },
+]
