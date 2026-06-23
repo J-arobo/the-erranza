@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { Plus, Star, ChevronRight, Eye, Pause, Trash2 } from 'lucide-react'
 import { VENDOR_LISTINGS } from '@/data/vendor'
-import { StatusBadge } from '../page'
+import { StatusBadge } from '../../page'
 
 const FILTERS = ['All', 'Active', 'Paused', 'Draft']
 
