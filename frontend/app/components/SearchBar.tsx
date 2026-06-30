@@ -322,7 +322,7 @@ export default function SearchBar({
     MOBILE — full-screen modal
     ════════════════════════════════════════ */}
       <div className="sm:hidden">
-        <div className="px-4 py-2 bg-[#faf8f1] flex-shrink-0">
+        <div className="px-4 py-2 bg-[#f5f6f4] flex-shrink-0">
 
           {/* ✅ div → button, closing tag matches */}
           <button
@@ -368,17 +368,21 @@ export default function SearchBar({
 
         {/* Mobile full-screen modal */}
         {open && (
-          <div className="fixed inset-0 z-[100] bg-[#faf8f1] flex flex-col">
+          <div className="fixed inset-0 z-[100] bg-[#f5f6f4] flex flex-col">
             <div className="flex-shrink-0 pt-4 pb-0">
-              <div className="flex items-center px-4 pb-2">
-                <div className="flex-1">
-                  <CategoryBar
-                    active={modalTab}
-                    onSelect={(name) => setModalTab(name)}
-                    scrollY={0}
-                    collapsed={false}
-                  />
-                </div>
+
+              {/* Category bar */}
+              <div className="flex-1">
+                <CategoryBar
+                  active={modalTab}
+                  onSelect={(name) => setModalTab(name)}
+                  scrollY={0}
+                  collapsed={false}
+                />
+              </div>
+
+              {/* X Close button */}
+              <div className="flex justify-end px-4 pb-1">
                 <button
                   type="button"
                   onClick={handleClose}
@@ -394,8 +398,7 @@ export default function SearchBar({
             <div className="flex-1 overflow-y-auto px-4 py-2 flex flex-col gap-3">
 
               {/* ✅ WHERE — button with matching closing tag */}
-              <button
-                type="button"
+              <div
                 onClick={() => setActiveCard('where')}
                 className={`bg-[#FEFDFC] rounded-2xl shadow-sm transition-all duration-200
                       text-left w-full
@@ -476,12 +479,11 @@ export default function SearchBar({
                     </span>
                   </div>
                 )}
-              </button>
+              </div>
               {/* ✅ WHERE button closes here */}
 
               {/* ✅ WHEN — button with matching closing tag */}
-              <button
-                type="button"
+              <div
                 onClick={() => setActiveCard('when')}
                 className={`bg-white rounded-2xl shadow-sm transition-all duration-200
                       text-left w-full
@@ -499,12 +501,11 @@ export default function SearchBar({
                     <span className="text-sm font-semibold text-[#304333]">{whenLabel}</span>
                   </div>
                 )}
-              </button>
+              </div>
               {/* ✅ WHEN button closes here */}
 
               {/* ✅ WHO — button with matching closing tag */}
-              <button
-                type="button"
+              <div
                 onClick={() => setActiveCard('who')}
                 className={`bg-white rounded-2xl shadow-sm transition-all duration-200
                       text-left w-full
@@ -522,7 +523,7 @@ export default function SearchBar({
                     <span className="text-sm font-semibold text-[#304333]">Add guests</span>
                   </div>
                 )}
-              </button>
+              </div>
               {/* ✅ WHO button closes here */}
 
               <div className="h-4" />
@@ -562,13 +563,13 @@ export default function SearchBar({
       {/* ════════════════════════════════════════
           DESKTOP — inline expanded bar (sm and above)
           ════════════════════════════════════════ */}
-      <div className="hidden sm:block bg-[#faf8f1] px-6 py-3 flex-shrink-0">
+      <div className="hidden sm:block bg-[#f5f6f4] px-6 py-3 flex-shrink-0">
         <div ref={desktopRef} className="relative max-w-3xl mx-auto">
 
           {/* The three-section pill bar */}
-          <div className={`flex items-stretch bg-white rounded-full border
+          <div className={`flex items-stretch rounded-full border
                            shadow-md transition-all
-                           ${activeCard ? 'border-gray-300' : 'border-gray-200'}`}>
+                           ${activeCard ? 'bg-gray-100 border-gray-300' : 'bg-white border-gray-200'}`}>
 
             {/* WHERE section */}
             <button
@@ -624,9 +625,13 @@ export default function SearchBar({
                 <span className="text-xs font-bold text-[#1a1a1a]">Who</span>
                 <span className="text-sm text-gray-400 mt-0.5">Add guests</span>
               </div>
-              <div className="w-12 h-12 bg-[#2c4a1e] rounded-full flex items-center
-                              justify-center flex-shrink-0">
+              <div className={`flex items-center justify-center flex-shrink-0 transition-all duration-200
+                ${activeCard
+                  ? 'bg-[#2c4a1e] rounded-full px-5 py-3 gap-2'
+                  : 'w-12 h-12 bg-[#2c4a1e] rounded-full'}`}
+              >
                 <Search size={18} color="white" />
+                {activeCard && <span className="text-white font-semibold text-sm whitespace-nowrap">Search</span>}
               </div>
             </button>
           </div>

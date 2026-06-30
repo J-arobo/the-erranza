@@ -7,58 +7,58 @@ import SearchBar from './SearchBar'
 import BottomNav from './BottomNav'
 
 const slugMap: Record<string, string> = {
-  'Stays':       '/destinations/stays',
-  'Flights':     '/destinations/flights',
-  'Safari':      '/destinations/safari',
-  'Market':      '/destinations/market',
+  'Stays': '/destinations/stays',
+  'Flights': '/destinations/flights',
+  'Safari': '/destinations/safari',
+  'Market': '/destinations/market',
   'Experiences': '/destinations/experiences',
-  'Directory':   '/destinations/directory',
-  'Packages':    '/destinations/packages',
+  'Directory': '/destinations/directory',
+  'Packages': '/destinations/packages',
   'Car Rentals': '/destinations/car-rentals',
 }
 
 const pathToTab: Record<string, string> = {
-  '/':                         'Stays',
-  '/destinations/stays':       'Stays',
-  '/destinations/flights':     'Flights',
-  '/destinations/safari':      'Safari',
-  '/destinations/market':      'Market',
+  '/': 'Stays',
+  '/destinations/stays': 'Stays',
+  '/destinations/flights': 'Flights',
+  '/destinations/safari': 'Safari',
+  '/destinations/market': 'Market',
   '/destinations/experiences': 'Experiences',
-  '/destinations/directory':   'Directory',
-  '/destinations/packages':    'Packages',
+  '/destinations/directory': 'Directory',
+  '/destinations/packages': 'Packages',
   '/destinations/car-rentals': 'Car Rentals',
 }
 
 const pathToNav: Record<string, string> = {
-  '/':          'Explore',
+  '/': 'Explore',
   '/wishlists': 'Wishlists',
-  '/trips':     'Trips',
-  '/messages':  'Messages',
-  '/profile':   'Profile',
-  '/login':     'Log in',
+  '/trips': 'Trips',
+  '/messages': 'Messages',
+  '/profile': 'Profile',
+  '/login': 'Log in',
 }
 
 type Props = { children: React.ReactNode; showCollapse?: boolean }
 
 export default function AppShell({ children, showCollapse = false }: Props) {
-  const router   = useRouter()
+  const router = useRouter()
   const pathname = usePathname()
 
-  const [scrollY, setScrollY]             = useState(0)
+  const [scrollY, setScrollY] = useState(0)
   const [scrollingDown, setScrollingDown] = useState(false)
 
-  const lastScrollY  = useRef<number>(0)
-  const ticking      = useRef<boolean>(false)
-  const mainRef      = useRef<HTMLDivElement | null>(null)
-  const hideTimeout  = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const lastScrollY = useRef<number>(0)
+  const ticking = useRef<boolean>(false)
+  const mainRef = useRef<HTMLDivElement | null>(null)
+  const hideTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // ── NEW: accumulative scroll tracking ──────────────────────────────────
   const scrollAccum = useRef<number>(0)
-  const lastDir     = useRef<'up' | 'down' | null>(null)
+  const lastDir = useRef<'up' | 'down' | null>(null)
   // ───────────────────────────────────────────────────────────────────────
 
   const activeTab = pathToTab[pathname] ?? 'Stays'
-  const scrolled  = scrollY > 10
+  const scrolled = scrollY > 10
 
   const handleScroll = useCallback(() => {
     if (ticking.current) return
@@ -68,7 +68,7 @@ export default function AppShell({ children, showCollapse = false }: Props) {
       if (!el) { ticking.current = false; return }
 
       const current = el.scrollTop
-      const delta   = current - lastScrollY.current
+      const delta = current - lastScrollY.current
 
       setScrollY(current)
 
@@ -131,12 +131,12 @@ export default function AppShell({ children, showCollapse = false }: Props) {
 
   function handleNavSelect(name: string) {
     const routes: Record<string, string> = {
-      'Explore':   '/',
+      'Explore': '/',
       'Wishlists': '/wishlists',
-      'Trips':     '/trips',
-      'Messages':  '/messages',
-      'Profile':   '/profile',
-      'Log in':    '/login',
+      'Trips': '/trips',
+      'Messages': '/messages',
+      'Profile': '/profile',
+      'Log in': '/login',
     }
     const path = routes[name]
     if (path) router.push(path)
@@ -148,7 +148,7 @@ export default function AppShell({ children, showCollapse = false }: Props) {
         display: 'flex',
         flexDirection: 'column',
         height: '100dvh',
-        backgroundColor: '#faf8f1',
+        backgroundColor: '#ffffff',
         overflowX: 'hidden',
       }}
     >
@@ -167,13 +167,26 @@ export default function AppShell({ children, showCollapse = false }: Props) {
             transition: 'max-height 0.3s ease, opacity 0.2s ease',
           }}
         >
-          <Navbar />
-          <CategoryBar
-            active={activeTab}
-            onSelect={handleTabSelect}
-            scrollY={scrollY}
-            collapsed={false}
+          <Navbar
+            categoryBar={
+              <CategoryBar
+                active={activeTab}
+                onSelect={handleTabSelect}
+                scrollY={scrollY}
+                collapsed={false}
+              />
+            }
           />
+
+          {/* Keeping CategoryBar here only for mobile (hidden on sm+) */}
+          <div className="xl:hidden">
+            <CategoryBar
+              active={activeTab}
+              onSelect={handleTabSelect}
+              scrollY={scrollY}
+              collapsed={false}
+            />
+          </div>
         </div>
 
         <SearchBar

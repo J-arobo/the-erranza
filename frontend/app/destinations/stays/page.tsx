@@ -44,7 +44,7 @@ export default function StaysPage() {
 
   return (
     <AppShell showCollapse={false}>
-      <div className="py-4 bg-[#faf8f1] min-h-full overflow-x-hidden w-full">
+      <div className="py-4 bg-[#ffffff] min-h-full overflow-x-hidden w-full">
   
         {/* Filter tabs */}
         <div className="flex gap-2 overflow-x-auto scrollbar-hide mb-5 px-4 sm:px-6">

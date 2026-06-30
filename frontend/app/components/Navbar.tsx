@@ -76,7 +76,7 @@ const MENU_SECTIONS_LOGGEDIN = [
   },
 ]
 
-export default function Navbar() {
+export default function Navbar({categoryBar }: {categoryBar?: React.ReactNode}) {
   const router = useRouter()
   const { isLoggedIn, user, logout } = useAuth()
   const [menuOpen, setMenuOpen]     = useState(false)
@@ -183,7 +183,7 @@ export default function Navbar() {
 
   return (
     <>
-      <header className="bg-[#faf8f1] px-4 sm:px-6 py-3 flex items-center
+      <header className="bg-[#f5f6f4] px-4 sm:px-6 py-3 relative flex items-center
                          justify-between flex-shrink-0">
 
         {/* Brand */}
@@ -194,6 +194,11 @@ export default function Navbar() {
         >
           Erranza
         </span>
+
+        {/* category bar in the middle - hidden on mobile */}
+        <div className='hidden xl:flex absolute left-1/2 -translate-x-1/2'>
+          {categoryBar}
+        </div>
 
         <div className="flex items-center gap-2">
 

@@ -46,7 +46,9 @@ export default function Home() {
       {/* Six destination snippets */}
       {sections.map(({ title, slug, data, color, category }) => (
         <div key={slug}>
-          <div className="flex items-center justify-between px-4 sm:px-6 pt-5 pb-2">
+
+          {/* Header */}
+          <div className="flex items-center justify-between px-4 sm:px-10 md:px-14 lg:px-20 pt-5 pb-2">
             <h2 className="text-[15px] sm:text-[17px] font-bold text-[#1a1a1a]">
               {title}
             </h2>
@@ -60,31 +62,37 @@ export default function Home() {
             </button>
           </div>
 
-          <div className="flex gap-3 px-4 sm:px-6 pb-4 overflow-x-auto scrollbar-hide">
-            {data.slice(0, 3).map((item) => (
-              <div key={item.id} className="flex-shrink-0 w-[148px] sm:w-[200px]">
-                <ListingCard
-                  {...item}
-                  listingCategory={category}
-                />
-              </div>
-            ))}
-            <button
-              onClick={() => router.push(`/destinations/${slug}`)}
-              className="flex-shrink-0 w-[148px] sm:w-[200px] rounded-2xl border
+          {/* Scroll wrapper - NO padding here, clips cards at margin */}
+          <div className="px-4 sm:px-10 md:px-14 lg:px-20 overflow-hidden pb-4">
+            <div className="overflow-x-auto scrollbar-hide">
+              {/* Flex row - padding here aligns first card with header */}
+              <div className="flex gap-3 pr-4 sm:pr-10 md:pr-14 lg:pr-20"> {/* xl:px-24 pb-4 overflow-x-auto scrollbar-hide */}
+                {data.slice(0, 10).map((item) => (
+                  <div key={item.id} className="flex-shrink-0 w-[30vw] sm:w-[23vw] md:w-[20vw] lg:w-[16vw] xl:w-[14vw]">
+                    <ListingCard
+                      {...item}
+                      listingCategory={category}
+                    />
+                  </div>
+                ))}
+                <button
+                  onClick={() => router.push(`/destinations/${slug}`)}
+                  className="flex-shrink-0 w-[30vw] sm:w-[23vw] md:w-[20vw] lg:w-[16vw] xl:w-[14vw] rounded-2xl border
                border-[#e0d9cc] bg-white flex flex-col items-center
                justify-center gap-2 hover:bg-[#f5f0e8] transition-colors"
-            >
-              <div
-                className="w-10 h-10 rounded-full flex items-center justify-center"
-                style={{ background: color + '22' }}
-              >
-                <ChevronRight size={18} color={color} />
+                >
+                  <div
+                    className="w-10 h-10 rounded-full flex items-center justify-center"
+                    style={{ background: color + '22' }}
+                  >
+                    <ChevronRight size={18} color={color} />
+                  </div>
+                  <span className="text-xs font-semibold" style={{ color }}>
+                    Show all
+                  </span>
+                </button>
               </div>
-              <span className="text-xs font-semibold" style={{ color }}>
-                Show all
-              </span>
-            </button>
+            </div>
           </div>
         </div>
       ))}

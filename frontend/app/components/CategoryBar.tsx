@@ -34,7 +34,7 @@ export default function CategoryBar({ scrollY, active, onSelect, collapsed }: Pr
 
   return (
     // No border-b here — the shadow is added on the whole top section in AppShell
-    <nav className="bg-[#faf8f1] flex-shrink-0 w-full">
+    <nav className="bg-[#f5f6f4] flex-shrink-0 w-full">
       <div className="flex overflow-x-auto scrollbar-hide px-2
                       sm:justify-center sm:overflow-x-visible sm:px-0">
         {tabs.map(({ name, Icon }) => (
