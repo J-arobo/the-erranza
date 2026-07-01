@@ -70,7 +70,7 @@ function FooterGroup({ heading, links }: FooterGroup) {
 
 export default function FooterSection() {
   return (
-    <footer className="bg-[#f5f0e8] mt-6 w-full">
+    <footer className="bg-[#f5f6f4] mt-6 w-full pb-20 sm:pb-0">
       {/* Grid layout */}
       <div className="sm:grid sm:grid-cols-4 sm:gap-6 px-6 py-6">
         {footerData.map((group) => (
@@ -79,7 +79,7 @@ export default function FooterSection() {
       </div>
 
       {/* Bottom strip */}
-      <div className="px-6 py-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+      <div className="px-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <p className="text-xs text-gray-400">
           © {new Date().getFullYear()} Erranza, Inc. · All rights reserved
         </p>
@@ -98,7 +98,7 @@ export default function FooterSection() {
       </div>
 
       {/* Bottom margin so it clears the fixed bottom nav */}
-      {/* <div className="h-24 sm:h-6" /> */}
+      <div className="h-24 sm:h-6" /> 
       
 
     </footer>

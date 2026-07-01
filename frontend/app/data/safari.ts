@@ -101,7 +101,7 @@ export const safari: Listing[] = [
     title: 'Serengeti Plains',
     price: 'Ksh 32,000',
     rating: 4.8,
-    image: 'https://images.unsplash.com/photo-1504173010664-32509107de48?w=400&q=80',
+    image: 'https://images.unsplash.com/photo-1622073492812-ed21d3443390?w=400&q=80',
     badge: 'Top rated',
     description: 'The Serengeti is home to the world\'s largest terrestrial mammal migration. Witness millions of wildebeest, zebra and gazelle moving across the plains in an ancient rhythm. Exceptional big cat sightings year-round.',
     images: [
@@ -262,7 +262,7 @@ export const safari: Listing[] = [
     title: 'Lake Nakuru Flamingos',
     price: 'Ksh 10,000',
     rating: 4.6,
-    image: 'https://images.unsplash.com/photo-1612890404171-e3a8d1cb4e60?w=400&q=80',
+    image: 'https://images.unsplash.com/photo-1710136678658-a12caee832a7?w=400&q=80',
     description: 'Lake Nakuru National Park is famous for its spectacular flamingo gatherings and is also a sanctuary for both black and white rhinos. The park offers excellent lion and leopard sightings too.',
     images: [
       'https://images.unsplash.com/photo-1612890404171-e3a8d1cb4e60?w=600&q=80',

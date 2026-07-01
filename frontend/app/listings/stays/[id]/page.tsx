@@ -11,6 +11,7 @@ import {
   Wifi, Wind, Tv, Car, UtensilsCrossed, Waves,
   ShowerHead, Dumbbell, Coffee, Snowflake, Home,
   MapPin, Camera, Globe, Calendar,
+  CalendarX2, Key, ShieldHalf,
 } from 'lucide-react'
 import { stays } from '@/data/stays'
 import { useAuth } from '@/context/AuthContext'
@@ -19,7 +20,7 @@ const MapComponent = dynamic(() => import('@/components/MapComponent'), {
   ssr: false,
   loading: () => (
     <div className="w-full rounded-xl flex items-center justify-center"
-      style={{ height: 240, background: '#f5f0e6' }}>
+      style={{ height: 240, background: '#ffffff' }}>
       <p className="text-sm text-[#a8a29e]">Loading map…</p>
     </div>
   ),
@@ -368,7 +369,7 @@ function DesktopCalendar({ checkIn, checkOut, onSelect }: {
   }
 
   return (
-    <div style={{ border: '1px solid #e8e0d0', borderRadius: 16, padding: '24px', background: '#FEFDFC' }}>
+    <div style={{ borderRadius: 16, padding: '24px', background: '#FEFDFC' }}>
       <div style={{ display: 'flex', gap: 32 }}>
         {renderMonth(startYear, startMonth, true)}
         {/* Thin vertical divider */}
@@ -496,7 +497,7 @@ export default function StayDetailPage({ params }: Props) {
             <button onClick={() => setShowDescModal(false)}
               className="w-9 h-9 rounded-full flex items-center justify-center mb-5"
               style={{ border: 'none', background: 'transparent', cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}>
-              <X size={25} color="#304333"/>
+              <X size={25} color="#304333" />
             </button>
             <h2 style={{ fontSize: 25, fontWeight: 800, color: '#304333' }}>About this space</h2>
           </div>
@@ -613,7 +614,7 @@ export default function StayDetailPage({ params }: Props) {
             </div>
 
             {/* Desktop (lg+): 1 large left + 2×2 right */}
-            <div className="hidden lg:block relative rounded-2xl overflow-hidden" style={{ height: 480 }}>
+            <div className="hidden md:block relative rounded-2xl overflow-hidden" style={{ height: 480 }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 3, height: '100%' }}>
                 <div className="relative overflow-hidden group cursor-pointer"
                   onClick={() => { setActiveImg(0); setShowGallery(true) }}>
@@ -639,7 +640,7 @@ export default function StayDetailPage({ params }: Props) {
             </div>
 
             {/* Tablet (sm–lg) */}
-            <div className="lg:hidden relative rounded-2xl overflow-hidden" style={{ height: 320 }}>
+            <div className="md:hidden relative rounded-2xl overflow-hidden" style={{ height: 320 }}>
               <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 3, height: '100%' }}>
                 {images.slice(0, 3).map((img: string, i: number) => (
                   <div key={i} className="relative overflow-hidden group cursor-pointer"
@@ -662,7 +663,7 @@ export default function StayDetailPage({ params }: Props) {
             PAGE LAYOUT — 2-col desktop, single col mobile
         ══════════════════════════════════════════════════════ */}
         <div className="sm:px-6 lg:px-8 xl:px-20 max-w-7xl mx-auto">
-          <div className="lg:grid lg:gap-12" style={{ gridTemplateColumns: '1fr 380px' }}>
+          <div className="md:grid md:gap-12" style={{ gridTemplateColumns: '1fr 380px' }}>
 
             {/* ══ LEFT COLUMN ══ */}
             <div>
@@ -743,11 +744,12 @@ export default function StayDetailPage({ params }: Props) {
                     {detail.description}
                   </p>
                   <button onClick={() => setShowFullDesc(s => !s)}
-                    className="mt-4 flex items-center gap-1 text-sm font-semibold text-[#304333]"
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, WebkitTapHighlightColor: 'transparent' }}>
+                    className="mt-4 px-8 py-3.5 rounded-xl text-sm font-semibold text-[#304333] transition-colors hover:bg-[#ede8df]"
+                    style={{ background: '#F1F5E4', cursor: 'pointer', WebkitTapHighlightColor: 'transparent', border: 'none', color: '#304333', fontFamily: 'inherit' }}>
                     {showFullDesc ? 'Show less' : 'Show more'}
-                    <ChevronRight size={14} strokeWidth={2.5} style={{ transform: showFullDesc ? 'rotate(90deg)' : 'none' }} />
                   </button>
+
+
                 </div>
                 {/* Mobile: clamped + full-screen modal */}
                 <div className="sm:hidden">
@@ -792,367 +794,23 @@ export default function StayDetailPage({ params }: Props) {
 
                 {detail.amenities.length > 6 && (
                   <button onClick={() => setShowAllAmen(s => !s)}
-                    className="mt-6 w-full py-3 rounded-xl text-sm font-semibold text-center transition-colors hover:bg-[#ede8df]"
-                    style={{ background: '#F1F5E4', cursor: 'pointer', WebkitTapHighlightColor: 'transparent', border: 'none' }}>
+                    className="mt-6 px-8 py-3.5 rounded-xl text-sm font-semibold text-[#304333] transition-colors hover:bg-[#ede8df]"
+                    style={{ background: '#F1F5E4', cursor: 'pointer', WebkitTapHighlightColor: 'transparent', border: 'none', color: '#304333', fontFamily: 'inherit' }}>
                     {showAllAmen ? 'Show less' : `Show all ${detail.amenities.length} amenities`}
                   </button>
+
+
+
                 )}
               </div>
 
-              <Divider />
-
-              {/* ── Calendar ──
-                  Desktop: 2-month side-by-side (Airbnb style)
-                  Mobile: single month (unchanged)               */}
-              <div className="pb-1 sm:px-0" style={{ ...MOB_PAD }}>
-                <h2 className="text-xl font-semibold text-[#304333] mb-1">
-                  {checkIn && checkOut
-                    ? `${calNights} night${calNights !== 1 ? 's' : ''} in ${location.split(',')[0]}`
-                    : 'Select dates'}
-                </h2>
-                {checkIn && checkOut && (
-                  <p className="text-sm text-[#78716c] mb-3">
-                    {fmtDateFull(checkIn)} – {fmtDateFull(checkOut)}
-                  </p>
-                )}
-                {!checkIn && (
-                  <p className="text-sm text-[#78716c] mb-4">Add your travel dates for exact pricing</p>
-                )}
-
-                {/* Desktop: 2-month calendar */}
-                <div className="hidden sm:block mt-4">
-                  <DesktopCalendar checkIn={checkIn} checkOut={checkOut} onSelect={handleCalSelect} />
-                </div>
-                {/* Mobile: single month */}
-                <div className="sm:hidden mt-4">
-                  <MiniCalendar checkIn={checkIn} checkOut={checkOut} onSelect={handleCalSelect} />
-                </div>
-
-                {(checkIn || checkOut) && (
-                  <button onClick={() => { setCheckIn(null); setCheckOut(null) }}
-                    className="mt-3 text-sm font-semibold text-[#304333] underline"
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', WebkitTapHighlightColor: 'transparent', padding: 0 }}>
-                    Clear dates
-                  </button>
-                )}
-              </div>
-
-              <Divider />
-
-              {/* ── Map ── */}
-              <div className="pb-1 sm:px-0" style={{ ...MOB_PAD }}>
-                <h2 className="text-xl font-semibold text-[#304333] mb-1">Where you'll be</h2>
-                <p className="text-sm text-[#78716c] mb-4 flex items-center gap-1">
-                  <MapPin size={13} /> {location}
-                </p>
-                <MapComponent lat={detail.lat} lng={detail.lng} label={title} />
-                <p className="text-sm text-[#78716c] mt-3">{location} · Exact address provided after booking</p>
-              </div>
-
-              <Divider />
-
-              {/* ── Reviews ──
-                  Desktop: 2-column grid
-                  Mobile: horizontal scroll (unchanged)          */}
-              {detail.reviews.length > 0 && (
-                <div className="pb-1">
-                  <div className="flex items-center gap-2 mb-5 sm:px-0" style={{ ...MOB_PAD }}>
-                    <Star size={18} fill="#F5D06E" color="#304333" />
-                    <span className="text-xl font-semibold text-[#304333]">{rating}</span>
-                    <span className="text-[#a8a29e]">·</span>
-                    <span className="text-xl font-semibold text-[#304333]">{reviewCount} reviews</span>
-                  </div>
-
-                  {/* Desktop: 2-col grid */}
-                  <div className="hidden sm:grid grid-cols-2 gap-6">
-                    {detail.reviews.map((rev: any, i: number) => (
-                      <div key={i} className="flex flex-col gap-3">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-[#2c4a1e] flex items-center justify-center text-white text-sm font-semibold flex-shrink-0">
-                            {rev.avatar}
-                          </div>
-                          <div>
-                            <p className="text-sm font-semibold text-[#304333]">{rev.name}</p>
-                            <p className="text-xs text-[#78716c]">{rev.years}</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <div className="flex gap-0.5">
-                            {Array.from({ length: rev.rating }).map((_: unknown, j: number) => (
-                              <Star key={j} size={11} fill="#304333" color="#304333" />
-                            ))}
-                          </div>
-                          <span className="text-xs text-[#78716c]">· {rev.date}</span>
-                        </div>
-                        <p className="text-sm text-[#304333] leading-relaxed"
-                          style={{ display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                          {rev.text}
-                        </p>
-                        <button className="text-sm font-semibold text-[#304333] underline text-left"
-                          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
-                          Show more
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Mobile: horizontal scroll */}
-                  <div className="sm:hidden overflow-x-auto -mx-4 px-4" style={{ scrollbarWidth: 'none' }}>
-                    <div className="flex gap-4" style={{ width: 'max-content' }}>
-                      {detail.reviews.map((rev: any, i: number) => (
-                        <div key={i} className="flex-shrink-0 p-4 rounded-2xl bg-white"
-                          style={{ width: 300, border: '1px solid #e8e0d0' }}>
-                          <div className="flex items-center gap-3 mb-3">
-                            <div className="w-10 h-10 rounded-full bg-[#2c4a1e] flex items-center justify-center text-white text-sm font-semibold flex-shrink-0">
-                              {rev.avatar}
-                            </div>
-                            <div>
-                              <p className="text-sm font-semibold text-[#304333]">{rev.name}</p>
-                              <p className="text-xs text-[#78716c]">{rev.years}</p>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2 mb-2">
-                            <div className="flex gap-0.5">
-                              {Array.from({ length: rev.rating }).map((_: unknown, j: number) => (
-                                <Star key={j} size={12} fill="#F5D06E" color="#304333" />
-                              ))}
-                            </div>
-                            <span className="text-xs text-[#78716c]">· {rev.date}</span>
-                          </div>
-                          <p className="text-sm text-[#304333] leading-relaxed"
-                            style={{ display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                            {rev.text}
-                          </p>
-                          <button className="text-xs font-semibold mt-2 underline text-[#304333]"
-                            style={{ background: 'none', border: 'none', cursor: 'pointer' }}>Show more</button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              <Divider />
-
-              {/* ── Meet your host ──
-                  Desktop: host card (left) + co-hosts/details (right) side by side, like Airbnb
-                  Mobile: stacked (unchanged)                                                      */}
-              <div className="pb-1 sm:px-0" style={{ ...MOB_PAD }}>
-                <h2 className="text-xl font-semibold text-[#304333] mb-5">Meet your host</h2>
-
-                {/* Desktop layout: 2-col */}
-                <div className="hidden sm:flex gap-8 items-start">
-                  {/* Left: host card */}
-                  <div className="rounded-2xl p-6 flex-shrink-0" style={{ width: 260, border: '1px solid #e8e0d0', background: 'white' }}>
-                    <div className="flex flex-col items-center mb-4">
-                      <div className="relative mb-2">
-                        <div className="w-16 h-16 rounded-full bg-[#2c4a1e] flex items-center justify-center text-white text-2xl font-bold">
-                          {detail.hostName[0]}
-                        </div>
-                        {detail.isSuperhost && (
-                          <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-red-500 flex items-center justify-center">
-                            <Award size={12} color="white" />
-                          </div>
-                        )}
-                      </div>
-                      <p className="text-xl font-bold text-[#304333]">{detail.hostName}</p>
-                      <p className="text-sm text-[#78716c]">Host</p>
-                    </div>
-                    {/* Stats row */}
-                    <div style={{ borderTop: '1px solid #e8e0d0', paddingTop: 16, display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
-                      <div className="text-center">
-                        <p className="text-xl font-bold text-[#304333]">{reviewCount}</p>
-                        <p style={{ fontSize: 11, color: '#78716c' }}>Reviews</p>
-                      </div>
-                      <div className="text-center" style={{ borderLeft: '1px solid #e8e0d0', borderRight: '1px solid #e8e0d0' }}>
-                        <p className="text-xl font-bold text-[#304333]">{rating}<span style={{ fontSize: 14 }}>★</span></p>
-                        <p style={{ fontSize: 11, color: '#78716c' }}>Rating</p>
-                      </div>
-                      <div className="text-center">
-                        <p className="text-xl font-bold text-[#304333]">{detail.yearsHosting * 12}</p>
-                        <p style={{ fontSize: 11, color: '#78716c' }}>Months</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Right: details */}
-                  <div className="flex-1">
-                    <div className="flex flex-col gap-3 mb-5">
-                      <div className="flex items-center gap-3">
-                        <Globe size={18} strokeWidth={1.5} color="#304333" />
-                        <span className="text-sm text-[#304333]">Speaks {detail.hostSpeaks}</span>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <Heart size={18} strokeWidth={1.5} color="#304333" />
-                        <span className="text-sm text-[#304333]">I'm obsessed with: {detail.hostObsessed}</span>
-                      </div>
-                    </div>
-
-                    {detail.cohostName && (
-                      <div className="mb-4">
-                        <h3 className="text-sm font-semibold text-[#304333] mb-2">Co-hosts</h3>
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-[#3d6b28] flex items-center justify-center text-white text-xs font-semibold">
-                            {detail.cohostName[0]}
-                          </div>
-                          <span className="text-sm text-[#304333]">{detail.cohostName}</span>
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="mb-5">
-                      <h3 className="text-sm font-semibold text-[#304333] mb-1">Host details</h3>
-                      <p className="text-sm text-[#78716c]">Response rate: {detail.responseRate}%</p>
-                      <p className="text-sm text-[#78716c]">Responds {detail.responseTime}</p>
-                    </div>
-
-                    <button onClick={() => router.push('/messages')}
-                      className="py-3 px-6 rounded-xl text-sm font-semibold text-[#304333] transition-colors hover:bg-[#f5f0e6]"
-                      style={{ background: 'transparent', border: '1px solid #304333', cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}>
-                      Message host
-                    </button>
-
-                    <div className="flex items-start gap-2 mt-4">
-                      <Shield size={14} color="#a8a29e" className="flex-shrink-0 mt-0.5" />
-                      <p className="text-xs text-[#78716c]">To protect your payment, always communicate and pay through Erranza.</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Mobile layout: stacked (unchanged) */}
-                <div className="sm:hidden">
-                  <div className="bg-white rounded-2xl p-5 mb-5 shadow-sm" style={{ border: '1px solid #e8e0d0' }}>
-                    <div className="flex items-start gap-4">
-                      <div className="text-center flex-shrink-0">
-                        <div className="w-16 h-16 rounded-full bg-[#2c4a1e] flex items-center justify-center text-white text-2xl font-semibold mb-2">
-                          {detail.hostName[0]}
-                        </div>
-                        <p className="text-lg font-bold text-[#304333] leading-tight">{detail.hostName}</p>
-                        <p className="text-sm text-[#78716c]">Host</p>
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex flex-col gap-3">
-                          <div className="pb-3" style={{ borderBottom: '1px solid #e8e0d0' }}>
-                            <p className="text-xl font-bold text-[#304333]">{reviewCount}</p>
-                            <p className="text-sm text-[#78716c]">Reviews</p>
-                          </div>
-                          <div className="pb-3" style={{ borderBottom: '1px solid #e8e0d0' }}>
-                            <p className="text-xl font-bold text-[#304333]">{rating} <span className="text-base">★</span></p>
-                            <p className="text-sm text-[#78716c]">Rating</p>
-                          </div>
-                          <div>
-                            <p className="text-xl font-bold text-[#304333]">{detail.yearsHosting * 12}</p>
-                            <p className="text-sm text-[#78716c]">Months hosting</p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex flex-col gap-4 mb-5">
-                    <div className="flex items-center gap-3">
-                      <Globe size={20} strokeWidth={1.5} color="#304333" className="flex-shrink-0" />
-                      <span className="text-sm text-[#304333]">Speaks {detail.hostSpeaks}</span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <Heart size={20} strokeWidth={1.5} color="#304333" className="flex-shrink-0" />
-                      <span className="text-sm text-[#304333]">I'm obsessed with: {detail.hostObsessed}</span>
-                    </div>
-                  </div>
-                  {detail.cohostName && (
-                    <div className="mb-5">
-                      <h3 className="text-base font-semibold text-[#304333] mb-3">Co-hosts</h3>
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-[#3d6b28] flex items-center justify-center text-white text-sm font-semibold">
-                          {detail.cohostName[0]}
-                        </div>
-                        <span className="text-base text-[#304333]">{detail.cohostName}</span>
-                      </div>
-                    </div>
-                  )}
-                  <div className="mb-5">
-                    <h3 className="text-base font-semibold text-[#304333] mb-3">Host details</h3>
-                    <p className="text-sm text-[#78716c]">Response rate: {detail.responseRate}%</p>
-                    <p className="text-sm text-[#78716c]">Responds {detail.responseTime}</p>
-                  </div>
-                  <button onClick={() => router.push('/messages')}
-                    className="w-full py-3.5 rounded-xl text-sm font-semibold text-center transition-colors hover:bg-[#ede8df]"
-                    style={{ background: '#F1F5E4', border: 'none', cursor: 'pointer', WebkitTapHighlightColor: 'transparent', color: '#304333' }}>
-                    Message host
-                  </button>
-                  <div className="flex items-start gap-2 mt-4">
-                    <Shield size={14} color="#a8a29e" className="flex-shrink-0 mt-0.5" />
-                    <p className="text-xs text-[#78716c]">To protect your payment, always communicate and pay through Erranza.</p>
-                  </div>
-                </div>
-              </div>
-
-              <Divider />
-
-              {/* ── Things to know ──
-                  Desktop: 3-column with icon above title (Airbnb style)
-                  Mobile: stacked rows with icon + chevron (unchanged)    */}
-              <div className="pb-1 sm:px-0" style={{ ...MOB_PAD }}>
-                <h2 className="text-xl font-semibold text-[#304333] mb-6">Things to know</h2>
-
-                {/* Desktop 3-col */}
-                <div className="hidden sm:grid grid-cols-3 gap-8">
-                  {[
-                    { icon: <Calendar size={24} strokeWidth={1.5} />, title: 'Cancellation policy', items: ['Cancel before check-in for a partial refund.', 'After that, this reservation is non-refundable.', "Review this host's full policy for details."] },
-                    { icon: <Home size={24} strokeWidth={1.5} />, title: 'House rules', items: ['Check-in after 2:00 PM', 'Checkout before 11:00 AM', `${detail.guests} guests maximum`] },
-                    { icon: <Shield size={24} strokeWidth={1.5} />, title: 'Safety & property', items: ['Smoke alarm not reported', 'Exterior security cameras on property', 'Carbon monoxide alarm'] },
-                  ].map(({ icon, title: st, items }) => (
-                    <div key={st}>
-                      <div className="mb-3 text-[#304333]">{icon}</div>
-                      <p className="text-sm font-semibold text-[#304333] mb-2">{st}</p>
-                      {items.map(item => <p key={item} className="text-sm text-[#78716c] mb-1">{item}</p>)}
-                      <button className="text-sm font-semibold text-[#304333] underline mt-2"
-                        style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Learn more</button>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Mobile stacked rows */}
-                <div className="sm:hidden">
-                  {[
-                    { icon: <Calendar size={22} strokeWidth={1.5} />, title: 'Cancellation policy', items: ['Cancel before check-in for a partial refund.', 'After that, this reservation is non-refundable.', "Review this host's full policy for details."] },
-                    { icon: <Home size={22} strokeWidth={1.5} />, title: 'House rules', items: ['Check-in after 2:00 PM', 'Checkout before 11:00 AM', `${detail.guests} guests maximum`] },
-                    { icon: <Shield size={22} strokeWidth={1.5} />, title: 'Safety & property', items: ['Smoke alarm not reported', 'Exterior security cameras on property', 'Carbon monoxide alarm'] },
-                  ].map(({ icon, title: st, items }) => (
-                    <div key={st} className="flex items-start gap-4 py-4" style={{ borderBottom: '1px solid #e8e0d0' }}>
-                      <span className="text-[#304333] flex-shrink-0 mt-0.5">{icon}</span>
-                      <div className="flex-1">
-                        <p className="text-sm font-semibold text-[#304333] mb-1">{st}</p>
-                        {items.map(item => <p key={item} className="text-sm text-[#78716c]">{item}</p>)}
-                      </div>
-                      <ChevronRight size={18} color="#a8a29e" className="flex-shrink-0 mt-0.5" />
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <Divider />
-
-              {/* ── Explore nearby ── */}
-              <div className="pb-4 sm:px-0" style={{ ...MOB_PAD }}>
-                <h2 className="text-xl font-semibold text-[#304333] mb-4">
-                  Explore other options in and around {location.split(',')[0]}
-                </h2>
-                <div className="grid grid-cols-2 gap-x-8 gap-y-3">
-                  {['Nairobi', 'Diani Beach', 'Mombasa', 'Zanzibar', 'Malindi', 'Watamu', 'Karen', 'Westlands'].map(place => (
-                    <button key={place} className="text-left"
-                      style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, WebkitTapHighlightColor: 'transparent' }}>
-                      <p className="text-sm font-semibold text-[#304333]">{place}</p>
-                      <p className="text-xs text-[#78716c]">Vacation rentals</p>
-                    </button>
-                  ))}
-                </div>
-              </div>
+              {/* Divider /> */}
             </div>
 
             {/* ══ DESKTOP BOOKING SIDEBAR ══
                 Airbnb style: shows total for X nights when dates selected,
                 otherwise per-night price. No nights stepper on desktop.   */}
-            <div className="hidden lg:block">
+            <div className="hidden md:block">
               <div className="sticky top-24 mt-6">
                 <div className="rounded-2xl shadow-xl p-6 bg-white" style={{ border: '1px solid #e8e0d0' }}>
 
@@ -1257,13 +915,372 @@ export default function StayDetailPage({ params }: Props) {
                 </div>
               </div>
             </div>
-
           </div>
+        </div>
+
+        <Divider />
+
+        <div className="sm:px-6 md:px-8 xl:px-20 max-w-7xl mx-auto">
+
+
+          {/* Zone 2 */}
+          {/* ── Calendar ──
+                  Desktop: 2-month side-by-side 
+                  Mobile: single month (unchanged)               */}
+          <div className="pb-1 sm:px-0" style={{ ...MOB_PAD }}>
+            <h2 className="text-xl font-semibold text-[#304333] mb-1">
+              {checkIn && checkOut
+                ? `${calNights} night${calNights !== 1 ? 's' : ''} in ${location.split(',')[0]}`
+                : 'Select dates'}
+            </h2>
+            {checkIn && checkOut && (
+              <p className="text-sm text-[#78716c] mb-3">
+                {fmtDateFull(checkIn)} – {fmtDateFull(checkOut)}
+              </p>
+            )}
+            {!checkIn && (
+              <p className="text-sm text-[#78716c] mb-4">Add your travel dates for exact pricing</p>
+            )}
+
+            {/* Desktop: 2-month calendar */}
+            <div className="hidden sm:block mt-4">
+              <DesktopCalendar checkIn={checkIn} checkOut={checkOut} onSelect={handleCalSelect} />
+            </div>
+            {/* Mobile: single month */}
+            <div className="sm:hidden mt-4">
+              <MiniCalendar checkIn={checkIn} checkOut={checkOut} onSelect={handleCalSelect} />
+            </div>
+
+            {(checkIn || checkOut) && (
+              <button onClick={() => { setCheckIn(null); setCheckOut(null) }}
+                className="mt-3 text-sm font-semibold text-[#304333] underline"
+                style={{ background: 'none', border: 'none', cursor: 'pointer', WebkitTapHighlightColor: 'transparent', padding: 0 }}>
+                Clear dates
+              </button>
+            )}
+          </div>
+
+          <Divider />
+
+          {/* ── Map ── */}
+          <div className="pb-1 sm:px-0" style={{ ...MOB_PAD }}>
+            <h2 className="text-xl font-semibold text-[#304333] mb-1">Where you'll be</h2>
+            <p className="text-sm text-[#78716c] mb-4 flex items-center gap-1">
+              <MapPin size={13} /> {location}
+            </p>
+            <MapComponent lat={detail.lat} lng={detail.lng} label={title} />
+            <p className="text-sm text-[#78716c] mt-3">{location} · Exact address provided after booking</p>
+          </div>
+
+          <Divider />
+
+
+          {/* ── Reviews ──
+                  Desktop: 2-column grid
+                  Mobile: horizontal scroll (unchanged)          */}
+          {detail.reviews.length > 0 && (
+            <div className="pb-1">
+              <div className="flex items-center gap-2 mb-5 sm:px-0" style={{ ...MOB_PAD }}>
+                <Star size={18} fill="#F5D06E" color="#304333" />
+                <span className="text-xl font-semibold text-[#304333]">{rating}</span>
+                <span className="text-[#a8a29e]">·</span>
+                <span className="text-xl font-semibold text-[#304333]">{reviewCount} reviews</span>
+              </div>
+
+              {/* Desktop: 2-col grid */}
+              <div className="hidden sm:grid grid-cols-2 gap-6">
+                {detail.reviews.map((rev: any, i: number) => (
+                  <div key={i} className="flex flex-col gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-[#2c4a1e] flex items-center justify-center text-white text-sm font-semibold flex-shrink-0">
+                        {rev.avatar}
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-[#304333]">{rev.name}</p>
+                        <p className="text-xs text-[#78716c]">{rev.years}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="flex gap-0.5">
+                        {Array.from({ length: rev.rating }).map((_: unknown, j: number) => (
+                          <Star key={j} size={11} fill="#304333" color="#304333" />
+                        ))}
+                      </div>
+                      <span className="text-xs text-[#78716c]">· {rev.date}</span>
+                    </div>
+                    <p className="text-sm text-[#304333] leading-relaxed"
+                      style={{ display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                      {rev.text}
+                    </p>
+                    <button className="text-sm font-semibold text-[#304333] underline text-left"
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                      Show more
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              {/* Mobile: horizontal scroll */}
+              <div className="sm:hidden overflow-x-auto -mx-4 px-4" style={{ scrollbarWidth: 'none' }}>
+                <div className="flex gap-4" style={{ width: 'max-content' }}>
+                  {detail.reviews.map((rev: any, i: number) => (
+                    <div key={i} className="flex-shrink-0 p-4 rounded-2xl bg-white"
+                      style={{ width: 300, border: '1px solid #e8e0d0' }}>
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className="w-10 h-10 rounded-full bg-[#2c4a1e] flex items-center justify-center text-white text-sm font-semibold flex-shrink-0">
+                          {rev.avatar}
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold text-[#304333]">{rev.name}</p>
+                          <p className="text-xs text-[#78716c]">{rev.years}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="flex gap-0.5">
+                          {Array.from({ length: rev.rating }).map((_: unknown, j: number) => (
+                            <Star key={j} size={12} fill="#F5D06E" color="#304333" />
+                          ))}
+                        </div>
+                        <span className="text-xs text-[#78716c]">· {rev.date}</span>
+                      </div>
+                      <p className="text-sm text-[#304333] leading-relaxed"
+                        style={{ display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                        {rev.text}
+                      </p>
+                      <button className="text-xs font-semibold mt-2 underline text-[#304333]"
+                        style={{ background: 'none', border: 'none', cursor: 'pointer' }}>Show more</button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          <Divider />
+
+          {/* ── Meet your host ──
+                  Desktop: host card (left) + co-hosts/details (right)
+                  Mobile: stacked (unchanged)                                                      */}
+          <div className="pb-1 sm:px-0" style={{ ...MOB_PAD }}>
+            <h2 className="text-xl font-semibold text-[#304333] mb-5">Meet your host</h2>
+
+            {/* Desktop layout: 2-col */}
+            <div className="hidden sm:flex gap-8 items-start">
+              {/* Left: host card */}
+              <div className="rounded-2xl p-6 flex-shrink-0" style={{ width: 260, border: '1px solid #e8e0d0', background: 'white' }}>
+                <div className="flex flex-col items-center mb-4">
+                  <div className="relative mb-2">
+                    <div className="w-16 h-16 rounded-full bg-[#2c4a1e] flex items-center justify-center text-white text-2xl font-bold">
+                      {detail.hostName[0]}
+                    </div>
+                    {detail.isSuperhost && (
+                      <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-red-500 flex items-center justify-center">
+                        <Award size={12} color="white" />
+                      </div>
+                    )}
+                  </div>
+                  <p className="text-xl font-bold text-[#304333]">{detail.hostName}</p>
+                  <p className="text-sm text-[#78716c]">Host</p>
+                </div>
+                {/* Stats row */}
+                <div style={{ borderTop: '1px solid #e8e0d0', paddingTop: 16, display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+                  <div className="text-center">
+                    <p className="text-xl font-bold text-[#304333]">{reviewCount}</p>
+                    <p style={{ fontSize: 11, color: '#78716c' }}>Reviews</p>
+                  </div>
+                  <div className="text-center" style={{ borderLeft: '1px solid #e8e0d0', borderRight: '1px solid #e8e0d0' }}>
+                    <p className="text-xl font-bold text-[#304333]">{rating}<span style={{ fontSize: 14 }}>★</span></p>
+                    <p style={{ fontSize: 11, color: '#78716c' }}>Rating</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-xl font-bold text-[#304333]">{detail.yearsHosting * 12}</p>
+                    <p style={{ fontSize: 11, color: '#78716c' }}>Months</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Right: details */}
+              <div className="flex-1">
+                <div className="flex flex-col gap-3 mb-5">
+                  <div className="flex items-center gap-3">
+                    <Globe size={18} strokeWidth={1.5} color="#304333" />
+                    <span className="text-sm text-[#304333]">Speaks {detail.hostSpeaks}</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Heart size={18} strokeWidth={1.5} color="#304333" />
+                    <span className="text-sm text-[#304333]">I'm obsessed with: {detail.hostObsessed}</span>
+                  </div>
+                </div>
+
+                {detail.cohostName && (
+                  <div className="mb-4">
+                    <h3 className="text-sm font-semibold text-[#304333] mb-2">Co-hosts</h3>
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-[#3d6b28] flex items-center justify-center text-white text-xs font-semibold">
+                        {detail.cohostName[0]}
+                      </div>
+                      <span className="text-sm text-[#304333]">{detail.cohostName}</span>
+                    </div>
+                  </div>
+                )}
+
+                <div className="mb-5">
+                  <h3 className="text-sm font-semibold text-[#304333] mb-1">Host details</h3>
+                  <p className="text-sm text-[#78716c]">Response rate: {detail.responseRate}%</p>
+                  <p className="text-sm text-[#78716c]">Responds {detail.responseTime}</p>
+                </div>
+
+                <button onClick={() => router.push('/messages')}
+                  className="py-3 px-6 rounded-xl text-sm font-semibold text-[#304333] transition-colors hover:bg-[#f5f0e6]"
+                  style={{ background: 'transparent', border: '1px solid #304333', cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}>
+                  Message host
+                </button>
+
+                <div className="flex items-start gap-2 mt-4">
+                  <Shield size={14} color="#a8a29e" className="flex-shrink-0 mt-0.5" />
+                  <p className="text-xs text-[#78716c]">To protect your payment, always communicate and pay through Erranza.</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Mobile layout: stacked (unchanged) */}
+            <div className="sm:hidden">
+              <div className="bg-white rounded-2xl p-5 mb-5 shadow-sm" style={{ border: '1px solid #e8e0d0' }}>
+                <div className="flex items-start gap-4">
+                  <div className="text-center flex-shrink-0">
+                    <div className="w-16 h-16 rounded-full bg-[#2c4a1e] flex items-center justify-center text-white text-2xl font-semibold mb-2">
+                      {detail.hostName[0]}
+                    </div>
+                    <p className="text-lg font-bold text-[#304333] leading-tight">{detail.hostName}</p>
+                    <p className="text-sm text-[#78716c]">Host</p>
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex flex-col gap-3">
+                      <div className="pb-3" style={{ borderBottom: '1px solid #e8e0d0' }}>
+                        <p className="text-xl font-bold text-[#304333]">{reviewCount}</p>
+                        <p className="text-sm text-[#78716c]">Reviews</p>
+                      </div>
+                      <div className="pb-3" style={{ borderBottom: '1px solid #e8e0d0' }}>
+                        <p className="text-xl font-bold text-[#304333]">{rating} <span className="text-base">★</span></p>
+                        <p className="text-sm text-[#78716c]">Rating</p>
+                      </div>
+                      <div>
+                        <p className="text-xl font-bold text-[#304333]">{detail.yearsHosting * 12}</p>
+                        <p className="text-sm text-[#78716c]">Months hosting</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="flex flex-col gap-4 mb-5">
+                <div className="flex items-center gap-3">
+                  <Globe size={20} strokeWidth={1.5} color="#304333" className="flex-shrink-0" />
+                  <span className="text-sm text-[#304333]">Speaks {detail.hostSpeaks}</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Heart size={20} strokeWidth={1.5} color="#304333" className="flex-shrink-0" />
+                  <span className="text-sm text-[#304333]">I'm obsessed with: {detail.hostObsessed}</span>
+                </div>
+              </div>
+              {detail.cohostName && (
+                <div className="mb-5">
+                  <h3 className="text-base font-semibold text-[#304333] mb-3">Co-hosts</h3>
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-[#3d6b28] flex items-center justify-center text-white text-sm font-semibold">
+                      {detail.cohostName[0]}
+                    </div>
+                    <span className="text-base text-[#304333]">{detail.cohostName}</span>
+                  </div>
+                </div>
+              )}
+              <div className="mb-5">
+                <h3 className="text-base font-semibold text-[#304333] mb-3">Host details</h3>
+                <p className="text-sm text-[#78716c]">Response rate: {detail.responseRate}%</p>
+                <p className="text-sm text-[#78716c]">Responds {detail.responseTime}</p>
+              </div>
+              <button onClick={() => router.push('/messages')}
+                className="w-full py-3.5 rounded-xl text-sm font-semibold text-center transition-colors hover:bg-[#ede8df]"
+                style={{ background: '#F1F5E4', border: 'none', cursor: 'pointer', WebkitTapHighlightColor: 'transparent', color: '#304333' }}>
+                Message host
+              </button>
+              <div className="flex items-start gap-2 mt-4">
+                <Shield size={14} color="#a8a29e" className="flex-shrink-0 mt-0.5" />
+                <p className="text-xs text-[#78716c]">To protect your payment, always communicate and pay through Erranza.</p>
+              </div>
+            </div>
+          </div>
+
+          <Divider />
+
+          {/* ── Things to know ──
+                  Desktop: 3-column with icon above title (Airbnb style)
+                  Mobile: stacked rows with icon + chevron (unchanged)    */}
+          <div className="pb-1 sm:px-0" style={{ ...MOB_PAD }}>
+            <h2 className="text-xl font-semibold text-[#304333] mb-6">Things to know</h2>
+
+            {/* Desktop 3-col */}
+            <div className="hidden sm:grid grid-cols-3 gap-8">
+              {[
+                { icon: <CalendarX2 size={32} strokeWidth={1.5} />, title: 'Cancellation policy', items: ['Cancel before check-in for a partial refund.', 'After that, this reservation is non-refundable.', "Review this host's full policy for details."] },
+                { icon: <Key size={32} strokeWidth={1.5} />, title: 'House rules', items: ['Check-in after 2:00 PM', 'Checkout before 11:00 AM', `${detail.guests} guests maximum`] },
+                { icon: <ShieldHalf size={32} strokeWidth={1.5} />, title: 'Safety & property', items: ['Smoke alarm not reported', 'Exterior security cameras on property', 'Carbon monoxide alarm'] },
+              ].map(({ icon, title: st, items }) => (
+                <div key={st}>
+                  <div className="mb-4 text-[#222]">{icon}</div>
+                  <p className="text-base font-semibold text-[#222] mb-3">{st}</p>
+                  {items.map(item => <p key={item} className="text-sm text-[#78716c] mb-0.5">{item}</p>)}
+                  <button className="text-sm font-semibold text-[#222] underline mt-3"
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Learn more</button>
+                </div>
+              ))}
+            </div>
+
+
+            {/* Mobile stacked rows */}
+            <div className="sm:hidden">
+              {[
+                { icon: <Calendar size={22} strokeWidth={1.5} />, title: 'Cancellation policy', items: ['Cancel before check-in for a partial refund.', 'After that, this reservation is non-refundable.', "Review this host's full policy for details."] },
+                { icon: <Home size={22} strokeWidth={1.5} />, title: 'House rules', items: ['Check-in after 2:00 PM', 'Checkout before 11:00 AM', `${detail.guests} guests maximum`] },
+                { icon: <Shield size={22} strokeWidth={1.5} />, title: 'Safety & property', items: ['Smoke alarm not reported', 'Exterior security cameras on property', 'Carbon monoxide alarm'] },
+              ].map(({ icon, title: st, items }) => (
+                <div key={st} className="flex items-start gap-4 py-4" style={{ borderBottom: '1px solid #e8e0d0' }}>
+                  <span className="text-[#304333] flex-shrink-0 mt-0.5">{icon}</span>
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold text-[#304333] mb-1">{st}</p>
+                    {items.map(item => <p key={item} className="text-sm text-[#78716c]">{item}</p>)}
+                  </div>
+                  <ChevronRight size={18} color="#a8a29e" className="flex-shrink-0 mt-0.5" />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <Divider />
+
+          {/* ── Explore nearby ── */}
+          <div className="pb-4 sm:px-0" style={{ ...MOB_PAD }}>
+            <h2 className="text-xl font-semibold text-[#304333] mb-4">
+              Explore other options in and around {location.split(',')[0]}
+            </h2>
+            <div className="grid grid-cols-2 gap-x-8 gap-y-3">
+              {['Nairobi', 'Diani Beach', 'Mombasa', 'Zanzibar', 'Malindi', 'Watamu', 'Karen', 'Westlands'].map(place => (
+                <button key={place} className="text-left"
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, WebkitTapHighlightColor: 'transparent' }}>
+                  <p className="text-sm font-semibold text-[#304333]">{place}</p>
+                  <p className="text-xs text-[#78716c]">Vacation rentals</p>
+                </button>
+              ))}
+
+            </div>
+          </div>
+
         </div>
       </div>
 
+
+
       {/* ══ MOBILE STICKY BOTTOM BAR — completely unchanged ══ */}
-      <div className="lg:hidden flex-shrink-0 bg-white flex items-center justify-between px-5"
+      <div className="md:hidden flex-shrink-0 bg-white flex items-center justify-between px-5"
         style={{ borderTop: '1px solid #e8e0d0', paddingTop: 14, paddingBottom: 'calc(14px + env(safe-area-inset-bottom, 0px))', zIndex: 50 }}>
         <div>
           <div className="flex items-baseline gap-1">

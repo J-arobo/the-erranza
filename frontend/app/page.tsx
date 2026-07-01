@@ -48,7 +48,7 @@ export default function Home() {
         <div key={slug}>
 
           {/* Header */}
-          <div className="flex items-center justify-between px-4 sm:px-10 md:px-14 lg:px-20 pt-5 pb-2">
+          <div className="flex items-center justify-between px-6 sm:px-12 md:px-16 lg:px-20 pt-5 pb-2">
             <h2 className="text-[15px] sm:text-[17px] font-bold text-[#1a1a1a]">
               {title}
             </h2>
@@ -63,12 +63,12 @@ export default function Home() {
           </div>
 
           {/* Scroll wrapper - NO padding here, clips cards at margin */}
-          <div className="px-4 sm:px-10 md:px-14 lg:px-20 overflow-hidden pb-4">
+          <div className="px-6 sm:px-12 md:px-16 lg:px-20 overflow-hidden pb-4">
             <div className="overflow-x-auto scrollbar-hide">
               {/* Flex row - padding here aligns first card with header */}
-              <div className="flex gap-3 pr-4 sm:pr-10 md:pr-14 lg:pr-20"> {/* xl:px-24 pb-4 overflow-x-auto scrollbar-hide */}
+              <div className="6"> {/* xl:px-24 pb-4 overflow-x-auto scrollbar-hide */}
                 {data.slice(0, 10).map((item) => (
-                  <div key={item.id} className="flex-shrink-0 w-[30vw] sm:w-[23vw] md:w-[20vw] lg:w-[16vw] xl:w-[14vw]">
+                  <div key={item.id} className="flex-shrink-0 w-[36vw] sm:w-[26vw] md:w-[22vw] lg:w-[17vw] xl:w-[13vw]">
                     <ListingCard
                       {...item}
                       listingCategory={category}
@@ -77,7 +77,7 @@ export default function Home() {
                 ))}
                 <button
                   onClick={() => router.push(`/destinations/${slug}`)}
-                  className="flex-shrink-0 w-[30vw] sm:w-[23vw] md:w-[20vw] lg:w-[16vw] xl:w-[14vw] rounded-2xl border
+                  className="flex-shrink-0 w-[36vw] sm:w-[26vw] md:w-[22vw] lg:w-[17vw] xl:w-[13vw] rounded-2xl border
                border-[#e0d9cc] bg-white flex flex-col items-center
                justify-center gap-2 hover:bg-[#f5f0e8] transition-colors"
                 >

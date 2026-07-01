@@ -1,9 +1,15 @@
 'use client'
 import { useState } from 'react'
 import AppShell from '@/components/AppShell'
-import ListingRow from '@/components/ListingRow'
+import ListingCard from '@/components/ListingCard'
 import FooterSection from '@/components/FooterSection'
 import { stays } from '@/data/stays'
+import { ArrowRight } from 'lucide-react'
+import { ChevronRight } from 'lucide-react'
+
+
+
+
 
 const filterTabs = ['All', 'Budget', 'Premium', 'Family', 'Solo']
 
@@ -44,9 +50,10 @@ export default function StaysPage() {
 
   return (
     <AppShell showCollapse={false}>
-      <div className="py-4 bg-[#ffffff] min-h-full overflow-x-hidden w-full">
-  
+      <div className="pt-4 bg-[#ffffff] min-h-full overflow-x-hidden w-full">
+
         {/* Filter tabs */}
+        {/* 
         <div className="flex gap-2 overflow-x-auto scrollbar-hide mb-5 px-4 sm:px-6">
           {filterTabs.map((tab) => (
             <button
@@ -62,13 +69,15 @@ export default function StaysPage() {
             </button>
           ))}
         </div>
-  
+        
+        */}
+
         {search ? (
           <div className="px-4 sm:px-6 pb-6">
             <p className="text-sm text-gray-400 mb-4">{filtered.length} results</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {filtered.map(item => (
-                <ListingRow key={item.id} {...item} listingCategory="stays" />
+                <ListingCard key={item.id} {...item} listingCategory="stays" />
               ))}
             </div>
           </div>
@@ -78,32 +87,62 @@ export default function StaysPage() {
             if (items.length === 0) return null
             return (
               <div key={title} className="mb-8">
-                <h2 className="text-base font-bold text-[#1a1a1a] px-4 sm:px-6 mb-3">
-                  {title}
-                </h2>
-  
-                {/* Mobile: full-width horizontal scroll — NO padding on wrapper */}
-                <div className="sm:hidden w-full overflow-x-auto scrollbar-hide pb-2">
-                  <div className="flex gap-3 px-4"
-                       style={{ width: 'max-content' }}>
-                    {items.map(item => (
-                      <AirbnbCard key={item.id} {...item} />
-                    ))}
-                  </div>
+                <div className='flex items-center gap-2 px-4 sm:px-8 md:px-12 lg:px-52 mb-3 w-fit'>
+                  <h2 className="text-base font-bold text-[#1a1a1a] ">
+                    {title}
+                  </h2>
+                  <button className='w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors flex-shrink-0' >
+                    <ArrowRight size={14} color="#1a1a1a" />
+                  </button>
                 </div>
-  
-                {/* Desktop: grid */}
-                <div className="hidden sm:grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4
-                                gap-4 px-4 sm:px-6">
-                  {items.map(item => (
-                    <ListingRow key={item.id} {...item} listingCategory="stays" />
-                  ))}
+
+                {/* Scroll */}
+                <div className='px-4 sm:px-8=4 md:px-12 lg:px-52 overflow-hidden pb-4'>
+                  <div className='overflow-x-auto scrollbar-hide'>
+                    <div className="flex gap-3 pr-4 sm:pr-4 md:pr-12 lg:pr-52">
+                      {items.map(item => (
+                        <div key={item.id}
+                          className="flex-shrink-0
+                          w-[calc((100vw-44px)/2)]
+                          sm:w-[calc((100vw-88px)/3)]
+                          md:w-[calc((100vw-132px)/4)]
+                          lg:w-[calc((100vw-164px)/4)]
+                          xl:w-[calc((100vw-464px)/5)]">
+                          <ListingCard {...item} listingCategory="stays" />
+                        </div>
+                      ))}
+
+                      {/* Show all card */}
+                      <div className="flex-shrink-0
+                            w-[calc((100vw-44px)/2)]
+                            sm:w-[calc((100vw-120px)/3)]
+                            md:w-[calc((100vw-164px)/4)]
+                            lg:w-[calc((100vw-452px)/4)]
+                            xl:w-[calc((100vw-464px)/5)]">
+                        <div className="relative w-full aspect-[3/2] rounded-xl border border-[#e0d9cc]
+                            bg-[#f5f0e8] flex flex-col items-center justify-center gap-2
+                            hover:bg-[#ece8e0] transition-colors cursor-pointer">
+                          <div className="w-10 h-10 rounded-full bg-[#2c4a1e22] flex items-center justify-center">
+                            <ChevronRight size={18} color="#2c4a1e" />
+                          </div>
+                          <span className="text-xs font-semibold text-[#2c4a1e]">Show all</span>
+                        </div>
+                        <div className="pt-2">
+                          <p className="text-[13px] invisible">·</p>
+                          <p className="text-[12px] invisible">·</p>
+                          <p className="text-[12px] invisible">·</p>
+                        </div>
+                      </div>
+                    </div>
+
+                  </div>
+
                 </div>
               </div>
             )
           })
         )}
-  
+
         <FooterSection />
       </div>
     </AppShell>
@@ -139,7 +178,7 @@ function AirbnbCard({ id, location, title, price, rating, image, badge }: typeof
     >
       {/* Image — 4:3 ratio like homepage */}
       <div className="relative bg-[#e0d9cc] overflow-hidden"
-           style={{ width: '148px', height: '111px' }}>
+        style={{ width: '148px', height: '111px' }}>
         <img src={image} alt={title} className="w-full h-full object-cover" />
         {badge && (
           <span className="absolute top-2 left-2 bg-white text-[#1a1a1a] text-[9px]
@@ -180,7 +219,7 @@ function AirbnbCard({ id, location, title, price, rating, image, badge }: typeof
           </p>
           <div className="flex items-center gap-0.5">
             <svg width="10" height="10" viewBox="0 0 24 24" fill="#1a1a1a">
-              <path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 21 12 17.77 5.82 21 7 14.14 2 9.27l6.91-1.01L12 2z"/>
+              <path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 21 12 17.77 5.82 21 7 14.14 2 9.27l6.91-1.01L12 2z" />
             </svg>
             <span className="text-[11px] font-semibold text-[#1a1a1a]">{rating}</span>
           </div>

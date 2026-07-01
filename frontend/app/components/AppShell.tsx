@@ -205,7 +205,6 @@ export default function AppShell({ children, showCollapse = false }: Props) {
           overflowY: 'scroll',
           overflowX: 'hidden',
           WebkitOverflowScrolling: 'touch',
-          paddingBottom: '80px',
         }}
       >
         {children}

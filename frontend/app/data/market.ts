@@ -40,7 +40,7 @@ export const market: Listing[] = [
     title: 'Hand-carved sculptures',
     price: '$50–$300',
     rating: 4.7,
-    image: 'https://images.unsplash.com/photo-1605494741916-e7412a917c65?w=400&q=80',
+    image: 'https://images.unsplash.com/photo-1661818784051-52e598640a35?w=400&q=80',
   },
   {
     id: '6',

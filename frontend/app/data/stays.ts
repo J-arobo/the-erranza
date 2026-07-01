@@ -82,7 +82,7 @@ export const stays: Listing[] = [
     title: 'Seafront bungalow',
     price: 'Ksh 14,000',
     rating: 4.92,
-    image: 'https://images.unsplash.com/photo-1582610116397-edb72a8b8a6a?w=400&q=80',
+    image: 'https://images.unsplash.com/photo-1712504220597-dc840c3e460a?w=400&q=80',
     badge: 'Popular',
   },
   {

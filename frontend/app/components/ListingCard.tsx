@@ -37,12 +37,12 @@ export default function ListingCard(listing: Props) {
       onClick={handleTap}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
-      className="flex-shrink-0 w-full bg-white rounded-2xl overflow-hidden
-                 border border-[#f0ece4] hover:shadow-lg transition-all
+      className="flex-shrink-0 w-full overflow-hidden
+                transition-all
                  cursor-pointer active:scale-[0.98] group text-left"
       style={{ WebkitTapHighlightColor: 'transparent' }}
     >
-      <div className="relative w-full aspect-[4/3] bg-[#e0d9cc] overflow-hidden">
+      <div className="relative w-full aspect-[3/2] rounded-xl bg-[#e0d9cc] overflow-hidden">
         <Image
           src={image} alt={title} fill
           sizes="(max-width: 640px) 90vw, (max-width: 1024px) 45vw, 30vw"
@@ -56,22 +56,14 @@ export default function ListingCard(listing: Props) {
         )}
         <HeartButton listing={listing} size={26} className="absolute top-3 right-3 z-10" />
       </div>
-      <div className="p-3">
-        <p className="text-[10px] text-gray-400 mb-0.5 truncate">{location}</p>
-        <p className="text-[13px] font-semibold text-[#1a1a1a] leading-snug mb-1 line-clamp-2">
-          {title}
+      <div className="pt-2">
+        <p className="text-[13px] text-[#222] font-semibold line-clamp-2 leading-snug ">{title}</p>
+        <p className="text-[12px] font-semibold text-gray-500 truncate mt-0.5">
+        {location}
         </p>
-        <div className="flex justify-between items-center">
-          <p className="text-[12px] text-[#1a1a1a]">
-            <span className="font-semibold">{price}</span>
-          </p>
-          <div className="flex items-center gap-0.5">
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="#1a1a1a">
-              <path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 21 12 17.77 5.82 21 7 14.14 2 9.27l6.91-1.01L12 2z"/>
-            </svg>
-            <span className="text-[12px] font-semibold text-[#1a1a1a]">{rating}</span>
-          </div>
-        </div>
+        <p className="text-[12px] text-gray-500 mt-0.5">
+          {price} . <span>★ {rating}</span>
+        </p>
       </div>
     </div>
   )
