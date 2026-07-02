@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 import { stays } from '@/data/stays'
 import { useAuth } from '@/context/AuthContext'
+import FooterSection from '@/components/FooterSection'
 
 const MapComponent = dynamic(() => import('@/components/MapComponent'), {
   ssr: false,
@@ -402,6 +403,8 @@ export default function StayDetailPage({ params }: Props) {
   const [checkIn, setCheckIn] = useState<Date | null>(null)
   const [checkOut, setCheckOut] = useState<Date | null>(null)
   const [desktopNavVisible, setDesktopNavVisible] = useState(false)
+  const [showSidebarCal, setShowSidebarCal] = useState(false)
+  const [sidebarActiveField, setSidebarActiveField] = useState<'checkin' | 'checkout'>('checkin')
   const scrollRef = useRef<HTMLDivElement>(null)
   const photoGridRef = useRef<HTMLDivElement>(null)
 
@@ -449,6 +452,16 @@ export default function StayDetailPage({ params }: Props) {
     if (!checkIn || (checkIn && checkOut)) { setCheckIn(date); setCheckOut(null) }
     else if (date <= checkIn) { setCheckIn(date); setCheckOut(null) }
     else setCheckOut(date)
+  }
+  {/* Side calendar for the scrollable panel */ }
+  function handleSidebarCalSelect(date: Date) {
+    if (sidebarActiveField === 'checkin' || !checkIn || (checkIn && checkOut)) {
+      setCheckIn(date); setCheckOut(null); setSidebarActiveField('checkout')
+    } else if (date <= checkIn) {
+      setCheckIn(date); setCheckOut(null); setSidebarActiveField('checkout')
+    } else {
+      setCheckOut(date); setShowSidebarCal(false)
+    }
   }
   function handleWishlist(e: React.MouseEvent) {
     e.stopPropagation()
@@ -549,13 +562,13 @@ export default function StayDetailPage({ params }: Props) {
 
       {/* ── SCROLLABLE CONTENT ── */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto overflow-x-hidden "
-        style={{ WebkitOverflowScrolling: 'touch', paddingBottom: 100, background: '#FEFDFC' }}>
+        style={{ WebkitOverflowScrolling: 'touch', paddingBottom: 0, background: '#FEFDFC' }}>
 
         {/* ══ MOBILE photo carousel — completely unchanged ══ */}
         <div className="sm:hidden relative" style={{ aspectRatio: '4/3', width: '100%' }}>
           <Image src={images[activeImg]} alt={title} fill sizes="100vw"
             className="object-cover" onClick={() => setShowGallery(true)} />
-          <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-4"
+          <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-4 z-10"
             style={{ paddingTop: 'max(48px, env(safe-area-inset-top, 48px))', paddingBottom: 12 }}>
             <button onClick={() => router.back()}
               className="w-9 h-9 rounded-full flex items-center justify-center"
@@ -574,7 +587,7 @@ export default function StayDetailPage({ params }: Props) {
               </button>
             </div>
           </div>
-          <div className="absolute bottom-4 right-4 flex items-center gap-1.5 bg-black/60 text-white text-xs font-semibold px-2.5 py-1.5 rounded-full">
+          <div className="absolute bottom-8 right-4 flex items-center gap-1.5 bg-black/60 text-white text-xs font-semibold px-2.5 py-1.5 rounded-full">
             <Camera size={12} />{activeImg + 1} / {images.length}
           </div>
           <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-1.5">
@@ -662,7 +675,7 @@ export default function StayDetailPage({ params }: Props) {
         {/* ══════════════════════════════════════════════════════
             PAGE LAYOUT — 2-col desktop, single col mobile
         ══════════════════════════════════════════════════════ */}
-        <div className="sm:px-6 lg:px-8 xl:px-20 max-w-7xl mx-auto">
+        <div className="sm:px-6 lg:px-8 xl:px-20 max-w-7xl mx-auto -mt-5 sm:mt-0 rounded-t-3xl sm:rounded-none bg-[#FEFDFC] sm:bg-transparent relative">
           <div className="md:grid md:gap-12" style={{ gridTemplateColumns: '1fr 380px' }}>
 
             {/* ══ LEFT COLUMN ══ */}
@@ -842,30 +855,55 @@ export default function StayDetailPage({ params }: Props) {
                   )}
 
                   {/* Date + guests picker */}
-                  <div className="rounded-xl overflow-hidden mb-4" style={{ border: '1px solid #b0a898' }}>
-                    <div className="grid grid-cols-2" style={{ borderBottom: '1px solid #b0a898' }}>
-                      <div className="p-3 cursor-pointer hover:bg-[#f9f5ef] transition-colors"
-                        style={{ borderRight: '1px solid #b0a898' }}>
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-[#304333] mb-0.5">Check-in</p>
-                        <p className="text-sm font-semibold" style={{ color: checkIn ? '#304333' : '#78716c' }}>
-                          {checkIn ? checkIn.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' }) : 'Add date'}
-                        </p>
+                  <div className="relative mb-4">
+                    <div className="rounded-xl overflow-hidden" style={{ border: '1px solid #b0a898' }}>
+                      <div className="grid grid-cols-2" style={{ borderBottom: '1px solid #b0a898' }}>
+                        <div className="p-3 cursor-pointer hover:bg-[#f9f5ef] transition-colors"
+                          style={{ borderRight: '1px solid #b0a898' }}
+                          onClick={() => { setSidebarActiveField('checkin'); setShowSidebarCal(true) }}>
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-[#304333] mb-0.5">Check-in</p>
+                          <p className="text-sm font-semibold" style={{ color: checkIn ? '#304333' : '#78716c' }}>
+                            {checkIn ? checkIn.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' }) : 'Add date'}
+                          </p>
+                        </div>
+                        <div className="p-3 cursor-pointer hover:bg-[#f9f5ef] transition-colors"
+                          onClick={() => { setSidebarActiveField('checkout'); setShowSidebarCal(true) }}>
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-[#304333] mb-0.5">Checkout</p>
+                          <p className="text-sm font-semibold" style={{ color: checkOut ? '#304333' : '#78716c' }}>
+                            {checkOut ? checkOut.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' }) : 'Add date'}
+                          </p>
+                        </div>
                       </div>
-                      <div className="p-3 cursor-pointer hover:bg-[#f9f5ef] transition-colors">
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-[#304333] mb-0.5">Checkout</p>
-                        <p className="text-sm font-semibold" style={{ color: checkOut ? '#304333' : '#78716c' }}>
-                          {checkOut ? checkOut.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' }) : 'Add date'}
-                        </p>
+                      <div className="p-3 flex items-center justify-between cursor-pointer hover:bg-[#f9f5ef] transition-colors">
+                        <div>
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-[#304333] mb-0.5">Guests</p>
+                          <p className="text-sm font-semibold text-[#304333]">1 guest</p>
+                        </div>
+                        <ChevronRight size={16} color="#78716c" style={{ transform: 'rotate(90deg)' }} />
                       </div>
                     </div>
-                    <div className="p-3 flex items-center justify-between cursor-pointer hover:bg-[#f9f5ef] transition-colors">
-                      <div>
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-[#304333] mb-0.5">Guests</p>
-                        <p className="text-sm font-semibold text-[#304333]">1 guest</p>
+
+                    {/* Popover */}
+                    {showSidebarCal && (
+                      <div className="absolute bg-white rounded-xl shadow-xl z-50 p-4"
+                        style={{ top: 60, marginTop: 0, border: '1px solid #e8e0d0', right: 0, width: 660 }}>
+                        <DesktopCalendar checkIn={checkIn} checkOut={checkOut} onSelect={handleSidebarCalSelect} />
+                        <div className="flex justify-between items-center mt-3 pt-3" style={{ borderTop: '1px solid #e8e0d0' }}>
+                          <button onClick={() => { setCheckIn(null); setCheckOut(null); setSidebarActiveField('checkin') }}
+                            className="text-sm font-semibold text-[#304333] underline"
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
+                            Clear dates
+                          </button>
+                          <button onClick={() => setShowSidebarCal(false)}
+                            className="px-5 py-2 rounded-xl text-sm font-semibold text-white"
+                            style={{ background: '#304333', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
+                            Close
+                          </button>
+                        </div>
                       </div>
-                      <ChevronRight size={16} color="#78716c" style={{ transform: 'rotate(90deg)' }} />
-                    </div>
+                    )}
                   </div>
+
 
                   {/* Reserve button */}
                   <button onClick={() => router.push(`/listings/stays/${id}/book`)}
@@ -944,11 +982,11 @@ export default function StayDetailPage({ params }: Props) {
 
             {/* Desktop: 2-month calendar */}
             <div className="hidden sm:block mt-4">
-              <DesktopCalendar checkIn={checkIn} checkOut={checkOut} onSelect={handleCalSelect} />
+              <DesktopCalendar checkIn={checkIn} checkOut={checkOut} onSelect={handleSidebarCalSelect} />
             </div>
             {/* Mobile: single month */}
             <div className="sm:hidden mt-4">
-              <MiniCalendar checkIn={checkIn} checkOut={checkOut} onSelect={handleCalSelect} />
+              <MiniCalendar checkIn={checkIn} checkOut={checkOut} onSelect={handleSidebarCalSelect} />
             </div>
 
             {(checkIn || checkOut) && (
@@ -1065,148 +1103,176 @@ export default function StayDetailPage({ params }: Props) {
             <h2 className="text-xl font-semibold text-[#304333] mb-5">Meet your host</h2>
 
             {/* Desktop layout: 2-col */}
-            <div className="hidden sm:flex gap-8 items-start">
-              {/* Left: host card */}
-              <div className="rounded-2xl p-6 flex-shrink-0" style={{ width: 260, border: '1px solid #e8e0d0', background: 'white' }}>
-                <div className="flex flex-col items-center mb-4">
-                  <div className="relative mb-2">
-                    <div className="w-16 h-16 rounded-full bg-[#2c4a1e] flex items-center justify-center text-white text-2xl font-bold">
-                      {detail.hostName[0]}
-                    </div>
-                    {detail.isSuperhost && (
-                      <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-red-500 flex items-center justify-center">
-                        <Award size={12} color="white" />
+            <div className='hidden sm:flex gap-10 items-start'>
+              {/* Left column: host card */}
+              <div className="flex-shrink-0" style={{ width: 450 }}>
+                <div className="rounded-2xl p-5" style={{ border: '1px solid #e8e0d0', background: 'white' }}>
+                  <div className="flex items-center">
+
+                    {/* Left half: avatar + name */}
+                    <div className="w-1/2 flex flex-col items-center">
+                      <div className="relative mb-3">
+                        <div className="w-24 h-24 rounded-full bg-[#2c4a1e] flex items-center justify-center text-white text-4xl font-bold">
+                          {detail.hostName[0]}
+                        </div>
+                        {detail.isSuperhost && (
+                          <div className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-red-500 flex items-center justify-center">
+                            <Award size={14} color="white" />
+                          </div>
+                        )}
                       </div>
-                    )}
+                      <p className="text-xl font-bold text-[#304333] text-center">{detail.hostName}</p>
+                      <p className="text-sm text-[#78716c]">Host</p>
+                    </div>
+
+                    {/* Right half: stats */}
+                    <div className="w-1/2 pl-4">
+                      <div className="py-2.5" style={{ borderBottom: '1px solid #e8e0d0' }}>
+                        <p className="text-xl font-bold text-[#304333]">{reviewCount}</p>
+                        <p className="text-xs text-[#78716c]">Reviews</p>
+                      </div>
+                      <div className="py-3" style={{ borderBottom: '1px solid #e8e0d0' }}>
+                        <p className="text-xl font-bold text-[#304333]">{rating} <span className="text-base">★</span></p>
+                        <p className="text-xs text-[#78716c]">Rating</p>
+                      </div>
+                      <div className="py-2.5">
+                        <p className="text-xl font-bold text-[#304333]">{detail.yearsHosting * 12}</p>
+                        <p className="text-xs text-[#78716c]">Months hosting</p>
+                      </div>
+                    </div>
+
                   </div>
-                  <p className="text-xl font-bold text-[#304333]">{detail.hostName}</p>
-                  <p className="text-sm text-[#78716c]">Host</p>
                 </div>
-                {/* Stats row */}
-                <div style={{ borderTop: '1px solid #e8e0d0', paddingTop: 16, display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
-                  <div className="text-center">
-                    <p className="text-xl font-bold text-[#304333]">{reviewCount}</p>
-                    <p style={{ fontSize: 11, color: '#78716c' }}>Reviews</p>
+                {detail.hostSpeaks && (
+                  <div className="flex items-center gap-2.5 mt-4">
+                    <Globe size={18} strokeWidth={1.5} color="#304333" />
+                    <p className="text-sm text-[#304333]">Speaks {detail.hostSpeaks}</p>
                   </div>
-                  <div className="text-center" style={{ borderLeft: '1px solid #e8e0d0', borderRight: '1px solid #e8e0d0' }}>
-                    <p className="text-xl font-bold text-[#304333]">{rating}<span style={{ fontSize: 14 }}>★</span></p>
-                    <p style={{ fontSize: 11, color: '#78716c' }}>Rating</p>
+                )}
+                {detail.hostObsessed && (
+                  <div className="flex items-center gap-2.5 mt-3">
+                    <Heart size={18} strokeWidth={1.5} color="#304333" />
+                    <p className="text-sm text-[#304333]">I&apos;m obsessed with: {detail.hostObsessed}</p>
                   </div>
-                  <div className="text-center">
-                    <p className="text-xl font-bold text-[#304333]">{detail.yearsHosting * 12}</p>
-                    <p style={{ fontSize: 11, color: '#78716c' }}>Months</p>
-                  </div>
-                </div>
+                )}
               </div>
 
-              {/* Right: details */}
+              {/* Right column: co-hosts + host details + message button */}
               <div className="flex-1">
-                <div className="flex flex-col gap-3 mb-5">
-                  <div className="flex items-center gap-3">
-                    <Globe size={18} strokeWidth={1.5} color="#304333" />
-                    <span className="text-sm text-[#304333]">Speaks {detail.hostSpeaks}</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <Heart size={18} strokeWidth={1.5} color="#304333" />
-                    <span className="text-sm text-[#304333]">I'm obsessed with: {detail.hostObsessed}</span>
-                  </div>
-                </div>
-
                 {detail.cohostName && (
-                  <div className="mb-4">
-                    <h3 className="text-sm font-semibold text-[#304333] mb-2">Co-hosts</h3>
+                  <div className="mb-6">
+                    <p className="text-base font-semibold text-[#304333] mb-3">Co-hosts</p>
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-[#3d6b28] flex items-center justify-center text-white text-xs font-semibold">
+                      <div className="w-10 h-10 rounded-full bg-[#2c4a1e] flex items-center justify-center text-white text-sm font-bold">
                         {detail.cohostName[0]}
                       </div>
-                      <span className="text-sm text-[#304333]">{detail.cohostName}</span>
+                      <p className="text-sm font-semibold text-[#304333]">{detail.cohostName}</p>
                     </div>
                   </div>
                 )}
-
-                <div className="mb-5">
-                  <h3 className="text-sm font-semibold text-[#304333] mb-1">Host details</h3>
-                  <p className="text-sm text-[#78716c]">Response rate: {detail.responseRate}%</p>
-                  <p className="text-sm text-[#78716c]">Responds {detail.responseTime}</p>
+                <div className="mb-6">
+                  <p className="text-base font-semibold text-[#304333] mb-2">Host details</p>
+                  <p className="text-sm text-[#304333]">Response rate: {detail.responseRate}%</p>
+                  <p className="text-sm text-[#304333]">Responds {detail.responseTime}</p>
                 </div>
-
-                <button onClick={() => router.push('/messages')}
-                  className="py-3 px-6 rounded-xl text-sm font-semibold text-[#304333] transition-colors hover:bg-[#f5f0e6]"
-                  style={{ background: 'transparent', border: '1px solid #304333', cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}>
+                <button className="px-8 py-3.5 rounded-xl text-sm font-semibold transition-colors hover:bg-[#ede8df]"
+                  style={{ background: '#F1F5E4', border: 'none', cursor: 'pointer', fontFamily: 'inherit', color: '#304333' }}>
                   Message host
                 </button>
-
-                <div className="flex items-start gap-2 mt-4">
-                  <Shield size={14} color="#a8a29e" className="flex-shrink-0 mt-0.5" />
-                  <p className="text-xs text-[#78716c]">To protect your payment, always communicate and pay through Erranza.</p>
+                <div className="flex items-start gap-3 mt-6 pt-6" style={{ borderTop: '1px solid #e8e0d0' }}>
+                  <Shield size={20} strokeWidth={1.5} color="#78716c" />
+                  <p className="text-xs text-[#78716c]">To help protect your payment, always use Erranza to send money and communicate with hosts.</p>
                 </div>
               </div>
+
             </div>
+
+
+
 
             {/* Mobile layout: stacked (unchanged) */}
             <div className="sm:hidden">
-              <div className="bg-white rounded-2xl p-5 mb-5 shadow-sm" style={{ border: '1px solid #e8e0d0' }}>
-                <div className="flex items-start gap-4">
-                  <div className="text-center flex-shrink-0">
-                    <div className="w-16 h-16 rounded-full bg-[#2c4a1e] flex items-center justify-center text-white text-2xl font-semibold mb-2">
-                      {detail.hostName[0]}
+              <div className="bg-white rounded-2xl p-4 mb-4" style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.12)', maxWidth: 380 }}>
+                <div className="flex items-center">
+
+                  {/* Left half: avatar + name */}
+                  <div className="w-1/2 flex flex-col items-center">
+                    <div className="relative mb-1.5">
+                      <div className="w-24 h-24 rounded-full bg-[#2c4a1e] flex items-center justify-center text-white text-3xl font-bold">
+                        {detail.hostName[0]}
+                      </div>
+                      {detail.isSuperhost && (
+                        <div className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-red-500 flex items-center justify-center">
+                          <Award size={10} color="white" />
+                        </div>
+                      )}
                     </div>
-                    <p className="text-lg font-bold text-[#304333] leading-tight">{detail.hostName}</p>
-                    <p className="text-sm text-[#78716c]">Host</p>
+                    <p className="text-base font-bold text-[#304333] text-center">{detail.hostName}</p>
+                    <p className="text-xs text-[#78716c]">Host</p>
                   </div>
-                  <div className="flex-1">
-                    <div className="flex flex-col gap-3">
-                      <div className="pb-3" style={{ borderBottom: '1px solid #e8e0d0' }}>
-                        <p className="text-xl font-bold text-[#304333]">{reviewCount}</p>
-                        <p className="text-sm text-[#78716c]">Reviews</p>
-                      </div>
-                      <div className="pb-3" style={{ borderBottom: '1px solid #e8e0d0' }}>
-                        <p className="text-xl font-bold text-[#304333]">{rating} <span className="text-base">★</span></p>
-                        <p className="text-sm text-[#78716c]">Rating</p>
-                      </div>
-                      <div>
-                        <p className="text-xl font-bold text-[#304333]">{detail.yearsHosting * 12}</p>
-                        <p className="text-sm text-[#78716c]">Months hosting</p>
-                      </div>
+
+                  {/* Right half: stats */}
+                  <div className="w-1/2 pl-3">
+                    <div className="py-2" style={{ borderBottom: '1px solid #e8e0d0' }}>
+                      <p className="text-base font-bold text-[#304333]">{reviewCount}</p>
+                      <p className="text-xs text-[#78716c]">Reviews</p>
+                    </div>
+                    <div className="py-2" style={{ borderBottom: '1px solid #e8e0d0' }}>
+                      <p className="text-base font-bold text-[#304333]">{rating} <span className="text-sm">★</span></p>
+                      <p className="text-xs text-[#78716c]">Rating</p>
+                    </div>
+                    <div className="py-2">
+                      <p className="text-base font-bold text-[#304333]">{detail.yearsHosting * 12}</p>
+                      <p className="text-xs text-[#78716c]">Months hosting</p>
                     </div>
                   </div>
+
                 </div>
               </div>
-              <div className="flex flex-col gap-4 mb-5">
-                <div className="flex items-center gap-3">
-                  <Globe size={20} strokeWidth={1.5} color="#304333" className="flex-shrink-0" />
-                  <span className="text-sm text-[#304333]">Speaks {detail.hostSpeaks}</span>
+
+
+              {/* What the host likes/obsession 8*/}
+              {detail.hostSpeaks && (
+                <div className="flex items-center gap-2.5 mt-4 mb-2">
+                  <Globe size={18} strokeWidth={1.5} color="#304333" />
+                  <p className="text-sm text-[#304333]">Speaks {detail.hostSpeaks}</p>
                 </div>
-                <div className="flex items-center gap-3">
-                  <Heart size={20} strokeWidth={1.5} color="#304333" className="flex-shrink-0" />
-                  <span className="text-sm text-[#304333]">I'm obsessed with: {detail.hostObsessed}</span>
+              )}
+              {detail.hostObsessed && (
+                <div className="flex items-center gap-2.5 mb-5">
+                  <Heart size={18} strokeWidth={1.5} color="#304333" />
+                  <p className="text-sm text-[#304333]">I&apos;m obsessed with: {detail.hostObsessed}</p>
                 </div>
-              </div>
+              )}
+
+              <Divider />
+
+              {/*Co host details */}
               {detail.cohostName && (
                 <div className="mb-5">
-                  <h3 className="text-base font-semibold text-[#304333] mb-3">Co-hosts</h3>
+                  <p className="text-base font-semibold text-[#304333] mb-3">Co-hosts</p>
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-[#3d6b28] flex items-center justify-center text-white text-sm font-semibold">
+                    <div className="w-10 h-10 rounded-full bg-[#2c4a1e] flex items-center justify-center text-white text-sm font-bold">
                       {detail.cohostName[0]}
                     </div>
-                    <span className="text-base text-[#304333]">{detail.cohostName}</span>
+                    <p className="text-sm font-semibold text-[#304333]">{detail.cohostName}</p>
                   </div>
                 </div>
               )}
               <div className="mb-5">
-                <h3 className="text-base font-semibold text-[#304333] mb-3">Host details</h3>
-                <p className="text-sm text-[#78716c]">Response rate: {detail.responseRate}%</p>
-                <p className="text-sm text-[#78716c]">Responds {detail.responseTime}</p>
+                <p className="text-base font-semibold text-[#304333] mb-2">Host details</p>
+                <p className="text-sm text-[#304333]">Response rate: {detail.responseRate}%</p>
+                <p className="text-sm text-[#304333]">Responds {detail.responseTime}</p>
               </div>
-              <button onClick={() => router.push('/messages')}
-                className="w-full py-3.5 rounded-xl text-sm font-semibold text-center transition-colors hover:bg-[#ede8df]"
-                style={{ background: '#F1F5E4', border: 'none', cursor: 'pointer', WebkitTapHighlightColor: 'transparent', color: '#304333' }}>
+              <button className="w-full py-3.5 rounded-xl text-sm font-semibold transition-colors hover:bg-[#ede8df] mb-5"
+                style={{ background: '#F1F5E4', border: 'none', cursor: 'pointer', fontFamily: 'inherit', color: '#304333' }}>
                 Message host
               </button>
-              <div className="flex items-start gap-2 mt-4">
-                <Shield size={14} color="#a8a29e" className="flex-shrink-0 mt-0.5" />
-                <p className="text-xs text-[#78716c]">To protect your payment, always communicate and pay through Erranza.</p>
+              <div className="flex items-start gap-3 pt-5" >
+                <Shield size={18} strokeWidth={1.5} color="#78716c" />
+                <p className="text-xs text-[#78716c]">To help protect your payment, always use Erranza to send money and communicate with hosts.</p>
               </div>
+
             </div>
           </div>
 
@@ -1242,8 +1308,9 @@ export default function StayDetailPage({ params }: Props) {
                 { icon: <Calendar size={22} strokeWidth={1.5} />, title: 'Cancellation policy', items: ['Cancel before check-in for a partial refund.', 'After that, this reservation is non-refundable.', "Review this host's full policy for details."] },
                 { icon: <Home size={22} strokeWidth={1.5} />, title: 'House rules', items: ['Check-in after 2:00 PM', 'Checkout before 11:00 AM', `${detail.guests} guests maximum`] },
                 { icon: <Shield size={22} strokeWidth={1.5} />, title: 'Safety & property', items: ['Smoke alarm not reported', 'Exterior security cameras on property', 'Carbon monoxide alarm'] },
-              ].map(({ icon, title: st, items }) => (
-                <div key={st} className="flex items-start gap-4 py-4" style={{ borderBottom: '1px solid #e8e0d0' }}>
+              ].map(({ icon, title: st, items }, idx, arr) => (
+                <div key={st} className="flex items-start gap-4 py-4" style={idx < arr.length - 1 ? { borderBottom: '1px solid #e8e0d0' } : {}}>
+
                   <span className="text-[#304333] flex-shrink-0 mt-0.5">{icon}</span>
                   <div className="flex-1">
                     <p className="text-sm font-semibold text-[#304333] mb-1">{st}</p>
@@ -1275,6 +1342,9 @@ export default function StayDetailPage({ params }: Props) {
           </div>
 
         </div>
+
+        {/* Footer Section */}
+        <FooterSection />
       </div>
 
 
