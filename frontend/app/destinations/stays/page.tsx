@@ -97,7 +97,7 @@ export default function StaysPage() {
                 </div>
 
                 {/* Scroll */}
-                <div className='px-4 sm:px-8=4 md:px-12 lg:px-52 overflow-hidden pb-4'>
+                <div className='px-4 sm:px-4 md:px-12 lg:px-52 pb-4'>
                   <div className='overflow-x-auto scrollbar-hide'>
                     <div className="flex gap-3 pr-4 sm:pr-4 md:pr-12 lg:pr-52">
                       {items.map(item => (

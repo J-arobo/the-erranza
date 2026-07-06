@@ -405,6 +405,11 @@ export default function StayDetailPage({ params }: Props) {
   const [desktopNavVisible, setDesktopNavVisible] = useState(false)
   const [showSidebarCal, setShowSidebarCal] = useState(false)
   const [sidebarActiveField, setSidebarActiveField] = useState<'checkin' | 'checkout'>('checkin')
+  const [showGuestPanel, setShowGuestPanel] = useState(false)
+  const [adults, setAdults] = useState(1)
+  const [children, setChildren] = useState(0)
+  const [infants, setInfants] = useState(0)
+  const [pets, setPets] = useState(0)
   const scrollRef = useRef<HTMLDivElement>(null)
   const photoGridRef = useRef<HTMLDivElement>(null)
 
@@ -419,6 +424,10 @@ export default function StayDetailPage({ params }: Props) {
   const calNights = (checkIn && checkOut) ? Math.max(1, Math.round((checkOut.getTime() - checkIn.getTime()) / 86400000)) : nights
   const total = priceNum * calNights
   const fee = Math.round(total * 0.12)
+
+  const totalGuests = adults + children
+  const guestLabel = `${totalGuests} guest${totalGuests !== 1 ? 's' : ''}${infants > 0 ? `, ${infants} infant${infants !== 1 ? 's' : ''}` : ''}`
+
 
   useEffect(() => {
     const el = scrollRef.current
@@ -874,13 +883,16 @@ export default function StayDetailPage({ params }: Props) {
                           </p>
                         </div>
                       </div>
-                      <div className="p-3 flex items-center justify-between cursor-pointer hover:bg-[#f9f5ef] transition-colors">
+                      <div className="p-3 flex items-center justify-between cursor-pointer hover:bg-[#f9f5ef] transition-colors"
+                        onClick={() => setShowGuestPanel(s => !s)}>
                         <div>
                           <p className="text-[10px] font-bold uppercase tracking-widest text-[#304333] mb-0.5">Guests</p>
-                          <p className="text-sm font-semibold text-[#304333]">1 guest</p>
+                          <p className="text-sm font-semibold text-[#304333]">{guestLabel}</p>
                         </div>
-                        <ChevronRight size={16} color="#78716c" style={{ transform: 'rotate(90deg)' }} />
+                        <ChevronRight size={16} color="#78716c"
+                          style={{ transform: showGuestPanel ? 'rotate(-90deg)' : 'rotate(90deg)', transition: 'transform 0.2s' }} />
                       </div>
+
                     </div>
 
                     {/* Popover */}
@@ -902,11 +914,66 @@ export default function StayDetailPage({ params }: Props) {
                         </div>
                       </div>
                     )}
+                    {showGuestPanel && (
+                      <div className="absolute bg-white rounded-xl shadow-xl z-50 p-5"
+                        style={{ top: '100%', marginTop: 4, border: '1px solid #e8e0d0', left: 0, right: 0 }}>
+                        {[
+                          { label: 'Adults', sub: 'Age 13+', count: adults, set: setAdults, min: 1, max: detail.guests },
+                          { label: 'Children', sub: 'Ages 2–12', count: children, set: setChildren, min: 0, max: Math.max(0, detail.guests - adults) },
+                          { label: 'Infants', sub: 'Under 2', count: infants, set: setInfants, min: 0, max: 5 },
+                          { label: 'Pets', sub: 'Bringing a service animal?', count: pets, set: setPets, min: 0, max: 5 },
+                        ].map(({ label, sub, count, set, min, max }) => (
+                          <div key={label} className="flex items-center justify-between py-4"
+                            style={{ borderBottom: label !== 'Pets' ? '1px solid #f0ede8' : 'none' }}>
+                            <div>
+                              <p className="text-sm font-semibold text-[#304333]">{label}</p>
+                              <p className="text-sm text-[#78716c]">{sub}</p>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <button onClick={() => set((c: number) => Math.max(min, c - 1))}
+                                className="w-8 h-8 rounded-full flex items-center justify-center"
+                                style={{
+                                  border: '1px solid #b0a898', background: 'none', cursor: count <= min ? 'not-allowed' : 'pointer',
+                                  opacity: count <= min ? 0.4 : 1, fontFamily: 'inherit', color: '#304333', fontSize: 18
+                                }}>
+                                −
+                              </button>
+                              <span className="text-sm font-semibold text-[#304333] w-4 text-center">{count}</span>
+                              <button onClick={() => set((c: number) => Math.min(max, c + 1))}
+                                className="w-8 h-8 rounded-full flex items-center justify-center"
+                                style={{
+                                  border: '1px solid #b0a898', background: 'none', cursor: count >= max ? 'not-allowed' : 'pointer',
+                                  opacity: count >= max ? 0.4 : 1, fontFamily: 'inherit', color: '#304333', fontSize: 18
+                                }}>
+                                +
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                        <p className="text-xs text-[#78716c] mt-4 mb-3">
+                          This place has a maximum of {detail.guests} guests, not including infants. Pets aren't allowed.
+                        </p>
+                        <div className="flex justify-end">
+                          <button onClick={() => setShowGuestPanel(false)}
+                            className="text-sm font-semibold text-[#304333]"
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
+                            Close
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
                   </div>
 
 
                   {/* Reserve button */}
-                  <button onClick={() => router.push(`/listings/stays/${id}/book`)}
+                  <button onClick={() => {
+                    const params = new URLSearchParams()
+                    if (checkIn) params.set('checkIn', checkIn.toISOString())
+                    if (checkOut) params.set('checkOut', checkOut.toISOString())
+                    router.push(`/listings/stays/${id}/book?${params.toString()}`)
+                  }}
+
                     className="w-full py-3.5 rounded-xl font-semibold text-sm text-white mb-3 transition-opacity hover:opacity-90"
                     style={{ background: 'linear-gradient(to right, #e8612a, #d44d1a)', border: 'none', cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}>
                     Reserve
