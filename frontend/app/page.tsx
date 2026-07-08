@@ -66,7 +66,7 @@ export default function Home() {
           <div className="px-6 sm:px-12 md:px-16 lg:px-20 overflow-hidden pb-4">
             <div className="overflow-x-auto scrollbar-hide">
               {/* Flex row - padding here aligns first card with header */}
-              <div className="6"> {/* xl:px-24 pb-4 overflow-x-auto scrollbar-hide */}
+              <div className="flex gap-3"> {/* xl:px-24 pb-4 overflow-x-auto scrollbar-hide */}
                 {data.slice(0, 10).map((item) => (
                   <div key={item.id} className="flex-shrink-0 w-[36vw] sm:w-[26vw] md:w-[22vw] lg:w-[17vw] xl:w-[13vw]">
                     <ListingCard

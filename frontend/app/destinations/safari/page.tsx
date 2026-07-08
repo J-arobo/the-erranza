@@ -1,7 +1,7 @@
 'use client'
 import { useState } from 'react'
 import AppShell from '@/components/AppShell'
-import ListingRow from '@/components/ListingRow'
+import ListingCard from '@/components/ListingCard'
 import FooterSection from '@/components/FooterSection'
 import { safari } from '@/data/safari'
 
@@ -19,7 +19,7 @@ export default function SafariPage() {
   return (
     // showCollapse=false — bar always visible on destination pages
     <AppShell showCollapse={false}>
-      <div className="px-4 sm:px-6 py-4 bg-[#faf8f1] min-h-full">
+      <div className="px-4 sm:px-6 py-4 bg-[#ffffff] min-h-full">
 
         {/* Filter tabs */}
         <div className="flex gap-2 overflow-x-auto scrollbar-hide mb-5">
@@ -52,7 +52,7 @@ export default function SafariPage() {
         {filtered.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {filtered.map((item) => (
-              <ListingRow key={item.id} {...item} />
+              <ListingCard key={item.id} {...item} />
             ))}
           </div>
         ) : (
