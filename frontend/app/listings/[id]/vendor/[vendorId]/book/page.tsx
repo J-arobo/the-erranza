@@ -1,6 +1,6 @@
 'use client'
 import { use, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Image from 'next/image'
 import { ArrowLeft, X, ChevronRight, Shield } from 'lucide-react'
 import { safari } from '@/data/safari'
@@ -20,6 +20,7 @@ const STEPS: Step[] = ['review', 'message', 'confirm']
 export default function BookingPage({ params }: Props) {
   const { id, vendorId } = use(params)
   const router = useRouter()
+  const searchParams = useSearchParams()
 
   const listing = allListings.find(l => l.id === id)
   const vendor  = listing?.vendors?.find(v => v.id === vendorId)
@@ -28,7 +29,8 @@ export default function BookingPage({ params }: Props) {
   const [payMode, setPayMode]     = useState<'full' | 'instalments'>('full')
   const [message, setMessage]     = useState('')
   const [insurance, setInsurance] = useState(false)
-  const [guests, setGuests]       = useState(1)
+  const [guests, setGuests]       = useState(() => Number(searchParams.get('guests')) || 1)
+
 
   if (!listing || !vendor) {
     return (
@@ -43,9 +45,11 @@ export default function BookingPage({ params }: Props) {
     )
   }
 
+  const extrasParam = parseFloat(searchParams.get('extras') || '0') || 0
   const stepIndex   = STEPS.indexOf(step)
   const basePrice   = parseFloat(vendor.price.replace(/[^0-9.]/g, '')) || 100
-  const totalPrice  = basePrice * guests
+  // const totalPrice  = basePrice * guests
+  const totalPrice  = basePrice * guests + extrasParam
   const insurancePrice = totalPrice * 0.12
   const finalTotal  = insurance ? totalPrice + insurancePrice : totalPrice
   const cancelDate  = vendor.availability?.split('–')[0]?.trim() ?? '27th May'
@@ -342,6 +346,14 @@ export default function BookingPage({ params }: Props) {
                   </span>
                   <span className="text-sm text-[#1a1a1a]">{vendor.price.replace(/[\d,]+/, String(totalPrice))}</span>
                 </div>
+                {extrasParam > 0 && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-500">Package extras</span>
+                    <span className="text-sm text-[#1a1a1a]">
+                      +{vendor.price.replace(/[\d,]+/, String(extrasParam))}
+                    </span>
+                  </div>
+                )}
                 {insurance && (
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-gray-500">Travel insurance</span>

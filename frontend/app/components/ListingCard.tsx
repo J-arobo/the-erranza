@@ -5,10 +5,11 @@ import { useRef } from 'react'
 import { Listing } from '@/data/stays'
 import HeartButton from './HeartButton'
 
-type Props = Listing & { listingCategory?: string }  // ← renamed to avoid collision
+type Props = Listing & { listingCategory?: string; video?: string }  // ← renamed to avoid collision
 
 export default function ListingCard(listing: Props) {
-  const { id, location, title, price, rating, image, badge, listingCategory } = listing
+  const { id, location, title, price, rating, image, video, badge, listingCategory } = listing
+
   const router = useRouter()
 
   const touchStartY = useRef<number>(0)
@@ -42,12 +43,21 @@ export default function ListingCard(listing: Props) {
                  cursor-pointer active:scale-[0.98] group text-left"
       style={{ WebkitTapHighlightColor: 'transparent' }}
     >
-      <div className="relative w-full aspect-[3/2] rounded-xl bg-[#e0d9cc] overflow-hidden">
-        <Image
-          src={image} alt={title} fill
-          sizes="(max-width: 640px) 90vw, (max-width: 1024px) 45vw, 30vw"
-          className="object-cover transition-transform duration-300 group-hover:scale-105"
-        />
+      <div className="relative w-full aspect-[5/4] rounded-xl bg-[#e0d9cc] overflow-hidden">
+        {video ? (
+          <video
+            src={video}
+            autoPlay muted loop playsInline
+            className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+          />
+        ) : (
+          <Image
+            src={image} alt={title} fill
+            sizes="(max-width: 640px) 90vw, (max-width: 1024px) 45vw, 30vw"
+            className="object-cover transition-transform duration-300 group-hover:scale-105"
+          />
+        )}
+
         {badge && (
           <span className="absolute top-3 left-3 bg-white text-[#1a1a1a] text-[10px]
                            font-semibold px-2 py-1 rounded-full shadow-sm z-10">
@@ -59,7 +69,7 @@ export default function ListingCard(listing: Props) {
       <div className="pt-2">
         <p className="text-[13px] text-[#222] font-semibold line-clamp-2 leading-snug ">{title}</p>
         <p className="text-[12px] font-semibold text-gray-500 truncate mt-0.5">
-        {location}
+          {location}
         </p>
         <p className="text-[12px] text-gray-500 mt-0.5">
           {price} . <span>★ {rating}</span>

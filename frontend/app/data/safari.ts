@@ -1,6 +1,6 @@
 import { Listing } from './stays'
 
-export const safari: Listing[] = [
+export const safari: (Listing & { video?: string })[] = [
   {
     id: '1',
     location: 'Narok County',
@@ -8,12 +8,14 @@ export const safari: Listing[] = [
     price: 'Ksh 20,000',
     rating: 4.9,
     image: 'https://images.unsplash.com/photo-1547471080-7cc2caa01a7e?w=400&q=80',
+    video: 'https://assets.mixkit.co/videos/3668/3668-720.mp4',
     description: 'Visit the Maasai Mara — one of Africa\'s greatest wildlife reserves. Drive through vast golden savannah spotting lions, leopards, elephants, black rhinos and thousands of wildebeest during the Great Migration. An unforgettable East African experience.',
     images: [
       'https://images.unsplash.com/photo-1547471080-7cc2caa01a7e?w=600&q=80',
       'https://images.unsplash.com/photo-1516426122078-c23e76319801?w=600&q=80',
       'https://images.unsplash.com/photo-1564760055775-d63b17a55c44?w=600&q=80',
-      'https://images.unsplash.com/photo-1564760055775-d63b17a55c44?w=600&q=80',
+      'https://images.unsplash.com/photo-1518459384564-ecfd8e80721f?w=600&q=80', 
+      'https://images.unsplash.com/photo-1543107484-b13a21b26e8c?w=600&q=80', 
     ],
     vendors: [
       {
@@ -24,6 +26,13 @@ export const safari: Listing[] = [
         rating: 4.9,
         reviews: 312,
         image: 'https://images.unsplash.com/photo-1551085254-e96b210db58a?w=400&q=80',
+        images: [
+          'https://images.unsplash.com/photo-1551085254-e96b210db58a?w=800&q=80',
+          'https://images.unsplash.com/photo-1547471080-7cc2caa01a7e?w=800&q=80',
+          'https://images.unsplash.com/photo-1516426122078-c23e76319801?w=800&q=80',
+          'https://images.unsplash.com/photo-1564760055775-d63b17a55c44?w=800&q=80',
+          'https://images.unsplash.com/photo-1518459384564-ecfd8e80721f?w=800&q=80',
+        ],
         yearsTouring: 8,
         responseRate: 100,
         responseTime: 'within an hour',
@@ -41,6 +50,10 @@ export const safari: Listing[] = [
           { icon: '📷', title: 'Designed for cameras',    description: 'Camera mounts and beanbags on board' },
           { icon: '🏨', title: 'Hotel pickup',             description: 'Picks you up directly from your hotel' },
         ],
+        packageItems: [
+          { id: 'balloon', label: 'Hot air balloon safari', price: 15000 },
+          { id: 'night-drive', label: 'Night game drive', price: 5000, defaultSelected: true },
+        ],        
       },
       {
         id: 'v2',
@@ -102,6 +115,7 @@ export const safari: Listing[] = [
     price: 'Ksh 32,000',
     rating: 4.8,
     image: 'https://images.unsplash.com/photo-1622073492812-ed21d3443390?w=400&q=80',
+    video: 'https://assets.mixkit.co/videos/11326/11326-720.mp4',
     badge: 'Top rated',
     description: 'The Serengeti is home to the world\'s largest terrestrial mammal migration. Witness millions of wildebeest, zebra and gazelle moving across the plains in an ancient rhythm. Exceptional big cat sightings year-round.',
     images: [
@@ -138,6 +152,7 @@ export const safari: Listing[] = [
     price: 'Ksh 13,000',
     rating: 4.7,
     image: 'https://images.unsplash.com/photo-1564760055775-d63b17a55c44?w=400&q=80',
+    video: 'https://assets.mixkit.co/videos/11067/11067-720.mp4',
     description: 'Famous for its large elephant herds and breathtaking views of Mount Kilimanjaro. Amboseli offers exceptional photography opportunities and authentic Maasai cultural experiences.',
     images: [
       'https://images.unsplash.com/photo-1564760055775-d63b17a55c44?w=600&q=80',
@@ -192,6 +207,7 @@ export const safari: Listing[] = [
     price: 'Ksh 18,000',
     rating: 4.8,
     image: 'https://images.unsplash.com/photo-1516426122078-c23e76319801?w=400&q=80',
+    video: 'https://assets.mixkit.co/videos/11087/11087-720.mp4',
     description: 'One of Africa\'s largest game reserves, Kruger is home to the Big Five and over 500 bird species. Exceptional self-drive routes and guided bush walks make it unique among African parks.',
     images: [
       'https://images.unsplash.com/photo-1516426122078-c23e76319801?w=600&q=80',
@@ -227,6 +243,7 @@ export const safari: Listing[] = [
     price: 'Ksh 25,000',
     rating: 4.9,
     image: 'https://images.unsplash.com/photo-1551085254-e96b210db58a?w=400&q=80',
+    video: 'https://assets.mixkit.co/videos/51501/51501-720.mp4',
     badge: 'Premier',
     description: 'A UNESCO World Heritage Site and one of the Seven Natural Wonders of Africa. Explore by mokoro canoe through papyrus-lined channels, encountering hippos, crocodiles and rare birds.',
     images: [
@@ -263,6 +280,7 @@ export const safari: Listing[] = [
     price: 'Ksh 10,000',
     rating: 4.6,
     image: 'https://images.unsplash.com/photo-1710136678658-a12caee832a7?w=400&q=80',
+    video: 'https://assets.mixkit.co/videos/4681/4681-720.mp4',
     description: 'Lake Nakuru National Park is famous for its spectacular flamingo gatherings and is also a sanctuary for both black and white rhinos. The park offers excellent lion and leopard sightings too.',
     images: [
       'https://images.unsplash.com/photo-1612890404171-e3a8d1cb4e60?w=600&q=80',
@@ -298,6 +316,7 @@ export const safari: Listing[] = [
     price: 'Ksh 22,000',
     rating: 4.8,
     image: 'https://images.unsplash.com/photo-1516026672322-bc52d61a55d5?w=400&q=80',
+    video: 'https://assets.mixkit.co/videos/11165/11165-720.mp4',
     badge: 'Exclusive',
     description: 'Samburu National Reserve is home to the "Samburu Special Five" — rare northern species including Grevy\'s zebra, reticulated giraffe, Somali ostrich, Beisa oryx and gerenuk. Remote, raw and remarkable.',
     images: [

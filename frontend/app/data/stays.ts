@@ -16,6 +16,8 @@ export type Vendor = {
   lng?: number
   locationLabel?: string
   availability?: string
+  packageItems?: { id: string; label: string; price: number; defaultSelected?: boolean }[]
+  images?: string[]
 }
 
 export type Listing = {

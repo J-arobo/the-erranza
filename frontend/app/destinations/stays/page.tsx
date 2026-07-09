@@ -86,7 +86,7 @@ export default function StaysPage() {
             const items = filtered.filter(filter)
             if (items.length === 0) return null
             return (
-              <div key={title} className="mb-8">
+              <div key={title} className="mb-2">
                 <div className='flex items-center gap-2 px-4 sm:px-8 md:px-12 lg:px-52 mb-3 w-fit'>
                   <h2 className="text-base font-bold text-[#1a1a1a] ">
                     {title}
@@ -97,9 +97,9 @@ export default function StaysPage() {
                 </div>
 
                 {/* Scroll */}
-                <div className='px-4 sm:px-4 md:px-12 lg:px-52 pb-4'>
+                <div className='sm:px-4 md:px-12 lg:px-52 pb-4'>
                   <div className='overflow-x-auto scrollbar-hide'>
-                    <div className="flex gap-3 pr-4 sm:pr-4 md:pr-12 lg:pr-52">
+                    <div className="flex gap-3 px-4">
                       {items.map(item => (
                         <div key={item.id}
                           className="flex-shrink-0

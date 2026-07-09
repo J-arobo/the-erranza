@@ -63,12 +63,17 @@ export default function Home() {
           </div>
 
           {/* Scroll wrapper - NO padding here, clips cards at margin */}
-          <div className="px-6 sm:px-12 md:px-16 lg:px-20 overflow-hidden pb-4">
+          <div className="overflow-hidden pb-2">
             <div className="overflow-x-auto scrollbar-hide">
               {/* Flex row - padding here aligns first card with header */}
-              <div className="flex gap-3"> {/* xl:px-24 pb-4 overflow-x-auto scrollbar-hide */}
+              <div className="flex gap-3 px-6 sm:px-12 md:px-16 lg:px-20"> {/* xl:px-24 pb-4 overflow-x-auto scrollbar-hide */}
                 {data.slice(0, 10).map((item) => (
-                  <div key={item.id} className="flex-shrink-0 w-[36vw] sm:w-[26vw] md:w-[22vw] lg:w-[17vw] xl:w-[13vw]">
+                  <div key={item.id} className="flex-shrink-0
+                  w-[calc((100vw-60px)/2)]
+                  sm:w-[calc((100vw-120px)/3)]
+                  md:w-[calc((100vw-164px)/4)]
+                  lg:w-[calc((100vw-196px)/4)]
+                  xl:w-[calc((100vw-208px)/5)]">
                     <ListingCard
                       {...item}
                       listingCategory={category}
