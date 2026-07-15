@@ -173,7 +173,7 @@ function MiniCalendar({ checkIn, checkOut, onSelect }: {
   }
 
   return (
-    <div style={{ background: '#FEFDFC', borderRadius: 16, padding: '16px 8px', border: '1px solid #e8e0d0' }}>
+    <div style={{ background: '#FEFDFC', borderRadius: 16, padding: '16px 8px' }}>
       <div className="flex items-center justify-between mb-4 px-2">
         <button onClick={() => month === 0 ? (setMonth(11), setYear(y => y - 1)) : setMonth(m => m - 1)}
           className="w-8 h-8 rounded-full flex items-center justify-center"

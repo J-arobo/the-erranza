@@ -93,7 +93,7 @@ function MiniCalendar({ selected, onSelect }: {
   const isSelected = (d: number) => selected?.toDateString() === new Date(year, month, d).toDateString()
 
   return (
-    <div style={{ background: '#FEFDFC', borderRadius: 16, padding: '16px 8px', border: '1px solid #e8e0d0' }}>
+    <div style={{ background: '#FEFDFC', borderRadius: 16, padding: '16px 8px' }}>
       <div className="flex items-center justify-between mb-4 px-2">
         <button onClick={() => month === 0 ? (setMonth(11), setYear(y => y - 1)) : setMonth(m => m - 1)}
           className="w-8 h-8 rounded-full flex items-center justify-center"
@@ -147,8 +147,8 @@ function MiniCalendar({ selected, onSelect }: {
 }
 
 // ── Desktop two-month calendar (single date, not a range) ──
-function DesktopCalendar({ selected, onSelect }: {
-  selected: Date | null; onSelect: (d: Date) => void
+function DesktopCalendar({ selected, onSelect, stacked = false }: {
+  selected: Date | null; onSelect: (d: Date) => void; stacked?: boolean
 }) {
   const today = new Date()
   const todayMid = new Date(today.getFullYear(), today.getMonth(), today.getDate())
@@ -234,10 +234,14 @@ function DesktopCalendar({ selected, onSelect }: {
   }
 
   return (
-    <div style={{ borderRadius: 16, padding: '24px', background: '#FEFDFC' }}>
-      <div style={{ display: 'flex', gap: 32 }}>
+    <div style={{ borderRadius: 16, padding: stacked ? 0 : 24, background: '#FEFDFC' }}>
+      <div style={{ display: 'flex', flexDirection: stacked ? 'column' : 'row', gap: stacked ? 24 : 32 }}>
         {renderMonth(startYear, startMonth, true)}
-        <div style={{ width: 1, background: '#e8e0d0', flexShrink: 0 }} />
+        {stacked ? (
+          <div style={{ height: 1, background: '#e8e0d0' }} />
+        ) : (
+          <div style={{ width: 1, background: '#e8e0d0', flexShrink: 0 }} />
+        )}
         {renderMonth(secondYear, secondMonth, false)}
       </div>
     </div>
@@ -272,6 +276,7 @@ export default function VendorDetailPage({ params }: Props) {
   const guests = adults + children
   const [showSidebarCal, setShowSidebarCal] = useState(false)
   const [showGuestPanel, setShowGuestPanel] = useState(false)
+  const [showMobileDatePicker, setShowMobileDatePicker] = useState(false)
 
   if (!listing || !vendor) {
     return (
@@ -290,7 +295,8 @@ export default function VendorDetailPage({ params }: Props) {
   const features = vendor.features ?? []
   const images = vendor.images ?? [vendor.image]
   const visibleAmenities = showAllAmenities ? amenities : amenities.slice(0, 4)
-  const visibleReviews = showAllReviews ? REVIEWS : REVIEWS.slice(0, 1)
+  const visibleReviewsDesktop = showAllReviews ? REVIEWS : REVIEWS.slice(0, 2)
+  const visibleReviewsMobile = showAllReviews ? REVIEWS : REVIEWS.slice(0, 1)
   const otherVendors = listing.vendors?.filter(v => v.id !== vendorId) ?? []
   const basePrice = parseFloat(vendor.price.replace(/[^0-9.]/g, '')) || 100
 
@@ -356,6 +362,64 @@ export default function VendorDetailPage({ params }: Props) {
       </div>
     )
   }
+  if (showMobileDatePicker) {
+    return (
+      <div className="fixed inset-0 bg-white z-[200] flex flex-col">
+        <div className="flex items-center justify-between px-5 pt-12 pb-4">
+          <button
+            onClick={() => setShowMobileDatePicker(false)}
+            className="w-9 h-9 rounded-full flex items-center justify-center"
+            style={{ border: 'none', background: 'transparent', cursor: 'pointer' }}>
+            <X size={22} color="#304333" />
+          </button>
+          <button
+            onClick={() => setSelectedDate(null)}
+            className="text-sm font-semibold text-[#304333] underline"
+            style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
+            Clear dates
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-5 pb-32">
+          <h1 className="text-2xl font-bold text-[#304333] mb-1">Select tour date</h1>
+          <p className="text-sm text-[#78716c] mb-6">Add your preferred tour date</p>
+          <DesktopCalendar selected={selectedDate} onSelect={setSelectedDate} stacked />
+        </div>
+
+        <div className="fixed bottom-0 left-0 right-0 bg-white px-5"
+          style={{ borderTop: '1px solid #e8e0d0', paddingTop: 14, paddingBottom: 'calc(14px + env(safe-area-inset-bottom, 0px))' }}>
+          <div className="flex items-center justify-between">
+            <div>
+              {selectedDate ? (
+                <p className="text-sm font-semibold text-[#304333]">
+                  {selectedDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                </p>
+              ) : (
+                <p className="text-sm font-semibold text-[#304333]">Add dates for prices</p>
+              )}
+              <div className="flex items-center gap-1">
+                <Star size={12} fill="#F5D06E" color="#304333" />
+                <span className="text-xs text-[#78716c]">{vendor.rating}</span>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowMobileDatePicker(false)}
+              disabled={!selectedDate}
+              className="px-8 py-3 rounded-xl font-semibold text-sm transition-opacity"
+              style={{
+                background: selectedDate ? '#304333' : '#e8e0d0',
+                color: selectedDate ? 'white' : '#a8a29e',
+                border: 'none',
+                cursor: selectedDate ? 'pointer' : 'not-allowed',
+              }}>
+              Save
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
 
   return (
     <div className="fixed inset-0 flex flex-col" style={{ background: '#FEFDFC', fontFamily: "Georgia, 'Times New Roman', serif" }}>
@@ -506,10 +570,10 @@ export default function VendorDetailPage({ params }: Props) {
         </div>
 
         {/* ── SCROLLABLE CONTENT ── */}
-        <div className="flex-1 pb-32 sm:pb-8 px-5 sm:px-6 lg:px-12 max-w-6xl mx-auto w-full">
-          <div className="lg:grid lg:grid-cols-[1fr_380px] lg:gap-12">
+        <div className="flex-1 pb-20 sm:pb-8 px-5 sm:px-6 lg:px-12 max-w-6xl mx-auto w-full -mt-5 sm:mt-0 rounded-t-3xl sm:rounded-none bg-[#FEFDFC] sm:bg-transparent relative">
+          <div className="md:grid md:grid-cols-[1fr_380px] md:gap-12">
 
-            {/* ══ LEFT COLUMN — everything that was already here ══ */}
+            {/* ══ LEFT COLUMN  ══ */}
             <div>
 
               {/* Title section */}
@@ -615,335 +679,10 @@ export default function VendorDetailPage({ params }: Props) {
                 </>
               )}
 
-              <Divider />
-
-              {/* Map */}
-              <div>
-                <h2 className="text-xl font-semibold text-[#304333] mb-1">Where you'll be</h2>
-                <p className="text-sm text-[#78716c] mb-4 flex items-center gap-1">
-                  <MapPin size={13} /> {vendor.locationLabel ?? listing.location}
-                </p>
-                {vendor.lat && vendor.lng ? (
-                  <MapPlaceholder
-                    lat={vendor.lat}
-                    lng={vendor.lng}
-                    label={vendor.locationLabel ?? listing.location}
-                  />
-                ) : (
-                  <div className="w-full h-[200px] rounded-2xl flex items-center justify-center" style={{ background: '#e8e3d9', border: '1px solid #e8e0d0' }}>
-                    <p className="text-sm" style={{ color: '#78716c' }}>Location map coming soon</p>
-                  </div>
-                )}
-              </div>
-              <Divider />
-              {/* Reviews */}
-              <div>
-                <div className="flex items-center gap-2 mb-2">
-                  <Star size={18} fill="#F5D06E" color="#304333" />
-                  <span className="text-xl font-semibold text-[#304333]">
-                    {vendor.rating} · {vendor.reviews} reviews
-                  </span>
-                </div>
-
-                <div className="flex gap-2 overflow-x-auto scrollbar-hide py-3" style={{ scrollbarWidth: 'none' }}>
-                  {REVIEW_TAGS.map(({ icon, label, count }) => (
-                    <div key={label}
-                      className="flex items-center gap-2 px-4 py-2 rounded-xl flex-shrink-0"
-                      style={{ border: '1px solid #e8e0d0', background: 'white' }}>
-                      <span className="text-base">{icon}</span>
-                      <span className="text-sm text-[#304333]">{label}</span>
-                      <span className="text-sm text-[#78716c]">{count}</span>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="hidden sm:grid grid-cols-2 gap-6 mt-2">
-                  {visibleReviews.map((review, i) => (
-                    <div key={i} className="flex flex-col gap-3">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full flex items-center justify-center
-                                      text-sm font-semibold flex-shrink-0 text-[#304333]"
-                          style={{ background: review.avatar }}>
-                          {review.name[0]}
-                        </div>
-                        <div>
-                          <p className="text-sm font-semibold text-[#304333]">{review.name}</p>
-                          <p className="text-xs text-[#78716c]">{review.meta}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="flex gap-0.5">
-                          {Array.from({ length: 5 }).map((_, j) => (
-                            <Star key={j} size={11} fill={j < review.stars ? '#304333' : '#ddd'} color={j < review.stars ? '#304333' : '#ddd'} />
-                          ))}
-                        </div>
-                        <span className="text-xs text-[#78716c]">· {review.date}</span>
-                      </div>
-                      <p className="text-sm text-[#304333] leading-relaxed"
-                        style={{ display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical' as any, overflow: 'hidden' }}>
-                        {review.text}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="sm:hidden flex flex-col gap-5 mt-2">
-                  {visibleReviews.map((review, i) => (
-                    <div key={i}>
-                      <div className="flex items-center gap-3 mb-2">
-                        <div className="w-10 h-10 rounded-full flex items-center justify-center
-                                      text-sm font-semibold flex-shrink-0 text-[#304333]"
-                          style={{ background: review.avatar }}>
-                          {review.name[0]}
-                        </div>
-                        <div>
-                          <p className="text-sm font-semibold text-[#304333]">{review.name}</p>
-                          <p className="text-xs text-[#78716c]">{review.meta}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3 mb-2">
-                        <div className="flex">
-                          {Array.from({ length: 5 }).map((_, j) => (
-                            <Star key={j} size={13} fill={j < review.stars ? '#304333' : '#ddd'} color={j < review.stars ? '#304333' : '#ddd'} />
-                          ))}
-                        </div>
-                        <span className="text-xs text-[#78716c]">{review.date}</span>
-                      </div>
-                      <p className={`text-sm text-[#304333] leading-relaxed ${expandedReview !== i ? 'line-clamp-3' : ''}`}>
-                        {review.text}
-                      </p>
-                      <button
-                        onClick={() => setExpandedReview(expandedReview === i ? null : i)}
-                        className="text-sm font-semibold text-[#304333] underline mt-1">
-                        {expandedReview === i ? 'Show less' : 'Show more'}
-                      </button>
-                    </div>
-                  ))}
-                </div>
-
-                <button
-                  onClick={() => setShowAllReviews(s => !s)}
-                  className="mt-4 px-8 py-3.5 rounded-xl text-sm font-semibold text-[#304333] transition-colors hover:bg-[#ede8df]"
-                  style={{ background: '#F1F5E4' }}
-                >
-                  {showAllReviews ? 'Show fewer reviews' : `Show all ${vendor.reviews} reviews`}
-                </button>
-              </div>
-              <Divider />
-              {/* Meet your host */}
-              <div>
-                <h2 className="text-xl font-semibold text-[#304333] mb-5">Meet your host</h2>
-
-                <div className="hidden lg:flex gap-10 items-start">
-                  <div className="flex-shrink-0" style={{ width: 400 }}>
-                    <div className="rounded-2xl p-5" style={{ border: '1px solid #e8e0d0', background: 'white' }}>
-                      <div className="flex items-center">
-                        <div className="w-1/2 flex flex-col items-center">
-                          <div className="relative mb-3">
-                            <div className="w-24 h-24 rounded-full flex items-center justify-center text-white text-4xl font-bold" style={{ background: '#2c4a1e' }}>
-                              {vendor.name[0]}
-                            </div>
-                            <div className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-white border border-gray-200 flex items-center justify-center">
-                              <Shield size={12} color="#2c4a1e" />
-                            </div>
-                          </div>
-                          <p className="text-xl font-bold text-[#304333] text-center">{vendor.name}</p>
-                          <p className="text-sm text-[#78716c]">Tour operator</p>
-                        </div>
-                        <div className="w-1/2 pl-4">
-                          <div className="py-2.5" style={{ borderBottom: '1px solid #e8e0d0' }}>
-                            <p className="text-xl font-bold text-[#304333]">{vendor.reviews}</p>
-                            <p className="text-xs text-[#78716c]">Reviews</p>
-                          </div>
-                          <div className="py-3" style={{ borderBottom: '1px solid #e8e0d0' }}>
-                            <p className="text-xl font-bold text-[#304333]">{vendor.rating} <span className="text-base">★</span></p>
-                            <p className="text-xs text-[#78716c]">Rating</p>
-                          </div>
-                          <div className="py-2.5">
-                            <p className="text-xl font-bold text-[#304333]">{vendor.yearsTouring ?? 3}</p>
-                            <p className="text-xs text-[#78716c]">Yrs touring</p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex-1">
-                    <div className="mb-6">
-                      <p className="text-base font-semibold text-[#304333] mb-2">Host details</p>
-                      <p className="text-sm text-[#304333]">Response rate: {vendor.responseRate ?? 98}%</p>
-                      <p className="text-sm text-[#304333]">Responds {vendor.responseTime ?? 'within a few hours'}</p>
-                    </div>
-                    <button className="px-8 py-3.5 rounded-xl text-sm font-semibold text-[#304333] transition-colors hover:bg-[#ede8df] flex items-center gap-2"
-                      style={{ background: '#F1F5E4' }}>
-                      <MessageCircle size={16} />
-                      Message tour operator
-                    </button>
-                    <div className="flex items-start gap-3 mt-6 pt-6" style={{ borderTop: '1px solid #e8e0d0' }}>
-                      <Shield size={20} strokeWidth={1.5} color="#78716c" />
-                      <p className="text-xs text-[#78716c]">To help protect your payment, always communicate and pay through Erranza.</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="lg:hidden">
-                  <div className="bg-white rounded-2xl p-4 mb-4" style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.12)', maxWidth: 380 }}>
-                    <div className="flex items-center">
-                      <div className="w-1/2 flex flex-col items-center">
-                        <div className="relative mb-1.5">
-                          <div className="w-24 h-24 rounded-full flex items-center justify-center text-white text-3xl font-bold" style={{ background: '#2c4a1e' }}>
-                            {vendor.name[0]}
-                          </div>
-                          <div className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-white border border-gray-200 flex items-center justify-center">
-                            <Shield size={10} color="#2c4a1e" />
-                          </div>
-                        </div>
-                        <p className="text-base font-bold text-[#304333] text-center">{vendor.name}</p>
-                        <p className="text-xs text-[#78716c]">Tour operator</p>
-                      </div>
-                      <div className="w-1/2 pl-3">
-                        <div className="py-2" style={{ borderBottom: '1px solid #e8e0d0' }}>
-                          <p className="text-base font-bold text-[#304333]">{vendor.reviews}</p>
-                          <p className="text-xs text-[#78716c]">Reviews</p>
-                        </div>
-                        <div className="py-2" style={{ borderBottom: '1px solid #e8e0d0' }}>
-                          <p className="text-base font-bold text-[#304333]">{vendor.rating} <span className="text-sm">★</span></p>
-                          <p className="text-xs text-[#78716c]">Rating</p>
-                        </div>
-                        <div className="py-2">
-                          <p className="text-base font-bold text-[#304333]">{vendor.yearsTouring ?? 3}</p>
-                          <p className="text-xs text-[#78716c]">Yrs touring</p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="mb-5">
-                    <p className="text-base font-semibold text-[#304333] mb-2">Host details</p>
-                    <p className="text-sm text-[#304333]">Response rate: {vendor.responseRate ?? 98}%</p>
-                    <p className="text-sm text-[#304333]">Responds {vendor.responseTime ?? 'within a few hours'}</p>
-                  </div>
-                  <button className="w-full py-3.5 rounded-xl text-sm font-semibold text-[#304333] transition-colors hover:bg-[#ede8df] mb-5 flex items-center justify-center gap-2"
-                    style={{ background: '#F1F5E4' }}>
-                    <MessageCircle size={16} />
-                    Message tour operator
-                  </button>
-                  <div className="flex items-start gap-3">
-                    <Shield size={18} strokeWidth={1.5} color="#78716c" />
-                    <p className="text-xs text-[#78716c]">To help protect your payment, always communicate and pay through Erranza.</p>
-                  </div>
-                </div>
-              </div>
-              <Divider />
-              {/* Availability */}
-              <div>
-                <div className="flex items-center gap-2 mb-2">
-                  <Calendar size={16} color="#304333" />
-                  <h2 className="text-xl font-semibold text-[#304333]">Availability</h2>
-                </div>
-                <p className="text-sm text-[#78716c]">
-                  {vendor.availability ?? 'Contact vendor for availability'}
-                </p>
-              </div>
-              <Divider />
-              {/* Select tour date */}
-              <div>
-                <h2 className="text-xl font-semibold text-[#304333] mb-1">
-                  {selectedDate ? `Selected: ${selectedDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}` : 'Select a date'}
-                </h2>
-                <p className="text-sm text-[#78716c] mb-4">
-                  {vendor.availability ? `Typically runs ${vendor.availability}` : 'Add your preferred tour date'}
-                </p>
-                <div className="hidden sm:block">
-                  <DesktopCalendar selected={selectedDate} onSelect={setSelectedDate} />
-                </div>
-                <div className="sm:hidden">
-                  <MiniCalendar selected={selectedDate} onSelect={setSelectedDate} />
-                </div>
-                {selectedDate && (
-                  <button onClick={() => setSelectedDate(null)}
-                    className="mt-3 text-sm font-semibold text-[#304333] underline"
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
-                    Clear date
-                  </button>
-                )}
-              </div>
-
-              <Divider />
-
-              {/* Things to know */}
-              <div>
-                <h2 className="text-xl font-semibold text-[#304333] mb-6">Things to know</h2>
-
-                <div className="hidden sm:grid grid-cols-3 gap-8">
-                  {[
-                    { icon: <CalendarX2 size={32} strokeWidth={1.5} />, title: 'Cancellation policy', items: ['This reservation is non-refundable.', 'Review the full policy for details.'] },
-                    { icon: <Key size={32} strokeWidth={1.5} />, title: 'Tour rules', items: ['Respect wildlife, no flash photography.', 'Follow guide instructions at all times.'] },
-                    { icon: <ShieldHalf size={32} strokeWidth={1.5} />, title: 'Safety information', items: ['Stay inside the vehicle during game drives.', 'Emergency protocols briefed on arrival.'] },
-                  ].map(({ icon, title: st, items }) => (
-                    <div key={st}>
-                      <div className="mb-4 text-[#304333]">{icon}</div>
-                      <p className="text-base font-semibold text-[#304333] mb-3">{st}</p>
-                      {items.map(item => <p key={item} className="text-sm text-[#78716c] mb-0.5">{item}</p>)}
-                    </div>
-                  ))}
-                </div>
-
-                <div className="sm:hidden">
-                  {[
-                    { icon: <Calendar size={22} strokeWidth={1.5} />, title: 'Cancellation policy', items: ['This reservation is non-refundable.', 'Review the full policy for details.'] },
-                    { icon: <Key size={22} strokeWidth={1.5} />, title: 'Tour rules', items: ['Respect wildlife, no flash photography.', 'Follow guide instructions at all times.'] },
-                    { icon: <ShieldHalf size={22} strokeWidth={1.5} />, title: 'Safety information', items: ['Stay inside the vehicle during game drives.', 'Emergency protocols briefed on arrival.'] },
-                  ].map(({ icon, title: st, items }, idx, arr) => (
-                    <div key={st} className="flex items-start gap-4 py-4" style={idx < arr.length - 1 ? { borderBottom: '1px solid #e8e0d0' } : {}}>
-                      <span className="text-[#304333] flex-shrink-0 mt-0.5">{icon}</span>
-                      <div className="flex-1">
-                        <p className="text-sm font-semibold text-[#304333] mb-1">{st}</p>
-                        {items.map(item => <p key={item} className="text-sm text-[#78716c]">{item}</p>)}
-                      </div>
-                      <ChevronRight size={18} color="#a8a29e" className="flex-shrink-0 mt-0.5" />
-                    </div>
-                  ))}
-                </div>
-
-                <button className="flex items-center gap-2 mt-5">
-                  <Flag size={14} color="#78716c" />
-                  <span className="text-sm text-[#304333] underline">Report this listing</span>
-                </button>
-              </div>
-
-              {/* More vendors */}
-              {otherVendors.length > 0 && (
-                <>
-                  <Divider />
-                  <div className="pb-4">
-                    <h2 className="text-xl font-semibold text-[#304333] mb-4">
-                      More tours offering similar services
-                    </h2>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                      {otherVendors.slice(0, 4).map((v) => (
-                        <button
-                          key={v.id}
-                          onClick={() => router.push(`/listings/${id}/vendor/${v.id}`)}
-                          className="relative h-[130px] rounded-2xl overflow-hidden active:scale-95 transition-transform"
-                          style={{ background: '#e8e0d0' }}
-                        >
-                          <Image src={v.image} alt={v.name} fill className="object-cover" sizes="50vw" />
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                          <div className="absolute bottom-0 left-0 right-0 p-2 text-left">
-                            <p className="text-white text-xs font-semibold truncate">{v.name}</p>
-                            <p className="text-white/70 text-[10px]">{v.price}</p>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </>
-              )}
             </div>
 
             {/* ══ DESKTOP BOOKING SIDEBAR ══ */}
-            <div className="hidden lg:block">
+            <div className="hidden md:block">
               <div className="sticky top-24 mt-6">
                 <div className="rounded-2xl shadow-xl p-6 bg-white" style={{ border: '1px solid #e8e0d0' }}>
 
@@ -1040,7 +779,6 @@ export default function VendorDetailPage({ params }: Props) {
                         </div>
                       </div>
                     )}
-
                   </div>
 
                   <button
@@ -1065,10 +803,361 @@ export default function VendorDetailPage({ params }: Props) {
                 </div>
               </div>
             </div>
-
           </div>
-        </div>
 
+          <Divider />
+          {/* Select tour date */}
+          <div>
+            <h2 className="text-xl font-semibold text-[#304333] mb-1">
+              {selectedDate ? `Selected: ${selectedDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}` : 'Select a date'}
+            </h2>
+            <p className="text-sm text-[#78716c] mb-4">
+              {vendor.availability ? `Typically runs ${vendor.availability}` : 'Add your preferred tour date'}
+            </p>
+            <div className="hidden sm:block">
+              <DesktopCalendar selected={selectedDate} onSelect={setSelectedDate} />
+            </div>
+            <div className="sm:hidden">
+              <MiniCalendar selected={selectedDate} onSelect={setSelectedDate} />
+            </div>
+            {selectedDate && (
+              <button onClick={() => setSelectedDate(null)}
+                className="mt-3 text-sm font-semibold text-[#304333] underline"
+                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                Clear date
+              </button>
+            )}
+          </div>
+
+          <Divider />
+
+          {/* Map */}
+          <div>
+            <h2 className="text-xl font-semibold text-[#304333] mb-1">Where you'll be</h2>
+            <p className="text-sm text-[#78716c] mb-4 flex items-center gap-1">
+              <MapPin size={13} /> {vendor.locationLabel ?? listing.location}
+            </p>
+            {vendor.lat && vendor.lng ? (
+              <div style={{ position: 'relative', isolation: 'isolate' }}>
+                <MapPlaceholder
+                  lat={vendor.lat}
+                  lng={vendor.lng}
+                  label={vendor.locationLabel ?? listing.location}
+                />
+              </div>
+            ) : (
+
+              <div className="w-full h-[200px] rounded-2xl flex items-center justify-center" style={{ background: '#e8e3d9', border: '1px solid #e8e0d0' }}>
+                <p className="text-sm" style={{ color: '#78716c' }}>Location map coming soon</p>
+              </div>
+            )}
+          </div>
+          <Divider />
+          {/* Reviews */}
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <Star size={18} fill="#F5D06E" color="#304333" />
+              <span className="text-xl font-semibold text-[#304333]">
+                {vendor.rating} · {vendor.reviews} reviews
+              </span>
+            </div>
+
+            <div className="flex gap-2 overflow-x-auto scrollbar-hide py-3" style={{ scrollbarWidth: 'none' }}>
+              {REVIEW_TAGS.map(({ icon, label, count }) => (
+                <div key={label}
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl flex-shrink-0"
+                  style={{ border: '1px solid #e8e0d0', background: 'white' }}>
+                  <span className="text-base">{icon}</span>
+                  <span className="text-sm text-[#304333]">{label}</span>
+                  <span className="text-sm text-[#78716c]">{count}</span>
+                </div>
+              ))}
+            </div>
+
+            <div className="hidden sm:grid grid-cols-2 gap-6 mt-2">
+              {visibleReviewsDesktop.map((review, i) => (
+                <div key={i} className="flex flex-col gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full flex items-center justify-center
+                                                    text-sm font-semibold flex-shrink-0 text-[#304333]"
+                      style={{ background: review.avatar }}>
+                      {review.name[0]}
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-[#304333]">{review.name}</p>
+                      <p className="text-xs text-[#78716c]">{review.meta}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="flex gap-0.5">
+                      {Array.from({ length: 5 }).map((_, j) => (
+                        <Star key={j} size={11} fill={j < review.stars ? '#304333' : '#ddd'} color={j < review.stars ? '#304333' : '#ddd'} />
+                      ))}
+                    </div>
+                    <span className="text-xs text-[#78716c]">· {review.date}</span>
+                  </div>
+                  <p className="text-sm text-[#304333] leading-relaxed"
+                    style={{ display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical' as any, overflow: 'hidden' }}>
+                    {review.text}
+                  </p>
+                </div>
+              ))}
+            </div>
+
+            <div className="sm:hidden flex flex-col gap-5 mt-2">
+              {visibleReviewsMobile.map((review, i) => (
+                <div key={i}>
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="w-10 h-10 rounded-full flex items-center justify-center
+                                                    text-sm font-semibold flex-shrink-0 text-[#304333]"
+                      style={{ background: review.avatar }}>
+                      {review.name[0]}
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-[#304333]">{review.name}</p>
+                      <p className="text-xs text-[#78716c]">{review.meta}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="flex">
+                      {Array.from({ length: 5 }).map((_, j) => (
+                        <Star key={j} size={13} fill={j < review.stars ? '#304333' : '#ddd'} color={j < review.stars ? '#304333' : '#ddd'} />
+                      ))}
+                    </div>
+                    <span className="text-xs text-[#78716c]">{review.date}</span>
+                  </div>
+                  <p className={`text-sm text-[#304333] leading-relaxed ${expandedReview !== i ? 'line-clamp-3' : ''}`}>
+                    {review.text}
+                  </p>
+                  <button
+                    onClick={() => setExpandedReview(expandedReview === i ? null : i)}
+                    className="text-sm font-semibold text-[#304333] underline mt-1">
+                    {expandedReview === i ? 'Show less' : 'Show more'}
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            <button
+              onClick={() => setShowAllReviews(s => !s)}
+              className="mt-4 px-8 py-3.5 rounded-xl text-sm font-semibold text-[#304333] transition-colors hover:bg-[#ede8df]"
+              style={{ background: '#F1F5E4' }}
+            >
+              {showAllReviews ? 'Show fewer reviews' : `Show all ${vendor.reviews} reviews`}
+            </button>
+          </div>
+          <Divider />
+          {/* Availability */}
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <Calendar size={16} color="#304333" />
+              <h2 className="text-xl font-semibold text-[#304333]">Availability</h2>
+            </div>
+            <p className="text-sm text-[#78716c]">
+              {vendor.availability ?? 'Contact vendor for availability'}
+            </p>
+          </div>
+
+          <Divider />
+
+          {/* Meet your host */}
+          <div>
+            <h2 className="text-xl font-semibold text-[#304333] mb-5">Meet your host</h2>
+
+            <div className="hidden sm:flex gap-10 items-start">
+              <div className="flex-shrink-0" style={{ width: 400 }}>
+                <div className="rounded-2xl p-5" style={{ border: '1px solid #e8e0d0', background: 'white' }}>
+                  <div className="flex items-center">
+                    <div className="w-1/2 flex flex-col items-center">
+                      <div className="relative mb-3">
+                        <div className="w-24 h-24 rounded-full flex items-center justify-center text-white text-4xl font-bold" style={{ background: '#2c4a1e' }}>
+                          {vendor.name[0]}
+                        </div>
+                        <div className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-white border border-gray-200 flex items-center justify-center">
+                          <Shield size={12} color="#2c4a1e" />
+                        </div>
+                      </div>
+                      <p className="text-xl font-bold text-[#304333] text-center">{vendor.name}</p>
+                      <p className="text-sm text-[#78716c]">Tour operator</p>
+                    </div>
+                    <div className="w-1/2 pl-4">
+                      <div className="py-2.5" style={{ borderBottom: '1px solid #e8e0d0' }}>
+                        <p className="text-xl font-bold text-[#304333]">{vendor.reviews}</p>
+                        <p className="text-xs text-[#78716c]">Reviews</p>
+                      </div>
+                      <div className="py-3" style={{ borderBottom: '1px solid #e8e0d0' }}>
+                        <p className="text-xl font-bold text-[#304333]">{vendor.rating} <span className="text-base">★</span></p>
+                        <p className="text-xs text-[#78716c]">Rating</p>
+                      </div>
+                      <div className="py-2.5">
+                        <p className="text-xl font-bold text-[#304333]">{vendor.yearsTouring ?? 3}</p>
+                        <p className="text-xs text-[#78716c]">Yrs touring</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex-1">
+                <div className="mb-6">
+                  <p className="text-base font-semibold text-[#304333] mb-2">Host details</p>
+                  <p className="text-sm text-[#304333]">Response rate: {vendor.responseRate ?? 98}%</p>
+                  <p className="text-sm text-[#304333]">Responds {vendor.responseTime ?? 'within a few hours'}</p>
+                </div>
+                <button className="px-8 py-3.5 rounded-xl text-sm font-semibold text-[#304333] transition-colors hover:bg-[#ede8df] flex items-center gap-2"
+                  style={{ background: '#F1F5E4' }}>
+                  <MessageCircle size={16} />
+                  Message tour operator
+                </button>
+                <div className="flex items-start gap-3 mt-6 pt-6" style={{ borderTop: '1px solid #e8e0d0' }}>
+                  <Shield size={20} strokeWidth={1.5} color="#78716c" />
+                  <p className="text-xs text-[#78716c]">To help protect your payment, always communicate and pay through Erranza.</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="sm:hidden">
+              <div className="bg-white rounded-2xl p-4 mb-4" style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.12)', maxWidth: 380 }}>
+                <div className="flex items-center">
+                  <div className="w-1/2 flex flex-col items-center">
+                    <div className="relative mb-1.5">
+                      <div className="w-24 h-24 rounded-full flex items-center justify-center text-white text-3xl font-bold" style={{ background: '#2c4a1e' }}>
+                        {vendor.name[0]}
+                      </div>
+                      <div className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-white border border-gray-200 flex items-center justify-center">
+                        <Shield size={10} color="#2c4a1e" />
+                      </div>
+                    </div>
+                    <p className="text-base font-bold text-[#304333] text-center">{vendor.name}</p>
+                    <p className="text-xs text-[#78716c]">Tour operator</p>
+                  </div>
+                  <div className="w-1/2 pl-3">
+                    <div className="py-2" style={{ borderBottom: '1px solid #e8e0d0' }}>
+                      <p className="text-base font-bold text-[#304333]">{vendor.reviews}</p>
+                      <p className="text-xs text-[#78716c]">Reviews</p>
+                    </div>
+                    <div className="py-2" style={{ borderBottom: '1px solid #e8e0d0' }}>
+                      <p className="text-base font-bold text-[#304333]">{vendor.rating} <span className="text-sm">★</span></p>
+                      <p className="text-xs text-[#78716c]">Rating</p>
+                    </div>
+                    <div className="py-2">
+                      <p className="text-base font-bold text-[#304333]">{vendor.yearsTouring ?? 3}</p>
+                      <p className="text-xs text-[#78716c]">Yrs touring</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mb-5">
+                <p className="text-base font-semibold text-[#304333] mb-2">Host details</p>
+                <p className="text-sm text-[#304333]">Response rate: {vendor.responseRate ?? 98}%</p>
+                <p className="text-sm text-[#304333]">Responds {vendor.responseTime ?? 'within a few hours'}</p>
+              </div>
+              <button className="w-full py-3.5 rounded-xl text-sm font-semibold text-[#304333] transition-colors hover:bg-[#ede8df] mb-5 flex items-center justify-center gap-2"
+                style={{ background: '#F1F5E4' }}>
+                <MessageCircle size={16} />
+                Message tour operator
+              </button>
+              <div className="flex items-start gap-3">
+                <Shield size={18} strokeWidth={1.5} color="#78716c" />
+                <p className="text-xs text-[#78716c]">To help protect your payment, always communicate and pay through Erranza.</p>
+              </div>
+            </div>
+          </div>
+          <Divider />
+
+
+          {/* Things to know */}
+          <div>
+            <h2 className="text-xl font-semibold text-[#304333] mb-6">Things to know</h2>
+
+            <div className="hidden sm:grid grid-cols-3 gap-8">
+              {[
+                { icon: <CalendarX2 size={32} strokeWidth={1.5} />, title: 'Cancellation policy', items: ['This reservation is non-refundable.', 'Review the full policy for details.'] },
+                { icon: <Key size={32} strokeWidth={1.5} />, title: 'Tour rules', items: ['Respect wildlife, no flash photography.', 'Follow guide instructions at all times.'] },
+                { icon: <ShieldHalf size={32} strokeWidth={1.5} />, title: 'Safety information', items: ['Stay inside the vehicle during game drives.', 'Emergency protocols briefed on arrival.'] },
+              ].map(({ icon, title: st, items }) => (
+                <div key={st}>
+                  <div className="mb-4 text-[#304333]">{icon}</div>
+                  <p className="text-base font-semibold text-[#304333] mb-3">{st}</p>
+                  {items.map(item => <p key={item} className="text-sm text-[#78716c] mb-0.5">{item}</p>)}
+                </div>
+              ))}
+            </div>
+
+            <div className="sm:hidden">
+              {[
+                { icon: <Calendar size={22} strokeWidth={1.5} />, title: 'Cancellation policy', items: ['This reservation is non-refundable.', 'Review the full policy for details.'] },
+                { icon: <Key size={22} strokeWidth={1.5} />, title: 'Tour rules', items: ['Respect wildlife, no flash photography.', 'Follow guide instructions at all times.'] },
+                { icon: <ShieldHalf size={22} strokeWidth={1.5} />, title: 'Safety information', items: ['Stay inside the vehicle during game drives.', 'Emergency protocols briefed on arrival.'] },
+              ].map(({ icon, title: st, items }, idx, arr) => (
+                <div key={st} className="flex items-start gap-4 py-4" style={idx < arr.length - 1 ? { borderBottom: '1px solid #e8e0d0' } : {}}>
+                  <span className="text-[#304333] flex-shrink-0 mt-0.5">{icon}</span>
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold text-[#304333] mb-1">{st}</p>
+                    {items.map(item => <p key={item} className="text-sm text-[#78716c]">{item}</p>)}
+                  </div>
+                  <ChevronRight size={18} color="#a8a29e" className="flex-shrink-0 mt-0.5" />
+                </div>
+              ))}
+            </div>
+
+            <button className="flex items-center gap-2 mt-5">
+              <Flag size={14} color="#78716c" />
+              <span className="text-sm text-[#304333] underline">Report this listing</span>
+            </button>
+          </div>
+
+          {/* More vendors */}
+          {otherVendors.length > 0 && (
+            <>
+              <Divider />
+              <div className="pb-1">
+                <h2 className="text-xl font-semibold text-[#304333] mb-4">
+                  More tours offering similar services
+                </h2>
+                <div className="sm:hidden overflow-x-auto scrollbar-hide -mx-4 px-4">
+                  <div className="flex gap-3">
+                    {otherVendors.slice(0, 4).map((v) => (
+                      <button
+                        key={v.id}
+                        onClick={() => router.push(`/listings/${id}/vendor/${v.id}`)}
+                        className="relative flex-shrink-0 w-[45vw] h-[130px] rounded-2xl overflow-hidden active:scale-95 transition-transform"
+                        style={{ background: '#e8e0d0' }}
+                      >
+                        <Image src={v.image} alt={v.name} fill className="object-cover" sizes="45vw" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                        <div className="absolute bottom-0 left-0 right-0 p-2 text-left">
+                          <p className="text-white text-xs font-semibold truncate">{v.name}</p>
+                          <p className="text-white/70 text-[10px]">{v.price}</p>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {otherVendors.slice(0, 4).map((v) => (
+                    <button
+                      key={v.id}
+                      onClick={() => router.push(`/listings/${id}/vendor/${v.id}`)}
+                      className="relative h-[130px] rounded-2xl overflow-hidden active:scale-95 transition-transform"
+                      style={{ background: '#e8e0d0' }}
+                    >
+                      <Image src={v.image} alt={v.name} fill className="object-cover" sizes="50vw" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                      <div className="absolute bottom-0 left-0 right-0 p-2 text-left">
+                        <p className="text-white text-xs font-semibold truncate">{v.name}</p>
+                        <p className="text-white/70 text-[10px]">{v.price}</p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+
+              </div>
+            </>
+          )}
+
+        </div>
 
         <FooterSection />
 
@@ -1093,11 +1182,18 @@ export default function VendorDetailPage({ params }: Props) {
               )}
             </div>
             <button
-              onClick={() => router.push(`/listings/${id}/vendor/${vendorId}/book?guests=${guests}`)}
+              onClick={() => {
+                if (selectedDate) {
+                  router.push(`/listings/${id}/vendor/${vendorId}/book?guests=${guests}`)
+                } else {
+                  setShowMobileDatePicker(true)
+                }
+              }}
               className="px-7 py-3 rounded-xl font-semibold text-sm text-white transition-opacity hover:opacity-90"
               style={{ background: 'linear-gradient(to right, #e8612a, #d44d1a)', border: 'none', cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}>
-              Reserve
+              {selectedDate ? 'Reserve' : 'Check availability'}
             </button>
+
           </div>
         </div>
 

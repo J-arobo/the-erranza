@@ -318,8 +318,8 @@ export default function ListingDetailPage({ params }: Props) {
 
 
       {/* ── MAIN CONTENT ── */}
-      <div className="flex-1 px-4 sm:px-6 lg:px-8 pt-5 pb-8
-                      max-w-5xl mx-auto w-full">
+      <div className="flex-1 px-4 sm:px-6 lg:px-8 xl:px-20 pt-5 pb-8
+                max-w-7xl mx-auto w-full">
 
         {/* Title + rating */}
         <div className="flex items-start justify-between gap-3 mb-1">
@@ -416,46 +416,6 @@ export default function ListingDetailPage({ params }: Props) {
 
         {/* ── Vendors ── */}
         <div>
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-base font-bold text-[#1a1a1a]">
-              Available packages
-            </h3>
-            <span className="text-xs text-gray-400">
-              {vendors.length} vendor{vendors.length !== 1 ? 's' : ''}
-            </span>
-          </div>
-
-          {/* Mobile + tablet: horizontal scroll */}
-          <div className="lg:hidden overflow-x-auto scrollbar-hide -mx-4 px-4 sm:-mx-6 sm:px-6">
-            <div className="flex gap-4 pb-1">
-              {vendors.map((vendor) => (
-                <div key={vendor.id} className="flex-shrink-0 w-[calc((100vw-48px)/2)] sm:w-[45vw]">
-                  <VendorCard
-                    vendor={vendor}
-                    listingId={id}
-                    onBook={(vendorId) =>
-                      router.push(`/listings/${id}/vendor/${vendorId}/package`)
-                    }
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Desktop: grid */}
-          <div className="hidden lg:grid lg:grid-cols-3 gap-4">
-            {vendors.map((vendor) => (
-              <VendorCard
-                key={vendor.id}
-                vendor={vendor}
-                listingId={id}
-                onBook={(vendorId) =>
-                  router.push(`/listings/${id}/vendor/${vendorId}/package`)
-                }
-              />
-            ))}
-
-          </div>
 
           {/* ── Available tours ── */}
           <div className="mb-8 pt-2">
@@ -499,12 +459,52 @@ export default function ListingDetailPage({ params }: Props) {
             </div>
           </div>
 
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-base font-bold text-[#1a1a1a]">
+              Available packages
+            </h3>
+            <span className="text-xs text-gray-400">
+              {vendors.length} vendor{vendors.length !== 1 ? 's' : ''}
+            </span>
+          </div>
+
+          {/* Mobile + tablet: horizontal scroll */}
+          <div className="lg:hidden overflow-x-auto scrollbar-hide -mx-4 px-4 sm:-mx-6 sm:px-6">
+            <div className="flex gap-4 pb-1">
+              {vendors.map((vendor) => (
+                <div key={vendor.id} className="flex-shrink-0 w-[calc((100vw-48px)/2)] sm:w-[45vw]">
+                  <VendorCard
+                    vendor={vendor}
+                    listingId={id}
+                    onBook={(vendorId) =>
+                      router.push(`/listings/${id}/vendor/${vendorId}/package`)
+                    }
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Desktop: grid */}
+          <div className="hidden lg:grid lg:grid-cols-3 gap-4">
+            {vendors.map((vendor) => (
+              <VendorCard
+                key={vendor.id}
+                vendor={vendor}
+                listingId={id}
+                onBook={(vendorId) =>
+                  router.push(`/listings/${id}/vendor/${vendorId}/package`)
+                }
+              />
+            ))}
+
+          </div>
 
         </div>
       </div>
 
-
     </div>
+
   )
 }
 
