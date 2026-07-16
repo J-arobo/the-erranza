@@ -15,29 +15,29 @@ export default function BottomNav({ active, onSelect, scrollingDown, scrolled }:
   const router = useRouter()
 
   const guestItems = [
-    { name: 'Explore',   Icon: Search },
+    { name: 'Explore', Icon: Search },
     { name: 'Wishlists', Icon: Heart },
-    { name: 'Log in',    Icon: User },
+    { name: 'Log in', Icon: User },
   ]
 
   const authItems = [
-    { name: 'Explore',   Icon: Search },
+    { name: 'Explore', Icon: Search },
     { name: 'Wishlists', Icon: Heart },
-    { name: 'Trips',     Icon: Calendar },
-    { name: 'Messages',  Icon: MessageCircle },
-    { name: 'Profile',   Icon: User },
+    { name: 'Trips', Icon: Calendar },
+    { name: 'Messages', Icon: MessageCircle },
+    { name: 'Profile', Icon: User },
   ]
 
   const items = isLoggedIn ? authItems : guestItems
 
   function handleSelect(name: string) {
     const routes: Record<string, string> = {
-      'Explore':   '/',
+      'Explore': '/',
       'Wishlists': '/wishlists',
-      'Log in':    '/login',
-      'Trips':     '/trips',
-      'Messages':  '/messages',
-      'Profile':   '/profile',
+      'Log in': '/login',
+      'Trips': '/trips',
+      'Messages': '/messages',
+      'Profile': '/profile',
     }
     const path = routes[name]
     if (path) router.push(path)
@@ -45,9 +45,6 @@ export default function BottomNav({ active, onSelect, scrollingDown, scrolled }:
   }
 
   return (
-    // FIXED: pointer-events-none when hidden so it cannot block taps on content
-    // FIXED: removed opacity-0 translate which left invisible blocking layer
-    // FIXED: using style not className for the critical pointer-events
     <div
       style={{
         position: 'fixed',
@@ -59,22 +56,23 @@ export default function BottomNav({ active, onSelect, scrollingDown, scrolled }:
         justifyContent: 'center',
         alignItems: 'center',
         backgroundColor: 'transparent',
-        // When scrolling down: move off screen AND disable pointer events
         transform: scrollingDown ? 'translateY(100%)' : 'translateY(0)',
         transition: 'transform 0.3s ease',
-        // CRITICAL: this is what was missing — without this,
-        // the hidden nav still catches all taps
         pointerEvents: scrollingDown ? 'none' : 'auto',
-        // Safe area for iPhone home indicator
         paddingBottom: 'env(safe-area-inset-bottom)',
         paddingTop: '8px',
       }}
     >
+
       <nav
         style={{
-          backgroundColor: '#2c4a1e',
+          // Glassmorphism with balanced depth
+          background: 'rgba(30, 30, 30, 0.35)', // darker translucency for contrast
+          backdropFilter: 'blur(14px) saturate(180%)',
+          WebkitBackdropFilter: 'blur(14px) saturate(180%)',
           borderRadius: '9999px',
-          boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
+          border: '1px solid rgba(255, 255, 255, 0.25)',
+          boxShadow: '0 8px 24px rgba(0,0,0,0.25), inset 0 1px 2px rgba(255,255,255,0.2)',
           display: 'flex',
           justifyContent: 'space-around',
           alignItems: 'center',
@@ -82,8 +80,25 @@ export default function BottomNav({ active, onSelect, scrollingDown, scrolled }:
           maxWidth: scrolled ? '280px' : '360px',
           padding: scrolled ? '6px 8px' : '8px 8px',
           transition: 'width 0.3s ease, max-width 0.3s ease, padding 0.3s ease',
+          position: 'relative',
+          overflow: 'hidden',
         }}
       >
+        {/* Gradient shimmer overlay */}
+        {/* 
+        <div
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            borderRadius: 'inherit',
+            background: 'linear-gradient(135deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0) 40%, rgba(255,255,255,0.15) 100%)',
+            animation: 'shimmer 6s infinite linear',
+            pointerEvents: 'none',
+          }}
+        /> */}
         {items.map(({ name, Icon }) => (
           <button
             key={name}
@@ -94,13 +109,11 @@ export default function BottomNav({ active, onSelect, scrollingDown, scrolled }:
               alignItems: 'center',
               gap: '2px',
               flex: 1,
-              // CRITICAL: minimum 44×44pt touch target (Apple HIG requirement)
               minHeight: '44px',
               minWidth: '44px',
               justifyContent: 'center',
               padding: '4px',
               cursor: 'pointer',
-              // Remove iOS grey flash on tap
               WebkitTapHighlightColor: 'transparent',
               border: 'none',
               background: 'transparent',
@@ -110,7 +123,7 @@ export default function BottomNav({ active, onSelect, scrollingDown, scrolled }:
             <div style={{ position: 'relative' }}>
               <Icon
                 size={scrolled ? 18 : 20}
-                color={active === name ? '#EAF98E' : '#f5f0e8'}
+                color={active === name ? '#EAF98E' : '#ffffff'}
               />
               {name === 'Profile' && isLoggedIn && (
                 <div
@@ -122,7 +135,7 @@ export default function BottomNav({ active, onSelect, scrollingDown, scrolled }:
                     height: '8px',
                     borderRadius: '50%',
                     backgroundColor: '#EAF98E',
-                    border: '1.5px solid #2c4a1e',
+                    border: '1.5px solid rgba(255,255,255,0.6)',
                   }}
                 />
               )}
@@ -132,7 +145,7 @@ export default function BottomNav({ active, onSelect, scrollingDown, scrolled }:
               <span
                 style={{
                   fontSize: '10px',
-                  color: active === name ? '#EAF98E' : '#f5f0e8',
+                  color: active === name ? '#EAF98E' : '#ffffff',
                   fontWeight: active === name ? 700 : 500,
                   whiteSpace: 'nowrap',
                   lineHeight: 1,
@@ -144,6 +157,9 @@ export default function BottomNav({ active, onSelect, scrollingDown, scrolled }:
           </button>
         ))}
       </nav>
+
     </div>
   )
 }
+
+

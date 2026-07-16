@@ -31,6 +31,10 @@ button, a, [role="button"] {
   .text-41      { font-size: 41px; }
   .text-poppins { font-family: var(--font-poppins); }
 }
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
 
 .scrollbar-hide::-webkit-scrollbar { display: none; }
 .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
