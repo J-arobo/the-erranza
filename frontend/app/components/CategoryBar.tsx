@@ -5,13 +5,13 @@ import {
 } from 'lucide-react'
 
 const tabs = [
-  { name: 'Stays',       Icon: Home },
-  { name: 'Flights',     Icon: Plane },
-  { name: 'Safari',      Icon: Binoculars },
-  { name: 'Market',      Icon: ShoppingBag },
+  { name: 'Stays', Icon: Home },
+  { name: 'Flights', Icon: Plane },
+  { name: 'Safari', Icon: Binoculars },
+  { name: 'Market', Icon: ShoppingBag },
   { name: 'Experiences', Icon: Star },
-  { name: 'Directory',   Icon: BookOpen },
-  { name: 'Packages',    Icon: Package },
+  { name: 'Directory', Icon: BookOpen },
+  { name: 'Packages', Icon: Package },
   { name: 'Car Rentals', Icon: Car },
 ]
 
@@ -24,7 +24,7 @@ type Props = {
 
 export default function CategoryBar({ scrollY, active, onSelect, collapsed }: Props) {
   const ICON_FADE_START = 30
-  const ICON_FADE_END   = 80
+  const ICON_FADE_END = 80
   const iconOpacity = Math.max(
     0,
     Math.min(1, 1 - (scrollY - ICON_FADE_START) / (ICON_FADE_END - ICON_FADE_START))
@@ -42,16 +42,17 @@ export default function CategoryBar({ scrollY, active, onSelect, collapsed }: Pr
             key={name}
             onClick={() => onSelect(name)}
             className={`flex flex-col items-center gap-0.5 px-3 sm:px-5
-                        flex-shrink-0 min-w-[64px] transition-all duration-300
-                        ${iconsGone ? 'py-1.5' : 'py-2.5'}`}
+                                flex-shrink-0 min-w-[64px] transition-all duration-300
+                                ${iconsGone ? 'py-0.5' : 'py-1'}`}
           >
             <div
-              className={`rounded-full p-1.5 transition-all
-                ${active === name ? 'bg-[#304333]' : 'bg-transparent'}`}
+              className={`rounded-full p-1 transition-all
+                        ${active === name ? 'bg-[#304333]' : 'bg-transparent'}`}
               style={{
                 opacity: iconOpacity,
                 transform: `translateY(${iconTranslate}px)`,
                 height: iconsGone ? 0 : 'auto',
+
                 overflow: 'hidden',
                 transition: 'opacity 0.2s, transform 0.2s, height 0.2s',
               }}

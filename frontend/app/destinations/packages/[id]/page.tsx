@@ -1,80 +1,42 @@
 'use client'
-import { use, useState, useEffect, useRef } from 'react'
+import { use, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import {
   ArrowLeft, Share2, Heart, Star, X, Camera, Grid2X2,
-  Check, MapPin, ChevronRight,
+  MapPin, Plane, Clock, ChevronRight,
 } from 'lucide-react'
-import { safari } from '@/data/safari'
-import { stays } from '@/data/stays'
-import { Vendor } from '@/data/stays'
+import { packages } from '@/data/packages'
 import FooterSection from '@/components/FooterSection'
 
-const allListings = [...safari, ...stays]
-
 type Props = {
-  params: Promise<{ id: string; vendorId: string }>
-}
-
-// Dynamic import for Leaflet map to avoid SSR issues — same pattern as ../page.tsx.
-// Unrelated to app/data/packages.ts; this is a per-vendor package configurator.
-function MapPlaceholder({ lat, lng, label }: { lat: number; lng: number; label: string }) {
-  const [MapComponent, setMapComponent] = useState<React.ComponentType<{ lat: number; lng: number; label: string }> | null>(null)
-
-  useEffect(() => {
-    import('../MapComponent').then((mod) => {
-      setMapComponent(() => mod.default)
-    }).catch(() => { })
-  }, [])
-
-  if (!MapComponent) {
-    return (
-      <div className="w-full h-[220px] rounded-2xl flex flex-col
-                      items-center justify-center gap-2" style={{ background: '#e8e3d9', border: '1px solid #e8e0d0' }}>
-        <span className="text-3xl">🗺️</span>
-        <p className="text-sm font-medium" style={{ color: '#78716c' }}>{label}</p>
-        <p className="text-xs" style={{ color: '#a8a29e' }}>
-          {lat.toFixed(4)}, {lng.toFixed(4)}
-        </p>
-      </div>
-    )
-  }
-
-  return <MapComponent lat={lat} lng={lng} label={label} />
+  params: Promise<{ id: string }>
 }
 
 const Divider = () => <div className="border-t border-[#e8e0d0] my-6" />
 
-export default function PackagePage({ params }: Props) {
-  const { id, vendorId } = use(params)
+export default function PackageDetailPage({ params }: Props) {
+  const { id } = use(params)
   const router = useRouter()
 
-  const listing = allListings.find(l => l.id === id)
-  const vendor: Vendor | undefined = listing?.vendors?.find(v => v.id === vendorId)
+  const pkg = packages.find(p => p.id === id)
+  const otherPackages = packages.filter(p => p.id !== id).slice(0, 4)
 
   const [wishlisted, setWishlisted] = useState(false)
   const [activeImage, setActiveImage] = useState(0)
   const [showGallery, setShowGallery] = useState(false)
-  const [selected, setSelected] = useState<Set<string>>(
-    new Set((vendor?.packageItems ?? []).filter(i => i.defaultSelected).map(i => i.id))
-  )
-
+  const [showMobileGuestPanel, setShowMobileGuestPanel] = useState(false)
+  const [showGuestPanel, setShowGuestPanel] = useState(false)
   const [adults, setAdults] = useState(1)
   const [children, setChildren] = useState(0)
   const [infants, setInfants] = useState(0)
   const [pets, setPets] = useState(0)
   const guests = adults + children
-  const [showGuestPanel, setShowGuestPanel] = useState(false)
-  const [showAllInclusions, setShowAllInclusions] = useState(false)
-  const [showMobileGuestPanel, setShowMobileGuestPanel] = useState(false)
-  const [pickupSelected, setPickupSelected] = useState(false)
-  const [pickupAddress, setPickupAddress] = useState('')
 
   const touchStartX = useRef<number>(0)
   const touchEndX = useRef<number>(0)
 
-  if (!listing || !vendor) {
+  if (!pkg) {
     return (
       <div className="flex flex-col items-center justify-center h-screen gap-4 bg-white">
         <span className="text-5xl">🔍</span>
@@ -87,34 +49,12 @@ export default function PackagePage({ params }: Props) {
     )
   }
 
-  const amenities = vendor.amenities ?? []
-  const packageItems = vendor.packageItems ?? []
-  const images = vendor.images ?? [vendor.image]
-  const similarTours = (listing.vendors ?? []).slice(0, 4)
-
-  const PICKUP_PRICE = 2000
-  const pickupActive = pickupSelected && pickupAddress.trim().length > 0
-
-  const basePrice = parseFloat(vendor.price.replace(/[^0-9.]/g, '')) || 100
-  const extrasTotal = packageItems
-    .filter(i => selected.has(i.id))
-    .reduce((sum, i) => sum + i.price, 0) + (pickupActive ? PICKUP_PRICE : 0)
-  const total = basePrice * guests + extrasTotal
-
-  function toggleItem(itemId: string) {
-    setSelected(prev => {
-      const next = new Set(prev)
-      next.has(itemId) ? next.delete(itemId) : next.add(itemId)
-      return next
-    })
-  }
+  const images = pkg.images ?? [pkg.image]
+  const basePrice = parseFloat(pkg.price.replace(/[^0-9.]/g, '')) || 100
+  const total = basePrice * guests
 
   function handleBook() {
-    const bookParams = new URLSearchParams()
-    bookParams.set('guests', String(guests))
-    if (extrasTotal > 0) bookParams.set('extras', String(extrasTotal))
-    if (pickupActive) bookParams.set('pickup', pickupAddress.trim())
-    router.push(`/listings/${id}/vendor/${vendorId}/book?${bookParams.toString()}`)
+    router.push(`/destinations/packages/${id}/book?guests=${guests}`)
   }
 
   function handleTouchStart(e: React.TouchEvent) {
@@ -156,7 +96,7 @@ export default function PackagePage({ params }: Props) {
         >
           <Image
             src={images[activeImage]}
-            alt={`${vendor.name} ${activeImage + 1}`}
+            alt={`${pkg.title} ${activeImage + 1}`}
             fill sizes="100vw" className="object-contain"
           />
         </div>
@@ -227,6 +167,7 @@ export default function PackagePage({ params }: Props) {
           ))}
         </div>
 
+
         <div className="fixed bottom-0 left-0 right-0 bg-white px-5"
           style={{ borderTop: '1px solid #e8e0d0', paddingTop: 14, paddingBottom: 'calc(14px + env(safe-area-inset-bottom, 0px))' }}>
           <button
@@ -240,14 +181,12 @@ export default function PackagePage({ params }: Props) {
     )
   }
 
-
   return (
     <div className="fixed inset-0 flex flex-col" style={{ background: '#FEFDFC', fontFamily: "Georgia, 'Times New Roman', serif" }}>
       <div className="flex-1 overflow-y-auto overflow-x-hidden" style={{ WebkitOverflowScrolling: 'touch', background: '#FEFDFC' }}>
 
         {/* ═══════════════════════════════════════
           MOBILE PHOTO — single active image
-          with overlay controls + count badge
           ═══════════════════════════════════════ */}
         <div className="sm:hidden">
           <div
@@ -258,7 +197,7 @@ export default function PackagePage({ params }: Props) {
           >
             <Image
               src={images[activeImage]}
-              alt={`${vendor.name} ${activeImage + 1}`}
+              alt={`${pkg.title} ${activeImage + 1}`}
               fill sizes="100vw" className="object-cover"
               onClick={() => setShowGallery(true)}
             />
@@ -288,6 +227,12 @@ export default function PackagePage({ params }: Props) {
                 </button>
               </div>
             </div>
+
+            {pkg.duration && (
+              <div className="absolute top-16 left-3 bg-[#304333] text-white text-xs font-semibold px-2.5 py-1 rounded-full z-10">
+                {pkg.duration}
+              </div>
+            )}
 
             <div className="absolute bottom-3 right-3 bg-black/60 text-white
                           text-xs font-semibold px-2.5 py-1.5 rounded-full flex items-center gap-1.5 z-10">
@@ -352,7 +297,7 @@ export default function PackagePage({ params }: Props) {
                   onClick={() => { setActiveImage(0); setShowGallery(true) }}>
                   <Image
                     src={images[0]}
-                    alt={vendor.name}
+                    alt={pkg.title}
                     fill sizes="(min-width: 1280px) 500px, 50vw"
                     className="object-cover transition-transform duration-300 group-hover:scale-105"
                   />
@@ -363,7 +308,7 @@ export default function PackagePage({ params }: Props) {
                       onClick={() => { setActiveImage(imgIdx); setShowGallery(true) }}>
                       <Image
                         src={images[imgIdx] ?? images[0]}
-                        alt={`${vendor.name} ${imgIdx + 1}`}
+                        alt={`${pkg.title} ${imgIdx + 1}`}
                         fill sizes="(min-width: 1280px) 250px, 25vw"
                         className="object-cover transition-transform duration-300 group-hover:scale-105"
                       />
@@ -390,121 +335,67 @@ export default function PackagePage({ params }: Props) {
             {/* ══ LEFT COLUMN ══ */}
             <div>
 
-              {/* Title + location description */}
+              {/* Title + location */}
               <div className="pt-5 pb-1 sm:pt-6 text-center sm:text-left">
                 <h1 className="text-2xl sm:text-[28px] font-semibold text-[#304333] leading-tight mb-1">
-                  {vendor.name}
+                  {pkg.title}
                 </h1>
                 <p className="text-sm sm:text-base text-[#78716c] mb-2 flex items-center gap-1 justify-center sm:justify-start">
-                  <MapPin size={13} /> {vendor.locationLabel ?? listing.location} · {listing.title}
+                  <MapPin size={13} /> {pkg.location}
+                  {pkg.duration && <><span className="mx-1">·</span><Clock size={13} /> {pkg.duration}</>}
                 </p>
                 <div className="flex items-center justify-center sm:justify-start gap-1.5 mb-3">
                   <Star size={14} fill="#F5D06E" color="#304333" />
-                  <span className="text-sm font-semibold text-[#304333]">{vendor.rating}</span>
-                  <span className="text-sm text-[#78716c]">({vendor.reviews} reviews)</span>
+                  <span className="text-sm font-semibold text-[#304333]">{pkg.rating}</span>
                 </div>
                 <p className="text-sm text-[#304333] leading-relaxed">
-                  {vendor.description} Explore {listing.title} with a package built around what you
-                  want to see and do — adjust guests and extras and the price updates instantly.
+                  {pkg.description}
                 </p>
               </div>
 
-              {/* Inclusions */}
-              {amenities.length > 0 && (
+              {/* What's included */}
+              {pkg.packageIncludes && pkg.packageIncludes.length > 0 && (
                 <>
                   <Divider />
                   <div>
-                    <h2 className="text-xl font-semibold text-[#304333] mb-4">Inclusions</h2>
+                    <h2 className="text-xl font-semibold text-[#304333] mb-4">What&apos;s included</h2>
                     <div className="flex flex-col gap-3">
-                      {(showAllInclusions ? amenities : amenities.slice(0, 4)).map((item) => (
+                      {pkg.packageIncludes.map((item) => (
                         <div key={item} className="flex items-center gap-3">
-                          <Check size={16} color="#2c4a1e" strokeWidth={2.5} />
                           <span className="text-sm text-[#304333]">{item}</span>
                         </div>
                       ))}
                     </div>
-                    {amenities.length > 4 && (
-                      <button
-                        onClick={() => setShowAllInclusions(s => !s)}
-                        className="mt-4 px-8 py-3.5 rounded-xl text-sm font-semibold text-[#304333] transition-colors hover:bg-[#ede8df]"
-                        style={{ background: '#F1F5E4' }}
-                      >
-                        {showAllInclusions ? 'Show less' : `Show all ${amenities.length} inclusions`}
-                      </button>
-                    )}
                   </div>
                 </>
               )}
 
-
-              {/* Customize / extras */}
+              {/* Trip details */}
               <Divider />
               <div>
-                <h2 className="text-xl font-semibold text-[#304333] mb-1">Customize your package</h2>
-                <p className="text-sm text-[#78716c] mb-4">Select extras to add to your total</p>
+                <h2 className="text-xl font-semibold text-[#304333] mb-4">Trip details</h2>
                 <div className="flex flex-col gap-3">
-                  {packageItems.map((item) => {
-                    const isSelected = selected.has(item.id)
-                    return (
-                      <label
-                        key={item.id}
-                        className="flex items-center justify-between gap-3 p-3 rounded-xl cursor-pointer hover:bg-[#f9f5ef] transition-colors"
-                        style={{ border: '1px solid #e8e0d0' }}
-                      >
-                        <div className="flex items-center gap-3">
-                          <input
-                            type="checkbox"
-                            checked={isSelected}
-                            onChange={() => toggleItem(item.id)}
-                            className="w-5 h-5 accent-[#2c4a1e]"
-                          />
-                          <span className="text-sm text-[#304333]">{item.label}</span>
-                        </div>
-                        <span className="text-sm font-semibold text-[#304333]">
-                          +{vendor.price.replace(/[\d,]+/, String(item.price))}
-                        </span>
-                      </label>
-                    )
-                  })}
-
-                  {/* Pick-up */}
-                  <div className="rounded-xl p-3" style={{ border: '1px solid #e8e0d0' }}>
-                    <label className="flex items-center justify-between gap-3 cursor-pointer">
-                      <div className="flex items-center gap-3">
-                        <input
-                          type="checkbox"
-                          checked={pickupSelected}
-                          onChange={() => setPickupSelected(s => !s)}
-                          className="w-5 h-5 accent-[#2c4a1e]"
-                        />
-                        <span className="text-sm text-[#304333]">Hotel / airport pick-up</span>
-                      </div>
-                      <span className="text-sm font-semibold text-[#304333]">
-                        +{vendor.price.replace(/[\d,]+/, String(PICKUP_PRICE))}
-                      </span>
-                    </label>
-                    {pickupSelected && (
-                      <div className="mt-3 pt-3" style={{ borderTop: '1px solid #e8e0d0' }}>
-                        <label className="text-xs font-semibold text-[#78716c] mb-1.5 block">
-                          Pick-up address
-                        </label>
-                        <input
-                          type="text"
-                          value={pickupAddress}
-                          onChange={(e) => setPickupAddress(e.target.value)}
-                          placeholder="Hotel name or full address"
-                          className="w-full px-3 py-2.5 rounded-lg text-sm text-[#304333] focus:outline-none"
-                          style={{ border: '1px solid #b0a898' }}
-                        />
-                        {!pickupAddress.trim() && (
-                          <p className="text-xs text-[#78716c] mt-1.5">
-                            Add an address to include pick-up in your total
-                          </p>
-                        )}
-                      </div>
-                    )}
+                  {pkg.duration && (
+                    <div className="flex items-center gap-3">
+                      <Clock size={16} color="#2c4a1e" strokeWidth={2} />
+                      <span className="text-sm text-[#304333]">{pkg.duration} itinerary</span>
+                    </div>
+                  )}
+                  {pkg.flightFrom && (
+                    <div className="flex items-center gap-3">
+                      <Plane size={16} color="#2c4a1e" strokeWidth={2} />
+                      <span className="text-sm text-[#304333]">Departs from {pkg.flightFrom}</span>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-3">
+                    <MapPin size={16} color="#2c4a1e" strokeWidth={2} />
+                    <span className="text-sm text-[#304333]">{pkg.location}</span>
                   </div>
                 </div>
+                <p className="text-sm text-[#78716c] mt-4 leading-relaxed">
+                  This is a fixed-itinerary package — dates and route are pre-planned by our team, so there&apos;s
+                  no date picker here. Choose your group size and book directly.
+                </p>
               </div>
 
             </div>
@@ -516,12 +407,11 @@ export default function PackagePage({ params }: Props) {
 
                   <div className="flex items-end gap-2 mb-4">
                     <span className="text-2xl font-semibold text-[#304333]">
-                      {vendor.price.replace(/[\d,]+/, String(Math.round(total)))}
+                      {pkg.price.replace(/[\d,]+/, String(Math.round(total)))}
                     </span>
                     <div className="flex items-center gap-1 ml-auto">
                       <Star size={13} fill="#F5D06E" color="#304333" />
-                      <span className="text-sm font-semibold text-[#304333]">{vendor.rating}</span>
-                      <span className="text-sm text-[#78716c]">({vendor.reviews})</span>
+                      <span className="text-sm font-semibold text-[#304333]">{pkg.rating}</span>
                     </div>
                   </div>
 
@@ -581,28 +471,23 @@ export default function PackagePage({ params }: Props) {
                     )}
                   </div>
 
+
                   <button
                     onClick={handleBook}
                     className="w-full py-3.5 rounded-xl font-semibold text-sm text-white mb-3 transition-opacity hover:opacity-90"
                     style={{ background: 'linear-gradient(to right, #e8612a, #d44d1a)', border: 'none', cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}>
                     Book
                   </button>
-                  <p className="text-xs text-center text-[#78716c] mb-4">You won't be charged yet</p>
+                  <p className="text-xs text-center text-[#78716c] mb-4">You won&apos;t be charged yet</p>
 
                   <div className="flex flex-col gap-2.5">
                     <div className="flex justify-between text-sm">
-                      <span className="text-[#304333] underline cursor-pointer">{vendor.price} × {guests} guest{guests > 1 ? 's' : ''}</span>
-                      <span className="text-[#304333]">{vendor.price.replace(/[\d,]+/, String(basePrice * guests))}</span>
+                      <span className="text-[#304333]">{pkg.price} × {guests} guest{guests > 1 ? 's' : ''}</span>
+                      <span className="text-[#304333]">{pkg.price.replace(/[\d,]+/, String(Math.round(total)))}</span>
                     </div>
-                    {extrasTotal > 0 && (
-                      <div className="flex justify-between text-sm">
-                        <span className="text-[#304333]">Extras</span>
-                        <span className="text-[#304333]">+{vendor.price.replace(/[\d,]+/, String(extrasTotal))}</span>
-                      </div>
-                    )}
                     <div className="flex justify-between pt-3" style={{ borderTop: '1px solid #e8e0d0' }}>
                       <span className="text-sm font-semibold text-[#304333]">Total</span>
-                      <span className="text-sm font-semibold text-[#304333]">{vendor.price.replace(/[\d,]+/, String(Math.round(total)))}</span>
+                      <span className="text-sm font-semibold text-[#304333]">{pkg.price.replace(/[\d,]+/, String(Math.round(total)))}</span>
                     </div>
                   </div>
 
@@ -612,189 +497,49 @@ export default function PackagePage({ params }: Props) {
 
           </div>
 
-          <Divider />
-
-          {/* Map */}
-          <div>
-            <h2 className="text-xl font-semibold text-[#304333] mb-1">Where you'll be</h2>
-            <p className="text-sm text-[#78716c] mb-4">
-              {vendor.locationLabel ?? listing.location}
-            </p>
-            {vendor.lat && vendor.lng ? (
-              <div style={{ position: 'relative', isolation: 'isolate' }}>
-                <MapPlaceholder
-                  lat={vendor.lat}
-                  lng={vendor.lng}
-                  label={vendor.locationLabel ?? listing.location}
-                />
-              </div>
-            ) : (
-              <div className="w-full h-[200px] rounded-2xl flex items-center justify-center" style={{ background: '#e8e3d9', border: '1px solid #e8e0d0' }}>
-                <p className="text-sm" style={{ color: '#78716c' }}>Location map coming soon</p>
-              </div>
-            )}
-          </div>
-
-          <Divider />
-
-          {/* Tour operator */}
-          <div>
-            <h2 className="text-xl font-semibold text-[#304333] mb-5">Meet your host</h2>
-
-            <div className="hidden sm:flex gap-10 items-start">
-              <div className="flex-shrink-0" style={{ width: 400 }}>
-                <div className="rounded-2xl p-5" style={{ border: '1px solid #e8e0d0', background: 'white' }}>
-                  <div className="flex items-center">
-                    <div className="w-1/2 flex flex-col items-center">
-                      <div className="relative mb-3">
-                        <div className="w-24 h-24 rounded-full flex items-center justify-center text-white text-4xl font-bold" style={{ background: '#2c4a1e' }}>
-                          {vendor.name[0]}
-                        </div>
-                        <div className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-white border border-gray-200 flex items-center justify-center">
-                          <Check size={12} color="#2c4a1e" />
-                        </div>
-                      </div>
-                      <p className="text-xl font-bold text-[#304333] text-center">{vendor.name}</p>
-                      <p className="text-sm text-[#78716c]">Tour operator</p>
-                    </div>
-                    <div className="w-1/2 pl-4">
-                      <div className="py-2.5" style={{ borderBottom: '1px solid #e8e0d0' }}>
-                        <p className="text-xl font-bold text-[#304333]">{vendor.reviews}</p>
-                        <p className="text-xs text-[#78716c]">Reviews</p>
-                      </div>
-                      <div className="py-3" style={{ borderBottom: '1px solid #e8e0d0' }}>
-                        <p className="text-xl font-bold text-[#304333]">{vendor.rating} <span className="text-base">★</span></p>
-                        <p className="text-xs text-[#78716c]">Rating</p>
-                      </div>
-                      <div className="py-2.5">
-                        <p className="text-xl font-bold text-[#304333]">{vendor.yearsTouring ?? 3}</p>
-                        <p className="text-xs text-[#78716c]">Yrs touring</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex-1">
-                <div className="mb-6">
-                  <p className="text-base font-semibold text-[#304333] mb-2">Host details</p>
-                  <p className="text-sm text-[#304333]">Response rate: {vendor.responseRate ?? 98}%</p>
-                  <p className="text-sm text-[#304333]">Responds {vendor.responseTime ?? 'within a few hours'}</p>
-                </div>
-                <button
-                  onClick={() => router.push(`/listings/${id}/vendor/${vendorId}`)}
-                  className="px-8 py-3.5 rounded-xl text-sm font-semibold text-[#304333] transition-colors hover:bg-[#ede8df]"
-                  style={{ background: '#F1F5E4' }}>
-                  Message tour operator
-                </button>
-                <div className="flex items-start gap-3 mt-6 pt-6" style={{ borderTop: '1px solid #e8e0d0' }}>
-                  <Check size={20} strokeWidth={1.5} color="#78716c" />
-                  <p className="text-xs text-[#78716c]">To help protect your payment, always communicate and pay through Erranza.</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="sm:hidden">
-              <div className="bg-white rounded-2xl p-4 mb-4" style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.12)', maxWidth: 380 }}>
-                <div className="flex items-center">
-                  <div className="w-1/2 flex flex-col items-center">
-                    <div className="relative mb-1.5">
-                      <div className="w-24 h-24 rounded-full flex items-center justify-center text-white text-3xl font-bold" style={{ background: '#2c4a1e' }}>
-                        {vendor.name[0]}
-                      </div>
-                      <div className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-white border border-gray-200 flex items-center justify-center">
-                        <Check size={10} color="#2c4a1e" />
-                      </div>
-                    </div>
-                    <p className="text-base font-bold text-[#304333] text-center">{vendor.name}</p>
-                    <p className="text-xs text-[#78716c]">Tour operator</p>
-                  </div>
-                  <div className="w-1/2 pl-3">
-                    <div className="py-2" style={{ borderBottom: '1px solid #e8e0d0' }}>
-                      <p className="text-base font-bold text-[#304333]">{vendor.reviews}</p>
-                      <p className="text-xs text-[#78716c]">Reviews</p>
-                    </div>
-                    <div className="py-2" style={{ borderBottom: '1px solid #e8e0d0' }}>
-                      <p className="text-base font-bold text-[#304333]">{vendor.rating} <span className="text-sm">★</span></p>
-                      <p className="text-xs text-[#78716c]">Rating</p>
-                    </div>
-                    <div className="py-2">
-                      <p className="text-base font-bold text-[#304333]">{vendor.yearsTouring ?? 3}</p>
-                      <p className="text-xs text-[#78716c]">Yrs touring</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="mb-5">
-                <p className="text-base font-semibold text-[#304333] mb-2">Host details</p>
-                <p className="text-sm text-[#304333]">Response rate: {vendor.responseRate ?? 98}%</p>
-                <p className="text-sm text-[#304333]">Responds {vendor.responseTime ?? 'within a few hours'}</p>
-              </div>
-              <button
-                onClick={() => router.push(`/listings/${id}/vendor/${vendorId}`)}
-                className="w-full py-3.5 rounded-xl text-sm font-semibold text-[#304333] transition-colors hover:bg-[#ede8df] mb-5"
-                style={{ background: '#F1F5E4' }}>
-                Message tour operator
-              </button>
-              <div className="flex items-start gap-3">
-                <Check size={18} strokeWidth={1.5} color="#78716c" />
-                <p className="text-xs text-[#78716c]">To help protect your payment, always communicate and pay through Erranza.</p>
-              </div>
-            </div>
-          </div>
-
-
-          {/* Similar tours */}
-          {similarTours.length > 0 && (
+          {/* More packages */}
+          {otherPackages.length > 0 && (
             <>
               <Divider />
               <div>
-                <h2 className="text-xl font-semibold text-[#304333] mb-4">
-                  Tours available for {listing.title}
-                </h2>
+                <h2 className="text-xl font-semibold text-[#304333] mb-4">More packages</h2>
 
                 <div className="sm:hidden overflow-x-auto scrollbar-hide -mx-4 px-4">
                   <div className="flex gap-3">
-                    {similarTours.map((v) => (
+                    {otherPackages.map((p) => (
                       <button
-                        key={v.id}
-                        onClick={() => router.push(`/listings/${id}/vendor/${v.id}/package`)}
+                        key={p.id}
+                        onClick={() => router.push(`/destinations/packages/${p.id}`)}
                         className="relative flex-shrink-0 w-[45vw] h-[130px] rounded-2xl overflow-hidden active:scale-95 transition-transform"
                         style={{ background: '#e8e0d0' }}
                       >
-                        <Image src={v.image} alt={v.name} fill className="object-cover" sizes="45vw" />
+                        <Image src={p.image} alt={p.title} fill className="object-cover" sizes="45vw" />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                         <div className="absolute bottom-0 left-0 right-0 p-2 text-left">
-                          <p className="text-white text-xs font-semibold truncate">{v.name}</p>
-                          <p className="text-white/70 text-[10px]">{v.price}</p>
+                          <p className="text-white text-xs font-semibold truncate">{p.title}</p>
+                          <p className="text-white/70 text-[10px]">{p.price}</p>
                         </div>
                       </button>
                     ))}
                   </div>
                 </div>
                 <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                  {similarTours.map((v) => (
+                  {otherPackages.map((p) => (
                     <button
-                      key={v.id}
-                      onClick={() => router.push(`/listings/${id}/vendor/${v.id}/package`)}
+                      key={p.id}
+                      onClick={() => router.push(`/destinations/packages/${p.id}`)}
                       className="relative h-[130px] rounded-2xl overflow-hidden active:scale-95 transition-transform"
                       style={{ background: '#e8e0d0' }}
                     >
-                      <Image src={v.image} alt={v.name} fill className="object-cover" sizes="50vw" />
+                      <Image src={p.image} alt={p.title} fill className="object-cover" sizes="50vw" />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                       <div className="absolute bottom-0 left-0 right-0 p-2 text-left">
-                        <p className="text-white text-xs font-semibold truncate">{v.name}</p>
-                        <p className="text-white/70 text-[10px]">{v.price}</p>
+                        <p className="text-white text-xs font-semibold truncate">{p.title}</p>
+                        <p className="text-white/70 text-[10px]">{p.price}</p>
                       </div>
                     </button>
                   ))}
                 </div>
-
-                <p className="text-sm text-[#78716c] mt-4 leading-relaxed">
-                  All tours above are run by verified local operators and cover the core {listing.title} experience —
-                  compare guides, pricing and what's included to find the one that fits your trip best.
-                </p>
               </div>
             </>
           )}
@@ -812,7 +557,7 @@ export default function PackagePage({ params }: Props) {
           <div>
             <div className="flex items-baseline gap-1">
               <span className="text-base font-semibold text-[#304333]">
-                {vendor.price.replace(/[\d,]+/, String(Math.round(total)))}
+                {pkg.price.replace(/[\d,]+/, String(Math.round(total)))}
               </span>
               <span className="text-sm text-[#78716c]">total</span>
             </div>

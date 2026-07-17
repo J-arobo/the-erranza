@@ -38,10 +38,10 @@ export default function ProfilePage() {
 
           {/* Guest menu */}
           {[
-            { Icon: Settings,   label: 'Account settings' },
+            { Icon: Settings, label: 'Account settings' },
             { Icon: HelpCircle, label: 'Get help' },
-            { Icon: User,       label: 'View profile' },
-            { Icon: Shield,     label: 'Privacy' },
+            { Icon: User, label: 'View profile' },
+            { Icon: Shield, label: 'Privacy' },
           ].map(({ Icon, label }) => (
             <button key={label}
               className="w-full flex items-center gap-4 py-4 border-b border-gray-100">
@@ -94,8 +94,8 @@ export default function ProfilePage() {
             <div className="flex flex-col gap-2 text-right">
               {[
                 { value: trips.length, label: 'Trips' },
-                { value: '1',          label: 'Reviews' },
-                { value: '1',          label: 'Year on Erranza' },
+                { value: '1', label: 'Reviews' },
+                { value: '1', label: 'Year on Erranza' },
               ].map(({ value, label }, i, arr) => (
                 <div key={label}>
                   <p className="text-base font-bold text-[#1a1a1a]">{value}</p>
@@ -154,32 +154,32 @@ export default function ProfilePage() {
           </div>
 
           {/* Switch to vendor — only show when logged in */}
-{isLoggedIn && (
-  <button
-    onClick={() => router.push('/vendor')}
-    className="w-full flex items-center gap-4 bg-[#2c4a1e] rounded-2xl p-5 mb-5
+          {isLoggedIn && (
+            <button
+              onClick={() => router.push('/vendor')}
+              className="w-full flex items-center gap-4 bg-[#2c4a1e] rounded-2xl p-5 mb-5
                hover:bg-[#3d6b28] transition-colors text-left group"
-  >
-    <div className="w-12 h-12 rounded-xl bg-[#EAF98E] flex items-center
+            >
+              <div className="w-12 h-12 rounded-xl bg-[#EAF98E] flex items-center
                     justify-center flex-shrink-0 text-2xl">
-      🧭
-    </div>
-    <div className="flex-1">
-      <p className="text-white font-bold text-sm">Switch to vendor mode</p>
-      <p className="text-white/60 text-xs mt-0.5">
-        Manage your listings, bookings and earnings
-      </p>
-    </div>
-    <ChevronRight size={18} color="rgba(255,255,255,0.6)" />
-  </button>
-)}
+                🧭
+              </div>
+              <div className="flex-1">
+                <p className="text-white font-bold text-sm">Switch to vendor mode</p>
+                <p className="text-white/60 text-xs mt-0.5">
+                  Manage your listings, bookings and earnings
+                </p>
+              </div>
+              <ChevronRight size={18} color="rgba(255,255,255,0.6)" />
+            </button>
+          )}
 
           {/* Menu items */}
           {[
-            { Icon: Settings,   label: 'Account settings', dot: true },
+            { Icon: Settings, label: 'Account settings', dot: true },
             { Icon: HelpCircle, label: 'Get help' },
-            { Icon: User,       label: 'View profile' },
-            { Icon: Shield,     label: 'Privacy' },
+            { Icon: User, label: 'View profile' },
+            { Icon: Shield, label: 'Privacy' },
           ].map(({ Icon, label, dot }) => (
             <button key={label}
               className="w-full flex items-center gap-4 py-4 border-b border-gray-100">
@@ -197,9 +197,9 @@ export default function ProfilePage() {
           <div className="h-px bg-gray-100 my-2" />
 
           {[
-            { Icon: Users,    label: 'Refer a host' },
-            { Icon: Users,    label: 'Find a co-host' },
-            { Icon: Gift,     label: 'Gift cards' },
+            { Icon: Users, label: 'Refer a host' },
+            { Icon: Users, label: 'Find a co-host' },
+            { Icon: Gift, label: 'Gift cards' },
             { Icon: FileText, label: 'Legal' },
           ].map(({ Icon, label }) => (
             <button key={label}

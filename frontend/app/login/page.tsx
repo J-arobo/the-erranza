@@ -202,12 +202,12 @@ function LoginInner() {
   )
 
   return (
-    <div className="min-h-screen bg-[#faf8f1] flex flex-col">
+    <div className="min-h-screen bg-[#ffffff] flex flex-col">
 
       {/* ── DESKTOP ── */}
-      <div className="hidden sm:flex flex-col min-h-screen bg-[#faf8f1]">
+      <div className="hidden sm:flex flex-col min-h-screen bg-[#ffffff]">
         {/* Desktop navbar */}
-        <div className="px-8 py-4 border-b border-gray-200 bg-[#faf8f1]
+        <div className="px-8 py-4 border-b border-gray-200 bg-[#ffffff]
                         flex items-center">
           <span
             onClick={() => router.push('/')}
@@ -219,10 +219,10 @@ function LoginInner() {
 
         {/* Centred card — stays white */}
         <div className="flex-1 flex items-start justify-center pt-10 px-4">
-          <div className="w-full max-w-[568px] bg-[#FEFDFC] border border-gray-200
+          <div className="w-full max-w-[568px] bg-[#ffffff] border border-gray-200
                           rounded-2xl shadow-sm overflow-hidden">
             <div className="flex items-center justify-between px-6 py-4
-                            border-b border-gray-100 bg-[#FEFDFC">
+                            border-b border-gray-100 bg-[#ffffff">
               <button onClick={() => router.back()}>
                 <X size={18} color="#1a1a1a" />
               </button>
@@ -232,7 +232,7 @@ function LoginInner() {
               <div className="w-5" />
             </div>
 
-            <div className="px-8 py-6 bg-[#FEFDFC]">
+            <div className="px-8 py-6 bg-[#ffffff]">
               <FormContent />
             </div>
           </div>
@@ -240,10 +240,10 @@ function LoginInner() {
       </div>
 
       {/* ── MOBILE — full screen ── */}
-      <div className="sm:hidden flex flex-col flex-1 min-h-screen bg-[#faf8f1]">
+      <div className="sm:hidden flex flex-col flex-1 min-h-screen bg-[#ffffff]">
         {/* Mobile header — cream background */}
         <div className="flex items-center justify-between px-4 py-3
-                        border-b border-gray-200 sticky top-0 bg-[#faf8f1] z-10">
+                        border-b border-gray-200 sticky top-0 bg-[#ffffff] z-10">
           <button onClick={() => router.back()}>
             <X size={18} color="#1a1a1a" />
           </button>

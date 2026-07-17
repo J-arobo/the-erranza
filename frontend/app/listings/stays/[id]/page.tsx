@@ -1164,8 +1164,7 @@ export default function StayDetailPage({ params }: Props) {
           <Divider />
 
           {/* ── Meet your host ──
-                  Desktop: host card (left) + co-hosts/details (right)
-                  Mobile: stacked (unchanged)                                                      */}
+                  Desktop: host card (left) + co-hosts/details (right */}
           <div className="pb-1 sm:px-0" style={{ ...MOB_PAD }}>
             <h2 className="text-xl font-semibold text-[#304333] mb-5">Meet your host</h2>
 

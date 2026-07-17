@@ -1,6 +1,6 @@
 import { Listing } from './stays'
 
-export const packages: Listing[] = [
+export const packages: (Listing & { duration?: string; itinerary?: string[] })[] = [
   {
     id: '1',
     location: 'Nairobi + Maasai Mara',
@@ -9,6 +9,12 @@ export const packages: Listing[] = [
     rating: 4.9,
     image: 'https://images.unsplash.com/photo-1547471080-7cc2caa01a7e?w=400&q=80',
     badge: 'Best seller',
+    duration: '5 Days',
+    itinerary: [
+      'Nairobi city tour & transfer',
+      'Full-day Maasai Mara game drive',
+      'Balloon safari & departure',
+    ],
     description: 'Nairobi city tour, Maasai Mara safari, Lake Nakuru flamingos — all in one package. Full board, airport transfers and expert guides included.',
     images: [
       'https://images.unsplash.com/photo-1547471080-7cc2caa01a7e?w=600&q=80',
@@ -33,6 +39,12 @@ export const packages: Listing[] = [
     price: 'Ksh 55,000',
     rating: 4.8,
     image: 'https://images.unsplash.com/photo-1499793983690-e29da59ef1c2?w=400&q=80',
+    duration: '5 Days',
+    itinerary: [
+      'Arrival & beach afternoon',
+      'Snorkelling & dhow cruise',
+      'Spa day & departure',
+    ],
     description: '4 nights beachfront accommodation, water sports, Haller Park visit and Mombasa Old Town tour.',
     images: [
       'https://images.unsplash.com/photo-1499793983690-e29da59ef1c2?w=600&q=80',
@@ -58,6 +70,12 @@ export const packages: Listing[] = [
     rating: 5.0,
     image: 'https://images.unsplash.com/photo-1551085254-e96b210db58a?w=400&q=80',
     badge: 'Premier',
+    duration: '10 Days',
+    itinerary: [
+      'Nairobi arrival',
+      'Maasai Mara migration days',
+      'Serengeti crossing & Zanzibar finish',
+    ],
     description: '10 days across Kenya and Tanzania. Amboseli, Serengeti, Ngorongoro Crater, Zanzibar beach finish.',
     images: [
       'https://images.unsplash.com/photo-1551085254-e96b210db58a?w=600&q=80',
@@ -82,6 +100,12 @@ export const packages: Listing[] = [
     price: 'Ksh 28,000',
     rating: 4.7,
     image: 'https://images.unsplash.com/photo-1516426122078-c23e76319801?w=400&q=80',
+    duration: '3 Days',
+    itinerary: [
+      'Arrival & Lake Naivasha boat ride',
+      'Hippo spotting & bush walk',
+      'Lake Nakuru flamingos & departure',
+    ],
     description: '2-night package — boat ride on Lake Naivasha, hippo sightings, flamingos at Lake Nakuru.',
     images: [
       'https://images.unsplash.com/photo-1516426122078-c23e76319801?w=600&q=80',
@@ -107,6 +131,12 @@ export const packages: Listing[] = [
     rating: 4.9,
     image: 'https://images.unsplash.com/photo-1534190760961-74e8c1c5c3da?w=400&q=80',
     badge: 'Top rated',
+    duration: '4 Days',
+    itinerary: [
+      'Arrival & Old Town walking tour',
+      'Dhow sailing & Swahili cooking class',
+      'Free day & departure',
+    ],
     description: '3 nights in a heritage guesthouse, dhow sailing, Old Town walking tour, authentic Swahili cooking class.',
     images: [
       'https://images.unsplash.com/photo-1534190760961-74e8c1c5c3da?w=600&q=80',
@@ -131,6 +161,12 @@ export const packages: Listing[] = [
     price: 'Ksh 48,000',
     rating: 4.8,
     image: 'https://images.unsplash.com/photo-1564760055775-d63b17a55c44?w=400&q=80',
+    duration: '3 Days',
+    itinerary: [
+      'Arrival & Tsavo East game drive',
+      'Amboseli game drive with Kilimanjaro views',
+      'Morning drive & departure',
+    ],
     description: '2-night safari covering Tsavo East and Amboseli with Kilimanjaro views. All inclusive.',
     images: [
       'https://images.unsplash.com/photo-1564760055775-d63b17a55c44?w=600&q=80',
@@ -156,6 +192,12 @@ export const packages: Listing[] = [
     rating: 5.0,
     image: 'https://images.unsplash.com/photo-1507608616759-54f48f0af0ee?w=400&q=80',
     badge: 'Exclusive',
+    duration: '5 Days',
+    itinerary: [
+      'Arrival & luxury camp check-in',
+      'Private game drives & balloon safari',
+      'Candlelit bush dinner & departure',
+    ],
     description: 'Romantic 4-night luxury tented camp, private game drives, balloon safari, candlelit bush dinner.',
     images: [
       'https://images.unsplash.com/photo-1507608616759-54f48f0af0ee?w=600&q=80',
@@ -172,5 +214,34 @@ export const packages: Listing[] = [
       '📷 Professional wildlife photography tips',
     ],
     flightFrom: 'Nairobi (NBO)',
+  },
+  {
+    id: '8',
+    location: 'Nairobi',
+    title: 'Nairobi National Park Day Trip',
+    price: 'Ksh 9,500',
+    rating: 4.7,
+    image: 'https://images.unsplash.com/photo-1521651201144-634f700b36ef?w=400&q=80',
+    duration: '1 Day',
+    itinerary: [
+      'Morning game drive in Nairobi National Park',
+      'Giraffe Centre visit',
+      'Elephant orphanage & drop-off',
+    ],
+    description: 'A half-day game drive minutes from the city centre, followed by the Giraffe Centre and David Sheldrick elephant orphanage. Back at your hotel by evening — no flights or overnight stay needed.',
+    images: [
+      'https://images.unsplash.com/photo-1521651201144-634f700b36ef?w=600&q=80',
+      'https://images.unsplash.com/photo-1516426122078-c23e76319801?w=600&q=80',
+      'https://images.unsplash.com/photo-1547471080-7cc2caa01a7e?w=600&q=80',
+      'https://images.unsplash.com/photo-1564760055775-d63b17a55c44?w=600&q=80',
+    ],
+    packageIncludes: [
+      '🚐 Hotel pickup and drop-off',
+      '🦁 Morning game drive in Nairobi National Park',
+      '🦒 Giraffe Centre entry',
+      '🐘 David Sheldrick elephant orphanage visit',
+      '🍽️ Lunch included',
+      '👨‍🏫 English-speaking driver-guide',
+    ],
   },
 ]

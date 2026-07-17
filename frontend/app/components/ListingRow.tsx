@@ -5,10 +5,11 @@ import { useRef } from 'react'
 import { Listing } from '@/data/stays'
 import HeartButton from './HeartButton'
 
-type Props = Listing & { listingCategory?: string }
+type Props = Listing & { listingCategory?: string; duration?: string }
 
 export default function ListingRow(listing: Props) {
-  const { id, location, title, price, rating, image, badge, listingCategory } = listing
+  const { id, location, title, price, rating, image, badge, listingCategory, duration } = listing
+
   const router = useRouter()
 
   const touchStartY = useRef<number>(0)
@@ -16,6 +17,7 @@ export default function ListingRow(listing: Props) {
 
   function getRoute() {
     if (listingCategory === 'stays') return `/listings/stays/${id}`
+    if (listingCategory === 'package') return `/destinations/packages/${id}`
     return `/listings/${id}`
   }
 
@@ -61,12 +63,13 @@ export default function ListingRow(listing: Props) {
           <p className="text-[14px] font-bold text-[#1a1a1a] leading-snug">{title}</p>
           <div className="flex items-center gap-1">
             <svg width="11" height="11" viewBox="0 0 24 24" fill="#f5a623">
-              <path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 21 12 17.77 5.82 21 7 14.14 2 9.27l6.91-1.01L12 2z"/>
+              <path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 21 12 17.77 5.82 21 7 14.14 2 9.27l6.91-1.01L12 2z" />
             </svg>
             <span className="text-[12px] font-semibold text-[#1a1a1a]">{rating}</span>
           </div>
           <p className="text-[12px] text-[#1a1a1a]">
             from <span className="font-bold">{price}</span>
+            {duration && <span className="text-gray-400"> · {duration}</span>}
           </p>
         </div>
         <HeartButton listing={listing} size={22} className="self-start mt-1 flex-shrink-0" />
@@ -106,7 +109,7 @@ export default function ListingRow(listing: Props) {
             </div>
             <div className="flex items-center gap-0.5 flex-shrink-0 mt-0.5">
               <svg width="11" height="11" viewBox="0 0 24 24" fill="#1a1a1a">
-                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 21 12 17.77 5.82 21 7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 21 12 17.77 5.82 21 7 14.14 2 9.27l6.91-1.01L12 2z" />
               </svg>
               <span className="text-[13px] font-semibold text-[#1a1a1a]">{rating}</span>
             </div>
@@ -114,7 +117,9 @@ export default function ListingRow(listing: Props) {
           <div className="w-full h-px bg-[#f0ece4] my-1" />
           <p className="text-[12px] text-[#1a1a1a]">
             from <span className="font-bold text-[14px]">{price}</span>
-            <span className="text-gray-400 text-[11px]"> / night</span>
+            {duration
+              ? <span className="text-gray-400 text-[11px]"> · {duration}</span>
+              : <span className="text-gray-400 text-[11px]"> / night</span>}
           </p>
         </div>
       </div>
