@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import {
   ArrowLeft, Share2, Heart, Star, X, Camera, Grid2X2,
-  MapPin, Plane, Clock, ChevronRight,
+  MapPin, Plane, Clock, ChevronRight, Calendar, Award, Shield, Globe,
 } from 'lucide-react'
 import { packages } from '@/data/packages'
 import FooterSection from '@/components/FooterSection'
@@ -54,7 +54,11 @@ export default function PackageDetailPage({ params }: Props) {
   const total = basePrice * guests
 
   function handleBook() {
-    router.push(`/destinations/packages/${id}/book?guests=${guests}`)
+    const bookParams = new URLSearchParams({
+      adults: String(adults), children: String(children),
+      infants: String(infants), pets: String(pets),
+    })
+    router.push(`/destinations/packages/${id}/book?${bookParams.toString()}`)
   }
 
   function handleTouchStart(e: React.TouchEvent) {
@@ -341,9 +345,14 @@ export default function PackageDetailPage({ params }: Props) {
                   {pkg.title}
                 </h1>
                 <p className="text-sm sm:text-base text-[#78716c] mb-2 flex items-center gap-1 justify-center sm:justify-start">
-                  <MapPin size={13} /> {pkg.location}
+                  <MapPin size={13} /> {pkg.location.replace(/\s*\+\s*/g, ' → ')}
                   {pkg.duration && <><span className="mx-1">·</span><Clock size={13} /> {pkg.duration}</>}
                 </p>
+                {pkg.dates && (
+                  <p className="text-sm sm:text-base text-[#78716c] mb-2 flex items-center gap-1 justify-center sm:justify-start">
+                    <Calendar size={13} /> {pkg.dates}
+                  </p>
+                )}
                 <div className="flex items-center justify-center sm:justify-start gap-1.5 mb-3">
                   <Star size={14} fill="#F5D06E" color="#304333" />
                   <span className="text-sm font-semibold text-[#304333]">{pkg.rating}</span>
@@ -417,6 +426,14 @@ export default function PackageDetailPage({ params }: Props) {
 
                   <div className="relative mb-4">
                     <div className="rounded-xl overflow-hidden" style={{ border: '1px solid #b0a898' }}>
+                      <div className="p-3" style={{ borderBottom: '1px solid #b0a898' }}>
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-[#304333] mb-0.5">Destination</p>
+                        <p className="text-sm font-semibold text-[#304333]">{pkg.location.replace(/\s*\+\s*/g, ' → ')}</p>
+                      </div>
+                      <div className="p-3" style={{ borderBottom: '1px solid #b0a898' }}>
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-[#304333] mb-0.5">Dates</p>
+                        <p className="text-sm font-semibold text-[#304333]">{pkg.dates ?? 'To be confirmed'}</p>
+                      </div>
                       <div className="p-3 flex items-center justify-between cursor-pointer hover:bg-[#f9f5ef] transition-colors"
                         onClick={() => setShowGuestPanel(s => !s)}>
                         <div>
@@ -427,7 +444,6 @@ export default function PackageDetailPage({ params }: Props) {
                           style={{ transform: showGuestPanel ? 'rotate(-90deg)' : 'rotate(90deg)', transition: 'transform 0.2s' }} />
                       </div>
                     </div>
-
                     {showGuestPanel && (
                       <div className="absolute bg-white rounded-xl shadow-xl z-50 p-5"
                         style={{ top: '100%', marginTop: 4, border: '1px solid #e8e0d0', left: 0, right: 0 }}>
@@ -471,7 +487,6 @@ export default function PackageDetailPage({ params }: Props) {
                     )}
                   </div>
 
-
                   <button
                     onClick={handleBook}
                     className="w-full py-3.5 rounded-xl font-semibold text-sm text-white mb-3 transition-opacity hover:opacity-90"
@@ -496,6 +511,167 @@ export default function PackageDetailPage({ params }: Props) {
             </div>
 
           </div>
+          {/* Tour operator */}
+          <Divider />
+          <div>
+            <h2 className="text-xl font-semibold text-[#304333] mb-5">Meet your tour operator</h2>
+
+            <div className="hidden sm:flex gap-10 items-start">
+              <div className="flex-shrink-0" style={{ width: 400 }}>
+                <div className="rounded-2xl p-5" style={{ border: '1px solid #e8e0d0', background: 'white' }}>
+                  <div className="flex items-center">
+                    <div className="w-1/2 flex flex-col items-center">
+                      <div className="relative mb-3">
+                        <div className="w-24 h-24 rounded-full flex items-center justify-center text-white text-4xl font-bold" style={{ background: '#2c4a1e' }}>
+                          {(pkg.operatorName ?? 'Erranza')[0]}
+                        </div>
+                        <div className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-red-500 flex items-center justify-center">
+                          <Award size={14} color="white" />
+                        </div>
+                      </div>
+                      <p className="text-xl font-bold text-[#304333] text-center">{pkg.operatorName ?? 'Erranza Travel'}</p>
+                      <p className="text-sm text-[#78716c]">Tour operator</p>
+                    </div>
+                    <div className="w-1/2 pl-4">
+                      <div className="py-2.5" style={{ borderBottom: '1px solid #e8e0d0' }}>
+                        <p className="text-xl font-bold text-[#304333]">{pkg.operatorReviews ?? 0}</p>
+                        <p className="text-xs text-[#78716c]">Reviews</p>
+                      </div>
+                      <div className="py-3" style={{ borderBottom: '1px solid #e8e0d0' }}>
+                        <p className="text-xl font-bold text-[#304333]">{pkg.rating} <span className="text-base">★</span></p>
+                        <p className="text-xs text-[#78716c]">Rating</p>
+                      </div>
+                      <div className="py-2.5">
+                        <p className="text-xl font-bold text-[#304333]">{pkg.operatorYears ?? 3}</p>
+                        <p className="text-xs text-[#78716c]">Yrs operating</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {pkg.operatorLanguages && (
+                  <div className="flex items-center gap-2.5 mt-4">
+                    <Globe size={18} strokeWidth={1.5} color="#304333" />
+                    <p className="text-sm text-[#304333]">Speaks {pkg.operatorLanguages}</p>
+                  </div>
+                )}
+                {pkg.operatorLoves && (
+                  <div className="flex items-center gap-2.5 mt-3">
+                    <Heart size={18} strokeWidth={1.5} color="#304333" />
+                    <p className="text-sm text-[#304333]">Loves: {pkg.operatorLoves}</p>
+                  </div>
+                )}
+              </div>
+
+              {pkg.guideName && (
+                <div className="flex-1">
+                  <p className="text-base font-semibold text-[#304333] mb-3">Tour guide</p>
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="w-10 h-10 rounded-full bg-[#2c4a1e] flex items-center justify-center text-white text-sm font-bold">
+                      {pkg.guideName[0]}
+                    </div>
+                    <p className="text-sm font-semibold text-[#304333]">{pkg.guideName}</p>
+                  </div>
+
+                  <p className="text-base font-semibold text-[#304333] mb-2">Host details</p>
+                  <p className="text-sm text-[#304333] mb-6">
+                    Response rate: {pkg.operatorResponseRate ?? 98}%<br />
+                    Responds {pkg.operatorResponseTime ?? 'within a few hours'}
+                  </p>
+
+                  <button
+                    className="px-8 py-3.5 rounded-xl text-sm font-semibold text-[#304333] transition-colors hover:bg-[#ede8df]"
+                    style={{ background: '#F1F5E4', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
+                    Message tour operator
+                  </button>
+
+                  <div className="flex items-start gap-3 mt-6 pt-6" style={{ borderTop: '1px solid #e8e0d0' }}>
+                    <Shield size={20} strokeWidth={1.5} color="#78716c" />
+                    <p className="text-xs text-[#78716c]">To help protect your payment, always communicate and pay through Erranza.</p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="sm:hidden">
+              <div className="bg-white rounded-2xl p-4 mb-4" style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.12)', maxWidth: 380 }}>
+                <div className="flex items-center">
+                  <div className="w-1/2 flex flex-col items-center">
+                    <div className="relative mb-1.5">
+                      <div className="w-24 h-24 rounded-full flex items-center justify-center text-white text-3xl font-bold" style={{ background: '#2c4a1e' }}>
+                        {(pkg.operatorName ?? 'Erranza')[0]}
+                      </div>
+                      <div className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-red-500 flex items-center justify-center">
+                        <Award size={12} color="white" />
+                      </div>
+                    </div>
+                    <p className="text-base font-bold text-[#304333] text-center">{pkg.operatorName ?? 'Erranza Travel'}</p>
+                    <p className="text-xs text-[#78716c]">Tour operator</p>
+                  </div>
+                  <div className="w-1/2 pl-3">
+                    <div className="py-2" style={{ borderBottom: '1px solid #e8e0d0' }}>
+                      <p className="text-base font-bold text-[#304333]">{pkg.operatorReviews ?? 0}</p>
+                      <p className="text-xs text-[#78716c]">Reviews</p>
+                    </div>
+                    <div className="py-2" style={{ borderBottom: '1px solid #e8e0d0' }}>
+                      <p className="text-base font-bold text-[#304333]">{pkg.rating} <span className="text-sm">★</span></p>
+                      <p className="text-xs text-[#78716c]">Rating</p>
+                    </div>
+                    <div className="py-2">
+                      <p className="text-base font-bold text-[#304333]">{pkg.operatorYears ?? 3}</p>
+                      <p className="text-xs text-[#78716c]">Yrs operating</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {pkg.operatorLanguages && (
+                <div className="flex items-center gap-2.5 mb-3">
+                  <Globe size={16} strokeWidth={1.5} color="#304333" />
+                  <p className="text-sm text-[#304333]">Speaks {pkg.operatorLanguages}</p>
+                </div>
+              )}
+              {pkg.operatorLoves && (
+                <div className="flex items-center gap-2.5 mb-5">
+                  <Heart size={16} strokeWidth={1.5} color="#304333" />
+                  <p className="text-sm text-[#304333]">Loves: {pkg.operatorLoves}</p>
+                </div>
+              )}
+
+              {pkg.guideName && (
+                <>
+                  <p className="text-base font-semibold text-[#304333] mb-3">Tour guide</p>
+                  <div className="flex items-center gap-3 mb-5">
+                    <div className="w-10 h-10 rounded-full bg-[#2c4a1e] flex items-center justify-center text-white text-sm font-bold">
+                      {pkg.guideName[0]}
+                    </div>
+                    <p className="text-sm font-semibold text-[#304333]">{pkg.guideName}</p>
+                  </div>
+
+                  <p className="text-base font-semibold text-[#304333] mb-2">Host details</p>
+                  <p className="text-sm text-[#304333] mb-5">
+                    Response rate: {pkg.operatorResponseRate ?? 98}%<br />
+                    Responds {pkg.operatorResponseTime ?? 'within a few hours'}
+                  </p>
+
+                  <button
+                    className="w-full py-3.5 rounded-xl text-sm font-semibold text-[#304333] transition-colors hover:bg-[#ede8df] mb-5"
+                    style={{ background: '#F1F5E4', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
+                    Message tour operator
+                  </button>
+
+                  <div className="flex items-start gap-3">
+                    <Shield size={18} strokeWidth={1.5} color="#78716c" />
+
+                    <p className="text-xs text-[#78716c]">To help protect your payment, always communicate and pay through Erranza.</p>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+
+
+
 
           {/* More packages */}
           {otherPackages.length > 0 && (

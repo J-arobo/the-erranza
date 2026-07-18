@@ -1,6 +1,12 @@
 import { Listing } from './stays'
 
-export const packages: (Listing & { duration?: string; itinerary?: string[] })[] = [
+export const packages: (Listing & {
+  duration?: string; itinerary?: string[]; dates?: string
+  operatorName?: string; guideName?: string
+  operatorReviews?: number; operatorYears?: number
+  operatorResponseRate?: number; operatorResponseTime?: string
+  operatorLanguages?: string; operatorLoves?: string
+})[] = [
   {
     id: '1',
     location: 'Nairobi + Maasai Mara',
@@ -10,6 +16,9 @@ export const packages: (Listing & { duration?: string; itinerary?: string[] })[]
     image: 'https://images.unsplash.com/photo-1547471080-7cc2caa01a7e?w=400&q=80',
     badge: 'Best seller',
     duration: '5 Days',
+    dates: '15 – 19 Aug 2026',
+    operatorName: 'Erranza Safaris', guideName: 'David Kiprotich',
+    operatorReviews: 214, operatorYears: 8, operatorResponseRate: 100, operatorResponseTime: 'within an hour', operatorLanguages: 'English and Swahili', operatorLoves: 'Sunrise game drives',
     itinerary: [
       'Nairobi city tour & transfer',
       'Full-day Maasai Mara game drive',
@@ -40,7 +49,9 @@ export const packages: (Listing & { duration?: string; itinerary?: string[] })[]
     rating: 4.8,
     image: 'https://images.unsplash.com/photo-1499793983690-e29da59ef1c2?w=400&q=80',
     duration: '5 Days',
-    itinerary: [
+    dates: '22 – 26 Aug 2026',
+    operatorName: 'Coastal Retreats Kenya',
+    operatorReviews: 132, operatorYears: 6, operatorResponseRate: 97, operatorResponseTime: 'within a few hours', operatorLanguages: 'English and Swahili', operatorLoves: 'Dhow sunset sails',    itinerary: [
       'Arrival & beach afternoon',
       'Snorkelling & dhow cruise',
       'Spa day & departure',
@@ -71,7 +82,9 @@ export const packages: (Listing & { duration?: string; itinerary?: string[] })[]
     image: 'https://images.unsplash.com/photo-1551085254-e96b210db58a?w=400&q=80',
     badge: 'Premier',
     duration: '10 Days',
-    itinerary: [
+    dates: '5 – 14 Sep 2026',
+    operatorName: 'Pan-African Journeys', guideName: 'Amani Mwangi',
+    operatorReviews: 89, operatorYears: 11, operatorResponseRate: 100, operatorResponseTime: 'within an hour', operatorLanguages: 'English, Swahili and French', operatorLoves: 'Cross-border migration routes',    itinerary: [
       'Nairobi arrival',
       'Maasai Mara migration days',
       'Serengeti crossing & Zanzibar finish',
@@ -101,7 +114,9 @@ export const packages: (Listing & { duration?: string; itinerary?: string[] })[]
     rating: 4.7,
     image: 'https://images.unsplash.com/photo-1516426122078-c23e76319801?w=400&q=80',
     duration: '3 Days',
-    itinerary: [
+    dates: '3 – 5 Oct 2026',
+    operatorName: 'Rift Valley Expeditions',
+    operatorReviews: 176, operatorYears: 5, operatorResponseRate: 95, operatorResponseTime: 'within a few hours', operatorLanguages: 'English and Swahili', operatorLoves: 'Lakeside birdwatching',    itinerary: [
       'Arrival & Lake Naivasha boat ride',
       'Hippo spotting & bush walk',
       'Lake Nakuru flamingos & departure',
@@ -132,7 +147,9 @@ export const packages: (Listing & { duration?: string; itinerary?: string[] })[]
     image: 'https://images.unsplash.com/photo-1534190760961-74e8c1c5c3da?w=400&q=80',
     badge: 'Top rated',
     duration: '4 Days',
-    itinerary: [
+    dates: '12 – 15 Oct 2026',
+    operatorName: 'Lamu Heritage Tours', guideName: 'Fatuma Ali',
+    operatorReviews: 64, operatorYears: 9, operatorResponseRate: 99, operatorResponseTime: 'within an hour', operatorLanguages: 'English, Swahili and Arabic', operatorLoves: 'Swahili cooking classes',    itinerary: [
       'Arrival & Old Town walking tour',
       'Dhow sailing & Swahili cooking class',
       'Free day & departure',
@@ -162,7 +179,9 @@ export const packages: (Listing & { duration?: string; itinerary?: string[] })[]
     rating: 4.8,
     image: 'https://images.unsplash.com/photo-1564760055775-d63b17a55c44?w=400&q=80',
     duration: '3 Days',
-    itinerary: [
+    dates: '20 – 22 Oct 2026',
+    operatorName: 'Tsavo Wildlife Safaris',
+    operatorReviews: 201, operatorYears: 7, operatorResponseRate: 98, operatorResponseTime: 'within a few hours', operatorLanguages: 'English and Swahili', operatorLoves: 'Big Five tracking',    itinerary: [
       'Arrival & Tsavo East game drive',
       'Amboseli game drive with Kilimanjaro views',
       'Morning drive & departure',
@@ -193,7 +212,9 @@ export const packages: (Listing & { duration?: string; itinerary?: string[] })[]
     image: 'https://images.unsplash.com/photo-1507608616759-54f48f0af0ee?w=400&q=80',
     badge: 'Exclusive',
     duration: '5 Days',
-    itinerary: [
+    dates: '1 – 5 Nov 2026',
+    operatorName: 'Erranza Safaris', guideName: 'Joseph Mwangi',
+    operatorReviews: 214, operatorYears: 8, operatorResponseRate: 100, operatorResponseTime: 'within an hour', operatorLanguages: 'English and Swahili', operatorLoves: 'Private candlelit dinners',    itinerary: [
       'Arrival & luxury camp check-in',
       'Private game drives & balloon safari',
       'Candlelit bush dinner & departure',
@@ -223,7 +244,9 @@ export const packages: (Listing & { duration?: string; itinerary?: string[] })[]
     rating: 4.7,
     image: 'https://images.unsplash.com/photo-1521651201144-634f700b36ef?w=400&q=80',
     duration: '1 Day',
-    itinerary: [
+    dates: '8 Nov 2026',
+    operatorName: 'Nairobi City Tours',
+    operatorReviews: 312, operatorYears: 4, operatorResponseRate: 96, operatorResponseTime: 'within a few hours', operatorLanguages: 'English and Swahili', operatorLoves: 'Quick city-edge safaris',    itinerary: [
       'Morning game drive in Nairobi National Park',
       'Giraffe Centre visit',
       'Elephant orphanage & drop-off',
