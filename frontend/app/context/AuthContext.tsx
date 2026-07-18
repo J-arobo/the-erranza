@@ -42,6 +42,8 @@ type Message = {
   time: string
   unread: boolean
   listingTitle: string
+  dates?: string
+  coGuestName?: string
 }
 
 type AuthContextType = {

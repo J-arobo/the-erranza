@@ -1,17 +1,17 @@
 'use client'
 import { useRouter } from 'next/navigation'
-import Image from 'next/image'
-import { Heart, Trash2 } from 'lucide-react'
+import { Heart } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
-import AppShell from '@/components/AppShell'
+import ListingCard from '@/components/ListingCard'
+import BottomNav from '@/components/BottomNav'
 
 export default function WishlistsPage() {
-  const { isLoggedIn, wishlists, removeFromWishlist } = useAuth()
+  const { isLoggedIn, wishlists } = useAuth()
   const router = useRouter()
 
   return (
-    <AppShell showCollapse={false}>
-      <div className="px-5 sm:px-8 lg:px-12 pt-8 pb-32 min-h-full bg-[#f5f0e8]">
+    <div className="min-h-screen bg-white">
+      <div className="px-5 sm:px-8 lg:px-12 pt-8 pb-32">
 
         <h1 className="text-2xl sm:text-3xl font-bold text-[#1a1a1a] mb-6">
           Wishlists
@@ -65,76 +65,16 @@ export default function WishlistsPage() {
             <p className="text-sm text-gray-500 mb-5">
               {wishlists.length} saved {wishlists.length === 1 ? 'place' : 'places'}
             </p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-x-3 gap-y-6">
               {wishlists.map((item) => (
-                <div
-                  key={item.id}
-                  className="bg-white rounded-2xl overflow-hidden border border-[#e0d9cc]
-                             hover:shadow-md transition-all cursor-pointer group"
-                >
-                  <div
-                    className="relative h-[180px] bg-[#e0d9cc]"
-                    onClick={() => router.push(`/listings/${item.id}`)}
-                  >
-                    <Image
-                      src={item.image} alt={item.title} fill
-                      sizes="(max-width: 640px) 100vw, 300px"
-                      className="object-cover transition-transform duration-300
-                                 group-hover:scale-105"
-                    />
-                    {item.badge && (
-                      <span className="absolute top-2 left-2 bg-white/90 text-[#1a1a1a]
-                                       text-[9px] font-semibold px-1.5 py-0.5 rounded-md">
-                        {item.badge}
-                      </span>
-                    )}
-                    {/* Remove from wishlist */}
-                    <button
-                      onClick={(e) => { e.stopPropagation(); removeFromWishlist(item.id) }}
-                      className="absolute top-2 right-2 w-8 h-8 bg-white/90 rounded-full
-                                 flex items-center justify-center hover:bg-white
-                                 transition-colors active:scale-90"
-                    >
-                      <Heart size={14} color="#e63946" fill="#e63946" />
-                    </button>
-                  </div>
-
-                  <div
-                    className="p-3"
-                    onClick={() => router.push(`/listings/${item.id}`)}
-                  >
-                    <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-0.5">
-                      {item.location}
-                    </p>
-                    <p className="text-[13px] font-semibold text-[#1a1a1a] leading-tight">
-                      {item.title}
-                    </p>
-                    <div className="flex justify-between items-center mt-1.5">
-                      <span className="text-[12px] text-[#1a1a1a] font-medium">
-                        {item.price}
-                      </span>
-                      <span className="text-[11px] text-[#3d6b28] font-semibold">
-                        ★ {item.rating}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="px-3 pb-3">
-                    <button
-                      onClick={() => removeFromWishlist(item.id)}
-                      className="flex items-center gap-1.5 text-xs text-gray-400
-                                 hover:text-red-500 transition-colors"
-                    >
-                      <Trash2 size={11} />
-                      Remove
-                    </button>
-                  </div>
-                </div>
+                <ListingCard key={item.id} {...item} />
               ))}
             </div>
           </>
         )}
       </div>
-    </AppShell>
+
+      <BottomNav active="Wishlists" onSelect={() => {}} scrollingDown={false} scrolled={false} />
+    </div>
   )
 }

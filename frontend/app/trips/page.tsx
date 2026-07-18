@@ -1,14 +1,14 @@
 'use client'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
-import { Calendar, ChevronRight, MapPin, Users } from 'lucide-react'
+import { Calendar, ChevronRight, Users } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
-import AppShell from '@/components/AppShell'
+import BottomNav from '@/components/BottomNav'
 
 const STATUS_STYLES = {
-  upcoming:  { bg: 'bg-[#eaf5e4]', text: 'text-[#2c4a1e]', label: 'Upcoming' },
-  completed: { bg: 'bg-gray-100',  text: 'text-gray-500',   label: 'Completed' },
-  cancelled: { bg: 'bg-red-50',    text: 'text-red-500',    label: 'Cancelled' },
+  upcoming: { bg: 'bg-[#eaf5e4]', text: 'text-[#2c4a1e]', label: 'Upcoming' },
+  completed: { bg: 'bg-gray-100', text: 'text-gray-500', label: 'Completed' },
+  cancelled: { bg: 'bg-red-50', text: 'text-red-500', label: 'Cancelled' },
 }
 
 export default function TripsPage() {
@@ -16,8 +16,8 @@ export default function TripsPage() {
   const router = useRouter()
 
   return (
-    <AppShell showCollapse={false}>
-      <div className="px-5 sm:px-8 lg:px-12 pt-8 pb-32 min-h-full bg-[#f5f0e8]">
+    <div className="min-h-screen bg-white">
+      <div className="px-5 sm:px-8 pt-8 pb-32 max-w-2xl mx-auto w-full">
 
         <h1 className="text-2xl sm:text-3xl font-bold text-[#1a1a1a] mb-2">Trips</h1>
 
@@ -87,7 +87,9 @@ export default function TripsPage() {
           </>
         )}
       </div>
-    </AppShell>
+
+      <BottomNav active="Trips" onSelect={() => { }} scrollingDown={false} scrolled={false} />
+    </div>
   )
 }
 
@@ -97,8 +99,9 @@ function TripCard({ trip, router }: { trip: any; router: any }) {
   return (
     <div
       onClick={() => router.push(`/listings/${trip.listingId}/vendor/${trip.vendorId}`)}
-      className="bg-white rounded-2xl overflow-hidden border border-[#e0d9cc]
-                 hover:shadow-md transition-all cursor-pointer active:scale-[0.99]"
+      className="bg-white rounded-2xl overflow-hidden w-full
+                 transition-shadow cursor-pointer active:scale-[0.99]"
+      style={{ boxShadow: '0 2px 16px rgba(0,0,0,0.08)' }}
     >
       <div className="flex gap-4 p-4">
         <div className="relative w-[90px] h-[90px] rounded-xl overflow-hidden
@@ -108,7 +111,7 @@ function TripCard({ trip, router }: { trip: any; router: any }) {
         </div>
         <div className="flex flex-col flex-1 min-w-0 justify-center gap-1">
           {/* Status badge */}
-          <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full
+          <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-md
                             w-fit ${style.bg} ${style.text}`}>
             {style.label}
           </span>
@@ -116,13 +119,13 @@ function TripCard({ trip, router }: { trip: any; router: any }) {
             {trip.listingTitle}
           </p>
           <p className="text-[12px] text-gray-500">{trip.vendorName}</p>
-          <div className="flex items-center gap-3 mt-0.5">
-            <div className="flex items-center gap-1">
-              <Calendar size={11} color="#888" />
+          <div className="flex flex-col gap-1 mt-0.5">
+            <div className="flex items-center gap-1.5">
+              <Calendar size={12} color="#888" />
               <span className="text-[11px] text-gray-400">{trip.dates}</span>
             </div>
-            <div className="flex items-center gap-1">
-              <Users size={11} color="#888" />
+            <div className="flex items-center gap-1.5">
+              <Users size={12} color="#888" />
               <span className="text-[11px] text-gray-400">
                 {trip.guests} guest{trip.guests > 1 ? 's' : ''}
               </span>

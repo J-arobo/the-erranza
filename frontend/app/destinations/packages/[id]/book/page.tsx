@@ -194,6 +194,7 @@ export default function PackageBookingPage({ params }: Props) {
         {step === 'confirm' && (
           <>
             <SummaryCard />
+            
             <button className="w-full flex items-center justify-between p-4 border border-gray-200 rounded-2xl mb-3 hover:bg-gray-50 transition-colors">
               <div className="text-left">
                 <p className="text-sm font-semibold text-[#1a1a1a]">How you&apos;ll pay</p>
