@@ -1,19 +1,29 @@
 export type VendorListing = {
-    id: string
-    title: string
-    location: string
-    price: string
-    image: string
-    status: 'active' | 'draft' | 'paused'
-    bookings: number
-    rating: number
-    earnings: string
-    category: string
-    description: string
-  }
-  
+  id: string
+  title: string
+  location: string
+  price: string
+  image: string
+  status: 'active' | 'draft' | 'paused'
+  bookings: number
+  rating: number
+  earnings: string
+  category: string
+  description: string
+  views?: number
+  amenities?: string[]
+  extras?: { id: string; label: string; price: number; defaultSelected?: boolean }[]
+  extraGuestPrice?: string
+  seasonalRates?: { id: string; label: string; start: string; end: string; price: string }[]
+  blockedDates?: { id: string; start: string; end: string }[]
+  fixedDates?: string[]
+  cancellationPolicy?: 'flexible' | 'moderate' | 'strict' | 'custom'
+  customCancellationPolicy?: string
+}
+
   export type VendorBooking = {
     id: string
+    listingId: string  
     guestName: string
     guestInitial: string
     guestColor: string
@@ -44,6 +54,85 @@ export type VendorListing = {
     comment: string
     replied: boolean
   }
+
+  export type VendorNotification = {
+    id: string
+    type: 'booking' | 'review' | 'message' | 'system'
+    title: string
+    message: string
+    date: string
+    read: boolean
+    link: string
+  }  
+  export type VendorTeamMember = {
+    id: string
+    name: string
+    email: string
+    role: 'Manager' | 'Co-host' | 'Support'
+    avatarColor: string
+    status: 'active' | 'pending'
+  }
+  
+  export const VENDOR_TEAM: VendorTeamMember[] = [
+    {
+      id: 'tm1',
+      name: 'Grace Wanjiru',
+      email: 'grace@erranzatours.co.ke',
+      role: 'Co-host',
+      avatarColor: '#c4d4f0',
+      status: 'active',
+    },
+    {
+      id: 'tm2',
+      name: 'Peter Otieno',
+      email: 'peter@erranzatours.co.ke',
+      role: 'Manager',
+      avatarColor: '#f0c4d4',
+      status: 'pending',
+    },
+  ]
+  
+
+  export const VENDOR_NOTIFICATIONS: VendorNotification[] = [
+    {
+      id: 'vn1',
+      type: 'booking',
+      title: 'New booking request',
+      message: 'Mark Gillet requested Amboseli Elephant Trek for 20–22 May 2026.',
+      date: '2 hours ago',
+      read: false,
+      link: '/vendor/bookings/vb2',
+    },
+    {
+      id: 'vn2',
+      type: 'review',
+      title: 'New review',
+      message: 'Sarah Omondi left a 5-star review on Maasai Mara Premium Safari.',
+      date: '1 day ago',
+      read: false,
+      link: '/vendor/reviews',
+    },
+    {
+      id: 'vn3',
+      type: 'message',
+      title: 'New message',
+      message: 'Amina Hassan sent you a message about Nairobi City Walking Tour.',
+      date: '2 days ago',
+      read: true,
+      link: '/vendor/messages',
+    },
+    {
+      id: 'vn4',
+      type: 'system',
+      title: 'Boost your bookings',
+      message: 'Listings with 5+ photos get 30% more bookings. Add more photos to Sunrise Balloon Safari.',
+      date: '4 days ago',
+      read: true,
+      link: '/vendor/listings/vl4',
+    },
+  ]
+  
+  
   
   export const VENDOR_LISTINGS: VendorListing[] = [
     {
@@ -58,6 +147,7 @@ export type VendorListing = {
       earnings: 'Ksh 1,080,000',
       category: 'Safari',
       description: '3-day full board safari with expert guides and luxury tented camp.',
+      views: 860,  
     },
     {
       id: 'vl2',
@@ -71,6 +161,8 @@ export type VendorListing = {
       earnings: 'Ksh 504,000',
       category: 'Safari',
       description: '2-day safari with Maasai village visit and sundowner.',
+      views: 540,
+
     },
     {
       id: 'vl3',
@@ -84,6 +176,7 @@ export type VendorListing = {
       earnings: 'Ksh 143,500',
       category: 'Experiences',
       description: 'Guided city walking tour covering history, culture and food.',
+      views: 1240,
     },
     {
       id: 'vl4',
@@ -97,12 +190,14 @@ export type VendorListing = {
       earnings: 'Ksh 0',
       category: 'Experiences',
       description: 'Sunrise hot air balloon ride over the Maasai Mara.',
+      views: 0,
     },
   ]
   
   export const VENDOR_BOOKINGS: VendorBooking[] = [
     {
       id: 'vb1',
+      listingId: 'vl1',
       guestName: 'Sarah Omondi',
       guestInitial: 'S',
       guestColor: '#c4d4f0',
@@ -118,6 +213,7 @@ export type VendorListing = {
     },
     {
       id: 'vb2',
+      listingId: 'vl2',
       guestName: 'Mark Gillet',
       guestInitial: 'M',
       guestColor: '#f0c4d4',
@@ -133,6 +229,7 @@ export type VendorListing = {
     },
     {
       id: 'vb3',
+      listingId: 'vl1',
       guestName: 'James Kariuki',
       guestInitial: 'J',
       guestColor: '#c4f0d4',
@@ -147,6 +244,7 @@ export type VendorListing = {
     },
     {
       id: 'vb4',
+      listingId: 'vl3',
       guestName: 'Amina Hassan',
       guestInitial: 'A',
       guestColor: '#f0e4c4',

@@ -2,19 +2,33 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
-import { Plus, Star, ChevronRight, Eye, Pause, Trash2 } from 'lucide-react'
+import { Plus, Star, ChevronRight, Eye, Pause, Trash2, Calendar } from 'lucide-react'
 import { VENDOR_LISTINGS } from '@/data/vendor'
 import { StatusBadge } from '../page'
 
 const FILTERS = ['All', 'Active', 'Paused', 'Draft']
 
 export default function VendorListingsPage() {
-  const router  = useRouter()
+  const router = useRouter()
   const [filter, setFilter] = useState('All')
+  const [, forceUpdate] = useState(0)
 
   const filtered = VENDOR_LISTINGS.filter(l =>
     filter === 'All' || l.status.toLowerCase() === filter.toLowerCase()
   )
+
+  function togglePause(id: string) {
+    const listing = VENDOR_LISTINGS.find(l => l.id === id)
+    if (!listing) return
+    listing.status = listing.status === 'paused' ? 'active' : 'paused'
+    forceUpdate(n => n + 1)
+  }
+
+  function deleteListing(id: string) {
+    const idx = VENDOR_LISTINGS.findIndex(l => l.id === id)
+    if (idx > -1) VENDOR_LISTINGS.splice(idx, 1)
+    forceUpdate(n => n + 1)
+  }
 
   return (
     <div className="p-5 lg:p-8 max-w-4xl mx-auto">
@@ -98,6 +112,15 @@ export default function VendorListingsPage() {
                 <Eye size={13} /> Edit
               </button>
               <button
+                onClick={() => router.push(`/vendor/listings/${listing.id}/bookings`)}
+                className="flex-1 flex items-center justify-center gap-1.5 py-3
+                           text-xs font-semibold text-[#1a1a1a] hover:bg-gray-50
+                           transition-colors border-r border-gray-100"
+              >
+                <Calendar size={13} /> Bookings
+              </button>
+              <button
+                onClick={() => togglePause(listing.id)}
                 className="flex-1 flex items-center justify-center gap-1.5 py-3
                            text-xs font-semibold text-[#1a1a1a] hover:bg-gray-50
                            transition-colors border-r border-gray-100"
@@ -106,6 +129,7 @@ export default function VendorListingsPage() {
                 {listing.status === 'paused' ? 'Activate' : 'Pause'}
               </button>
               <button
+                onClick={() => deleteListing(listing.id)}
                 className="flex-1 flex items-center justify-center gap-1.5 py-3
                            text-xs font-semibold text-red-500 hover:bg-red-50
                            transition-colors"
@@ -113,6 +137,7 @@ export default function VendorListingsPage() {
                 <Trash2 size={13} /> Delete
               </button>
             </div>
+
           </div>
         ))}
       </div>
