@@ -1,17 +1,33 @@
 'use client'
 import { useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { useAuth } from '@/context/AuthContext'
 import VendorShell from '@/components/vendor/VendorShell'
 
 export default function VendorLayout({ children }: { children: React.ReactNode }) {
-  const { isLoggedIn } = useAuth()
+  const { isLoggedIn, user } = useAuth()
   const router = useRouter()
+  const pathname = usePathname()
+  const isOnboardingRoute = pathname === '/vendor/onboarding'
+  const isPartner = !!user?.roles?.includes('partner')
 
-useEffect(() => {
-  if (!isLoggedIn) router.push('/login?redirect=/vendor')
-}, [isLoggedIn])
+  useEffect(() => {
+    if (!isLoggedIn || !isPartner) {
+      router.push('/partner')
+      return
+    }
+    if (!user?.onboardingComplete && !isOnboardingRoute) {
+      router.push('/vendor/onboarding')
+      return
+    }
+    if (user?.onboardingComplete && isOnboardingRoute) {
+      router.push('/vendor')
+    }
+  }, [isLoggedIn, isPartner, user?.onboardingComplete, isOnboardingRoute])
 
-  if (!isLoggedIn) return null
+  if (!isLoggedIn || !isPartner) return null
+  if (isOnboardingRoute) return <>{children}</>
+  if (!user?.onboardingComplete) return null
+
   return <VendorShell>{children}</VendorShell>
 }

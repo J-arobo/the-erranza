@@ -15,7 +15,7 @@ const MENU_SECTIONS_GUEST = [
     items: [
       { icon: LogIn,           label: 'Log in',           path: '/login' },
       { icon: UserPlus,        label: 'Sign up',          path: '/login' },
-      { icon: LayoutDashboard, label: 'Become a vendor',  path: '/login?redirect=/vendor' },
+      { icon: LayoutDashboard, label: 'Become a vendor',  path: '/partner' },
     ],
   },
   {
@@ -84,6 +84,7 @@ export default function Navbar({categoryBar }: {categoryBar?: React.ReactNode}) 
   const [mounted, setMounted]       = useState(false)
   const helpRef = useRef<HTMLButtonElement>(null)
 
+  const isPartner = !!user?.roles?.includes('partner')
   const menuSections = isLoggedIn ? MENU_SECTIONS_LOGGEDIN : MENU_SECTIONS_GUEST
 
   // Wait for client mount before rendering portal
@@ -152,17 +153,22 @@ export default function Navbar({categoryBar }: {categoryBar?: React.ReactNode}) 
                   {group.section}
                 </p>
               )}
-              {group.items.map(({ icon: Icon, label, path }) => (
-                <button
-                  key={label}
-                  onClick={() => { setMenuOpen(false); router.push(path) }}
-                  className="w-full flex items-center gap-4 py-4 border-b border-gray-100
-                             hover:opacity-70 transition-opacity text-left"
-                >
-                  <Icon size={20} color="#1a1a1a" className="flex-shrink-0" />
-                  <span className="text-sm text-[#1a1a1a]">{label}</span>
-                </button>
-              ))}
+              {group.items.map(({ icon: Icon, label, path }) => {
+                const isVendorItem = label === 'Vendor dashboard'
+                const finalLabel = isVendorItem && !isPartner ? 'Become a vendor' : label
+                const finalPath  = isVendorItem && !isPartner ? '/partner' : path
+                return (
+                  <button
+                    key={label}
+                    onClick={() => { setMenuOpen(false); router.push(finalPath) }}
+                    className="w-full flex items-center gap-4 py-4 border-b border-gray-100
+                               hover:opacity-70 transition-opacity text-left"
+                  >
+                    <Icon size={20} color="#1a1a1a" className="flex-shrink-0" />
+                    <span className="text-sm text-[#1a1a1a]">{finalLabel}</span>
+                  </button>
+                )
+              })}
             </div>
           ))}
 
@@ -207,12 +213,12 @@ export default function Navbar({categoryBar }: {categoryBar?: React.ReactNode}) 
             {isLoggedIn ? (
               <>
                 <button
-                  onClick={() => router.push('/vendor')}
+                  onClick={() => router.push(isPartner ? '/vendor' : '/partner')}
                   className="flex items-center gap-1.5 text-sm font-medium text-[#304333]
                              hover:text-[#2c4a1e] transition-colors"
                 >
                   <LayoutDashboard size={15} />
-                  Vendor dashboard
+                  {isPartner ? 'Vendor dashboard' : 'Become a vendor'}
                 </button>
 
                 <div className="relative">
@@ -248,7 +254,7 @@ export default function Navbar({categoryBar }: {categoryBar?: React.ReactNode}) 
             ) : (
               <>
                 <button
-                  onClick={() => router.push('/login?redirect=/vendor')}
+                  onClick={() => router.push('/partner')}
                   className="text-sm font-medium text-[#304333] hover:text-[#2c4a1e]
                              transition-colors"
                 >

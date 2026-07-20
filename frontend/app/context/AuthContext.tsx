@@ -4,10 +4,15 @@ import {
   useEffect, ReactNode, useMemo
 } from 'react'
 
+type Role = 'traveller' | 'partner'
+
 type User = {
   name: string
   email: string
   avatar?: string
+  onboardingComplete?: boolean
+  roles?: Role[]
+  activeRole?: Role
 }
 
 type Listing = {
@@ -51,6 +56,8 @@ type AuthContextType = {
   login: (user: User) => void
   logout: () => void
   isLoggedIn: boolean
+  completeOnboarding: () => void
+  addPartnerRole: () => void
   wishlists: Listing[]
   addToWishlist: (item: Listing) => void
   removeFromWishlist: (id: string) => void
@@ -65,6 +72,8 @@ const AuthContext = createContext<AuthContextType>({
   login: () => {},
   logout: () => {},
   isLoggedIn: false,
+  completeOnboarding: () => {},
+  addPartnerRole: () => {},
   wishlists: [],
   addToWishlist: () => {},
   removeFromWishlist: () => {},
@@ -134,8 +143,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setMounted(true)
   }, [])
 
-  function login(u: User)  { setUser(u) }
-  function logout()        { setUser(null); setWishlists([]) }
+  function login(u: User) {
+    setUser({ roles: ['traveller'], activeRole: 'traveller', ...u })
+  }
+  function logout() { setUser(null); setWishlists([]) }
+
+  function completeOnboarding() {
+    setUser(u => u ? { ...u, onboardingComplete: true } : u)
+  }
+
+  function addPartnerRole() {
+    setUser(u => {
+      if (!u) return u
+      const roles = Array.from(new Set([...(u.roles ?? ['traveller']), 'partner' as Role]))
+      return { ...u, roles, activeRole: 'partner' }
+    })
+  }
 
   function addToWishlist(item: Listing) {
     setWishlists(w => w.find(i => i.id === item.id) ? w : [...w, item])
@@ -156,6 +179,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     login,
     logout,
     isLoggedIn: !!user,
+    completeOnboarding,
+    addPartnerRole,
     wishlists,
     addToWishlist,
     removeFromWishlist,
