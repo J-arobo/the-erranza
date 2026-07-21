@@ -58,6 +58,7 @@ type AuthContextType = {
   isLoggedIn: boolean
   completeOnboarding: () => void
   addPartnerRole: () => void
+  setActiveRole: (role: Role) => void
   wishlists: Listing[]
   addToWishlist: (item: Listing) => void
   removeFromWishlist: (id: string) => void
@@ -74,6 +75,7 @@ const AuthContext = createContext<AuthContextType>({
   isLoggedIn: false,
   completeOnboarding: () => {},
   addPartnerRole: () => {},
+  setActiveRole: () => {},
   wishlists: [],
   addToWishlist: () => {},
   removeFromWishlist: () => {},
@@ -160,6 +162,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     })
   }
 
+  function setActiveRole(role: Role) {
+    setUser(u => u ? { ...u, activeRole: role } : u)
+  }
+
   function addToWishlist(item: Listing) {
     setWishlists(w => w.find(i => i.id === item.id) ? w : [...w, item])
   }
@@ -181,6 +187,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isLoggedIn: !!user,
     completeOnboarding,
     addPartnerRole,
+    setActiveRole,
     wishlists,
     addToWishlist,
     removeFromWishlist,

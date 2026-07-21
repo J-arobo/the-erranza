@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import {
   LayoutDashboard, List, Calendar, MessageCircle,
-  TrendingUp, Star, User, LogOut, Menu, X, ChevronRight, Bell, Info
+  TrendingUp, Star, User, LogOut, Menu, X, ChevronRight, Bell, Info, LifeBuoy
 } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { VENDOR_BOOKINGS, VENDOR_NOTIFICATIONS, type VendorNotification } from '@/data/vendor'
@@ -15,6 +15,7 @@ const NAV_ITEMS = [
   { label: 'Messages',   Icon: MessageCircle,   path: '/vendor/messages' },
   { label: 'Earnings',   Icon: TrendingUp,      path: '/vendor/earnings' },
   { label: 'Reviews',    Icon: Star,            path: '/vendor/reviews' },
+  { label: 'Support',    Icon: LifeBuoy,        path: '/vendor/support' },
   { label: 'Profile',    Icon: User,            path: '/vendor/profile' },
 ]
 
@@ -28,13 +29,14 @@ const NOTIF_ICON: Record<string, typeof Calendar> = {
 export default function VendorShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const router   = useRouter()
-  const { user, logout } = useAuth()
+  const { user, logout, setActiveRole } = useAuth()
   const [mobileOpen, setMobileOpen] = useState(false)
   const [notifOpen, setNotifOpen] = useState(false)
   const [, forceUpdate] = useState(0)
 
   const pendingCount = VENDOR_BOOKINGS.filter(b => b.status === 'pending').length
   const unreadCount  = VENDOR_NOTIFICATIONS.filter(n => !n.read).length
+  const activeRole   = user?.activeRole ?? 'partner'
 
   function isActive(path: string) {
     if (path === '/vendor') return pathname === '/vendor'
@@ -44,6 +46,17 @@ export default function VendorShell({ children }: { children: React.ReactNode })
   function navigate(path: string) {
     router.push(path)
     setMobileOpen(false)
+  }
+
+  function handleSwitchRole(role: 'traveller' | 'partner') {
+    setActiveRole(role)
+    setMobileOpen(false)
+    router.push(role === 'traveller' ? '/' : '/vendor')
+  }
+
+  function handleBackToErranza() {
+    setActiveRole('traveller')
+    router.push('/')
   }
 
   function markAllRead() {
@@ -58,6 +71,19 @@ export default function VendorShell({ children }: { children: React.ReactNode })
   }
 
   const currentLabel = NAV_ITEMS.find(i => isActive(i.path))?.label ?? 'Dashboard'
+
+  const RoleSwitcher = () => (
+    <div className="flex bg-white/10 rounded-full p-1">
+      {(['traveller', 'partner'] as const).map((r) => (
+        <button key={r}
+          onClick={() => handleSwitchRole(r)}
+          className={`flex-1 text-xs font-semibold py-1.5 rounded-full capitalize transition-all
+            ${activeRole === r ? 'bg-white text-[#2c4a1e]' : 'text-white/60 hover:text-white'}`}>
+          {r}
+        </button>
+      ))}
+    </div>
+  )
 
   const NotifPanel = notifOpen && (
     <>
@@ -134,14 +160,18 @@ export default function VendorShell({ children }: { children: React.ReactNode })
 
           {/* Back to guest view */}
           <button
-            onClick={() => router.push('/')}
+            onClick={handleBackToErranza}
             className="mt-3 flex items-center gap-1.5 text-white/50 text-xs
                       hover:text-white/80 transition-colors"
           >
             ← Back to Erranza
           </button>
         </div>
-        
+
+        {/* Role switcher */}
+        <div className="px-3 pt-4">
+          <RoleSwitcher />
+        </div>
 
         {/* Nav */}
         <nav className="flex-1 px-3 py-4 flex flex-col gap-1 overflow-y-auto">
@@ -204,6 +234,12 @@ export default function VendorShell({ children }: { children: React.ReactNode })
                 <X size={20} color="white" />
               </button>
             </div>
+
+            {/* Role switcher */}
+            <div className="px-3 pt-4">
+              <RoleSwitcher />
+            </div>
+
             <nav className="flex-1 px-3 py-4 flex flex-col gap-1 overflow-y-auto">
               {NAV_ITEMS.map(({ label, Icon, path }) => (
                 <button key={path} onClick={() => navigate(path)}

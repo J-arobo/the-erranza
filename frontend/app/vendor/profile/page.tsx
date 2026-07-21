@@ -1,7 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { LogOut, Star, TrendingUp, List, Check, ShieldCheck, Users, UserPlus, X } from 'lucide-react'
+import { LogOut, Star, TrendingUp, List, Check, ShieldCheck, Users, UserPlus, X, FileClock } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { VENDOR_LISTINGS, VENDOR_EARNINGS, VENDOR_REVIEWS, VENDOR_TEAM, type VendorTeamMember } from '@/data/vendor'
 
@@ -12,6 +12,29 @@ const ROLE_DESCRIPTIONS: Record<VendorTeamMember['role'], string> = {
   Support: 'Can respond to guest messages only.',
 }
 const TEAM_COLORS = ['#c4f0d4', '#f0e4c4', '#d4c4f0', '#c4e8f0']
+
+type DocStatus = 'unset' | 'valid' | 'expiring' | 'expired'
+
+function getDocStatus(expiry: string): DocStatus {
+  if (!expiry) return 'unset'
+  const days = (new Date(expiry).getTime() - Date.now()) / 86400000
+  if (days < 0) return 'expired'
+  if (days <= 30) return 'expiring'
+  return 'valid'
+}
+
+const DOC_STATUS_STYLES: Record<DocStatus, string> = {
+  valid: 'bg-[#eaf5e4] text-[#2c4a1e]',
+  expiring: 'bg-amber-50 text-amber-700',
+  expired: 'bg-red-50 text-red-500',
+  unset: 'bg-gray-100 text-gray-500',
+}
+const DOC_STATUS_LABELS: Record<DocStatus, string> = {
+  valid: 'Valid',
+  expiring: 'Expiring soon',
+  expired: 'Expired',
+  unset: 'No expiry set',
+}
 
 export default function VendorProfilePage() {
   const { user, logout } = useAuth()
@@ -25,8 +48,11 @@ export default function VendorProfilePage() {
   const [checklist, setChecklist] = useState({
     phone: false,
     id: false,
+    insurance: false,
     payout: false,
   })
+  const [idExpiry, setIdExpiry] = useState('')
+  const [insuranceExpiry, setInsuranceExpiry] = useState('')
 
   const [, forceUpdate] = useState(0)
   const [inviting, setInviting] = useState(false)
@@ -53,6 +79,8 @@ export default function VendorProfilePage() {
       action: () => setChecklist(c => ({ ...c, phone: true })) },
     { key: 'id', label: 'Upload government ID', done: checklist.id, actionLabel: 'Upload',
       action: () => setChecklist(c => ({ ...c, id: true })) },
+    { key: 'insurance', label: 'Upload insurance certificate', done: checklist.insurance, actionLabel: 'Upload',
+      action: () => setChecklist(c => ({ ...c, insurance: true })) },
     { key: 'payout', label: 'Add payout details', done: checklist.payout, actionLabel: 'Add',
       action: () => setChecklist(c => ({ ...c, payout: true })) },
     { key: 'listing', label: 'Publish your first listing', done: hasActiveListing, actionLabel: 'Add listing',
@@ -173,6 +201,50 @@ export default function VendorProfilePage() {
           ))}
         </div>
       </div>
+
+      {/* Document renewals */}
+      {(checklist.id || checklist.insurance) && (
+        <div className="bg-white rounded-2xl border border-[#e0d9cc] p-5 mb-5">
+          <div className="flex items-center gap-2 mb-1">
+            <FileClock size={16} color="#2c4a1e" />
+            <h2 className="text-base font-bold text-[#1a1a1a]">Document renewals</h2>
+          </div>
+          <p className="text-xs text-gray-400 mb-3">
+            Licenses and certificates expire — set the expiry date and update it after renewing.
+          </p>
+
+          <div className="flex flex-col gap-2">
+            {checklist.id && (
+              <div className="flex items-center justify-between gap-3 p-3 rounded-xl border border-gray-200">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-[#1a1a1a]">Government ID</p>
+                  <input type="date" value={idExpiry} onChange={(e) => setIdExpiry(e.target.value)}
+                    className="mt-1 text-xs border border-gray-200 rounded-lg px-2 py-1
+                               outline-none focus:border-[#2c4a1e] transition-colors" />
+                </div>
+                <span className={`text-[10px] font-semibold px-2.5 py-1 rounded-full flex-shrink-0
+                  ${DOC_STATUS_STYLES[getDocStatus(idExpiry)]}`}>
+                  {DOC_STATUS_LABELS[getDocStatus(idExpiry)]}
+                </span>
+              </div>
+            )}
+            {checklist.insurance && (
+              <div className="flex items-center justify-between gap-3 p-3 rounded-xl border border-gray-200">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-[#1a1a1a]">Insurance certificate</p>
+                  <input type="date" value={insuranceExpiry} onChange={(e) => setInsuranceExpiry(e.target.value)}
+                    className="mt-1 text-xs border border-gray-200 rounded-lg px-2 py-1
+                               outline-none focus:border-[#2c4a1e] transition-colors" />
+                </div>
+                <span className={`text-[10px] font-semibold px-2.5 py-1 rounded-full flex-shrink-0
+                  ${DOC_STATUS_STYLES[getDocStatus(insuranceExpiry)]}`}>
+                  {DOC_STATUS_LABELS[getDocStatus(insuranceExpiry)]}
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="bg-white rounded-2xl border border-[#e0d9cc] p-5 mb-5">
         <h2 className="text-base font-bold text-[#1a1a1a] mb-4">Business details</h2>

@@ -2,13 +2,15 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
-  Building2, ShieldCheck, FileText, User as UserIcon,
+  Building2, Layers, Package, CreditCard, Clock,
   Plus, X, Check, LogOut
 } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 
-const STEP_LABELS = ['Business details', 'Verification', 'Terms', 'Public profile']
-const STEP_ICONS = [Building2, ShieldCheck, FileText, UserIcon]
+const STEP_LABELS = ['Business details', 'Categories', 'Plan', 'Payment', 'Pending review']
+const STEP_ICONS = [Building2, Layers, Package, CreditCard, Clock]
+
+const CATEGORY_OPTIONS = ['Safari', 'Stays', 'Experiences', 'Packages']
 
 const CANCELLATION_OPTIONS: { id: 'flexible' | 'moderate' | 'strict'; label: string; description: string }[] = [
   { id: 'flexible', label: 'Flexible', description: 'Full refund up to 24 hours before the start date.' },
@@ -16,7 +18,22 @@ const CANCELLATION_OPTIONS: { id: 'flexible' | 'moderate' | 'strict'; label: str
   { id: 'strict', label: 'Strict', description: 'Full refund up to 14 days before the start date. No refund after that.' },
 ]
 
-const RESPONSE_TIMES = ['Within an hour', 'Within a day', 'Within 2 days']
+const PLANS: { id: 'standard' | 'plus'; name: string; price: string; commission: string; features: string[] }[] = [
+  {
+    id: 'standard',
+    name: 'Standard',
+    price: 'Free',
+    commission: '12% commission per booking',
+    features: ['Standard search placement', 'Booking & payout management', 'Guest messaging'],
+  },
+  {
+    id: 'plus',
+    name: 'Plus',
+    price: 'Ksh 2,500/month',
+    commission: '8% commission per booking',
+    features: ['Featured search placement', 'Priority support', 'Lower commission rate'],
+  },
+]
 
 export default function VendorOnboardingPage() {
   const { user, logout, completeOnboarding } = useAuth()
@@ -30,38 +47,44 @@ export default function VendorOnboardingPage() {
   const [contactPhone, setContactPhone] = useState('')
   const [payoutMethod, setPayoutMethod] = useState<'mobile' | 'bank'>('mobile')
   const [payoutDetails, setPayoutDetails] = useState('')
-
-  // Step 2 — Verification
   const [idUploaded, setIdUploaded] = useState(false)
   const [insuranceUploaded, setInsuranceUploaded] = useState(false)
 
-  // Step 3 — Terms
+  // Step 2 — Categories
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([])
+  const [regions, setRegions] = useState<string[]>([])
+  const [regionInput, setRegionInput] = useState('')
+
+  // Step 3 — Plan
+  const [plan, setPlan] = useState<'standard' | 'plus'>('standard')
   const [defaultCancellationPolicy, setDefaultCancellationPolicy] = useState<'flexible' | 'moderate' | 'strict'>('moderate')
   const [agreedTerms, setAgreedTerms] = useState(false)
   const [agreedLiability, setAgreedLiability] = useState(false)
 
-  // Step 4 — Public profile
-  const [bio, setBio] = useState('')
-  const [logoUrl, setLogoUrl] = useState('')
-  const [languages, setLanguages] = useState<string[]>([])
-  const [languageInput, setLanguageInput] = useState('')
-  const [yearsOperating, setYearsOperating] = useState('')
-  const [responseTime, setResponseTime] = useState(RESPONSE_TIMES[1])
+  // Step 4 — Payment
+  const [cardName, setCardName] = useState('')
+  const [cardNumber, setCardNumber] = useState('')
+  const [cardExpiry, setCardExpiry] = useState('')
+  const [cardCvc, setCardCvc] = useState('')
 
-  function addLanguage() {
-    const val = languageInput.trim()
-    if (val && !languages.includes(val)) setLanguages(l => [...l, val])
-    setLanguageInput('')
+  function toggleCategory(cat: string) {
+    setSelectedCategories(c => c.includes(cat) ? c.filter(x => x !== cat) : [...c, cat])
   }
-  function removeLanguage(lang: string) {
-    setLanguages(l => l.filter(x => x !== lang))
+  function addRegion() {
+    const val = regionInput.trim()
+    if (val && !regions.includes(val)) setRegions(r => [...r, val])
+    setRegionInput('')
+  }
+  function removeRegion(region: string) {
+    setRegions(r => r.filter(x => x !== region))
   }
 
   const canContinue = [
-    !!companyName.trim() && !!contactPhone.trim() && !!payoutDetails.trim(),
-    idUploaded,
+    !!companyName.trim() && !!contactPhone.trim() && !!payoutDetails.trim() && idUploaded,
+    selectedCategories.length > 0,
     agreedTerms && agreedLiability,
-    !!bio.trim() && languages.length > 0,
+    plan === 'standard' || (!!cardName.trim() && !!cardNumber.trim() && !!cardExpiry.trim() && !!cardCvc.trim()),
+    true,
   ][step]
 
   function handleBack() {
@@ -80,6 +103,7 @@ export default function VendorOnboardingPage() {
 
   const percent = ((step + 1) / STEP_LABELS.length) * 100
   const StepIcon = STEP_ICONS[step]
+  const selectedPlan = PLANS.find(p => p.id === plan)!
 
   return (
     <div className="min-h-screen bg-[#f5f0e8] px-5 py-8 sm:py-12">
@@ -175,15 +199,6 @@ export default function VendorOnboardingPage() {
                   className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm
                              outline-none focus:border-[#2c4a1e] transition-colors" />
               </div>
-            </div>
-          )}
-
-          {/* ── STEP 2: Verification ── */}
-          {step === 1 && (
-            <div className="flex flex-col gap-4 mt-5">
-              <p className="text-sm text-gray-500 -mt-2">
-                Since guests pay before their trip happens, we verify every operator before you can publish a listing.
-              </p>
 
               <div className="border border-gray-200 rounded-xl p-4 flex items-center justify-between gap-3">
                 <div className="min-w-0">
@@ -222,22 +237,95 @@ export default function VendorOnboardingPage() {
                   </button>
                 )}
               </div>
-
-              <p className="text-xs text-gray-400">
-                Once submitted, our team reviews your documents within 1–2 business days. You can continue setting up while this is in progress.
-              </p>
             </div>
           )}
 
-          {/* ── STEP 3: Terms ── */}
+          {/* ── STEP 2: Categories ── */}
+          {step === 1 && (
+            <div className="flex flex-col gap-4 mt-5">
+              <p className="text-sm text-gray-500 -mt-2">
+                Choose what you'll be listing. This determines what you can publish and how guests find you.
+              </p>
+              <div>
+                <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">Categories</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {CATEGORY_OPTIONS.map((cat) => {
+                    const selected = selectedCategories.includes(cat)
+                    return (
+                      <button key={cat} onClick={() => toggleCategory(cat)}
+                        className={`flex items-center gap-2.5 p-3 rounded-xl border text-left transition-all
+                          ${selected
+                            ? 'border-[#2c4a1e] bg-[#eaf5e4]'
+                            : 'border-gray-200 hover:border-gray-300'}`}>
+                        <div className={`w-4 h-4 rounded flex items-center justify-center flex-shrink-0 border-2
+                          ${selected ? 'border-[#2c4a1e] bg-[#2c4a1e]' : 'border-gray-300'}`}>
+                          {selected && <Check size={11} color="white" />}
+                        </div>
+                        <span className="text-sm font-semibold text-[#1a1a1a]">{cat}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+              <div>
+                <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">Operating regions</label>
+                <div className="flex gap-2 mb-2">
+                  <input value={regionInput} onChange={(e) => setRegionInput(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addRegion() } }}
+                    placeholder="e.g. Maasai Mara"
+                    className="flex-1 border border-gray-200 rounded-xl px-4 py-2.5 text-sm
+                               outline-none focus:border-[#2c4a1e] transition-colors" />
+                  <button onClick={addRegion}
+                    className="px-4 rounded-xl bg-[#2c4a1e] text-white hover:bg-[#3d6b28] transition-colors">
+                    <Plus size={16} />
+                  </button>
+                </div>
+                {regions.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {regions.map((region) => (
+                      <span key={region}
+                        className="flex items-center gap-1.5 bg-[#eaf5e4] text-[#2c4a1e]
+                                   text-xs font-semibold px-3 py-1.5 rounded-full">
+                        {region}
+                        <button onClick={() => removeRegion(region)}>
+                          <X size={12} />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* ── STEP 3: Plan ── */}
           {step === 2 && (
             <div className="flex flex-col gap-4 mt-5">
-              <div className="bg-[#f5f0e8] rounded-xl p-4">
-                <p className="text-sm font-semibold text-[#1a1a1a] mb-1">Commission</p>
-                <p className="text-xs text-gray-500 leading-relaxed">
-                  Erranza charges a <span className="font-semibold text-[#1a1a1a]">12% commission</span> on
-                  completed bookings, deducted automatically from your payout. No listing or subscription fees.
-                </p>
+              <p className="text-sm text-gray-500 -mt-2">Choose the plan that fits your business.</p>
+
+              <div className="flex flex-col gap-2">
+                {PLANS.map((p) => (
+                  <button key={p.id} onClick={() => setPlan(p.id)}
+                    className={`text-left p-4 rounded-xl border transition-all
+                      ${plan === p.id
+                        ? 'border-[#2c4a1e] bg-[#eaf5e4]'
+                        : 'border-gray-200 hover:border-gray-300'}`}>
+                    <div className="flex items-start justify-between mb-1">
+                      <div className="flex items-center gap-2.5">
+                        <div className={`w-4 h-4 rounded-full border-2 flex-shrink-0
+                          ${plan === p.id ? 'border-[#2c4a1e] bg-[#2c4a1e]' : 'border-gray-300'}`} />
+                        <p className="text-sm font-bold text-[#1a1a1a]">{p.name}</p>
+                      </div>
+                      <p className="text-sm font-bold text-[#1a1a1a]">{p.price}</p>
+                    </div>
+                    <p className="text-xs text-gray-500 ml-[26px] mb-1.5">{p.commission}</p>
+                    <ul className="ml-[26px] flex flex-col gap-0.5">
+                      {p.features.map((f) => (
+                        <li key={f} className="text-xs text-gray-500">• {f}</li>
+                      ))}
+                    </ul>
+                  </button>
+                ))}
               </div>
 
               <div>
@@ -284,71 +372,89 @@ export default function VendorOnboardingPage() {
             </div>
           )}
 
-          {/* ── STEP 4: Public profile ── */}
+          {/* ── STEP 4: Payment ── */}
           {step === 3 && (
             <div className="flex flex-col gap-4 mt-5">
-              <p className="text-sm text-gray-500 -mt-2">
-                This is what guests see on your listings before they book.
-              </p>
-              <div>
-                <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">Business bio</label>
-                <textarea value={bio} onChange={(e) => setBio(e.target.value)}
-                  rows={3} placeholder="Tell guests who you are and what makes your tours special..."
-                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm
-                             outline-none focus:border-[#2c4a1e] transition-colors resize-none" />
-              </div>
-              <div>
-                <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">Logo / photo URL</label>
-                <input value={logoUrl} onChange={(e) => setLogoUrl(e.target.value)}
-                  placeholder="Optional"
-                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm
-                             outline-none focus:border-[#2c4a1e] transition-colors" />
-              </div>
-              <div>
-                <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">Languages spoken</label>
-                <div className="flex gap-2 mb-2">
-                  <input value={languageInput} onChange={(e) => setLanguageInput(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addLanguage() } }}
-                    placeholder="e.g. English"
-                    className="flex-1 border border-gray-200 rounded-xl px-4 py-2.5 text-sm
-                               outline-none focus:border-[#2c4a1e] transition-colors" />
-                  <button onClick={addLanguage}
-                    className="px-4 rounded-xl bg-[#2c4a1e] text-white hover:bg-[#3d6b28] transition-colors">
-                    <Plus size={16} />
-                  </button>
+              {plan === 'standard' ? (
+                <div className="bg-[#f5f0e8] rounded-xl p-4">
+                  <p className="text-sm font-semibold text-[#1a1a1a] mb-1">No payment required</p>
+                  <p className="text-xs text-gray-500 leading-relaxed">
+                    You're on the Standard plan — no subscription fee. Erranza's 12% commission is
+                    deducted automatically from each payout. You can upgrade to Plus anytime from your dashboard.
+                  </p>
                 </div>
-                {languages.length > 0 && (
-                  <div className="flex flex-wrap gap-2">
-                    {languages.map((lang) => (
-                      <span key={lang}
-                        className="flex items-center gap-1.5 bg-[#eaf5e4] text-[#2c4a1e]
-                                   text-xs font-semibold px-3 py-1.5 rounded-full">
-                        {lang}
-                        <button onClick={() => removeLanguage(lang)}>
-                          <X size={12} />
-                        </button>
-                      </span>
-                    ))}
+              ) : (
+                <>
+                  <p className="text-sm text-gray-500 -mt-2">
+                    You selected the Plus plan (Ksh 2,500/month). Enter your card details to continue.
+                  </p>
+                  <div>
+                    <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">Name on card</label>
+                    <input value={cardName} onChange={(e) => setCardName(e.target.value)}
+                      className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm
+                                 outline-none focus:border-[#2c4a1e] transition-colors" />
                   </div>
-                )}
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">Years operating</label>
-                  <input value={yearsOperating} onChange={(e) => setYearsOperating(e.target.value)}
-                    type="number" placeholder="e.g. 5"
-                    className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm
-                               outline-none focus:border-[#2c4a1e] transition-colors" />
+                  <div>
+                    <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">Card number</label>
+                    <input value={cardNumber} onChange={(e) => setCardNumber(e.target.value)}
+                      placeholder="4242 4242 4242 4242"
+                      className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm
+                                 outline-none focus:border-[#2c4a1e] transition-colors" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">Expiry</label>
+                      <input value={cardExpiry} onChange={(e) => setCardExpiry(e.target.value)}
+                        placeholder="MM/YY"
+                        className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm
+                                   outline-none focus:border-[#2c4a1e] transition-colors" />
+                    </div>
+                    <div>
+                      <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">CVC</label>
+                      <input value={cardCvc} onChange={(e) => setCardCvc(e.target.value)}
+                        placeholder="123"
+                        className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm
+                                   outline-none focus:border-[#2c4a1e] transition-colors" />
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
+          {/* ── STEP 5: Pending review ── */}
+          {step === 4 && (
+            <div className="flex flex-col gap-4 mt-5">
+              <div className="flex flex-col items-center text-center py-4">
+                <div className="w-14 h-14 rounded-full bg-[#eaf5e4] flex items-center justify-center mb-4">
+                  <Clock size={24} color="#2c4a1e" />
                 </div>
-                <div>
-                  <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">Response time</label>
-                  <select value={responseTime} onChange={(e) => setResponseTime(e.target.value)}
-                    className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm
-                               outline-none focus:border-[#2c4a1e] transition-colors bg-white">
-                    {RESPONSE_TIMES.map((t) => <option key={t} value={t}>{t}</option>)}
-                  </select>
-                </div>
+                <p className="text-base font-bold text-[#1a1a1a] mb-1">Your application is under review</p>
+                <p className="text-sm text-gray-500 max-w-xs">
+                  We typically review new partner applications within 1–2 business days.
+                  You'll get an email once you're fully verified.
+                </p>
               </div>
+
+              <div className="flex flex-col divide-y divide-gray-100 border border-gray-100 rounded-xl px-4">
+                {[
+                  { label: 'Business details', value: companyName || '—' },
+                  { label: 'Categories', value: selectedCategories.length > 0 ? selectedCategories.join(', ') : '—' },
+                  { label: 'Plan', value: selectedPlan.name },
+                  { label: 'Payment', value: plan === 'standard' ? 'None required' : 'Card on file' },
+                ].map((row) => (
+                  <div key={row.label} className="flex items-center justify-between py-3">
+                    <span className="text-sm text-gray-500">{row.label}</span>
+                    <span className="text-sm font-semibold text-[#1a1a1a] text-right ml-3 truncate max-w-[60%]">
+                      {row.value}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              <p className="text-xs text-gray-400 text-center">
+                You'll have provisional dashboard access while your documents are reviewed.
+              </p>
             </div>
           )}
 
@@ -364,7 +470,7 @@ export default function VendorOnboardingPage() {
             <button onClick={handleContinue} disabled={!canContinue}
               className="flex-1 bg-[#2c4a1e] text-white py-3 rounded-xl font-semibold text-sm
                          hover:bg-[#3d6b28] transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
-              {step < STEP_LABELS.length - 1 ? 'Continue' : 'Finish setup'}
+              {step < STEP_LABELS.length - 1 ? 'Continue' : 'Go to dashboard →'}
             </button>
           </div>
         </div>

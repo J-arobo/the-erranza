@@ -78,13 +78,17 @@ const MENU_SECTIONS_LOGGEDIN = [
 
 export default function Navbar({categoryBar }: {categoryBar?: React.ReactNode}) {
   const router = useRouter()
-  const { isLoggedIn, user, logout } = useAuth()
+  const { isLoggedIn, user, logout, setActiveRole } = useAuth()
   const [menuOpen, setMenuOpen]     = useState(false)
   const [helpTooltip, setHelpTooltip] = useState(false)
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false)
+  const [profileMenuPos, setProfileMenuPos] = useState({ top: 0, right: 0 })
   const [mounted, setMounted]       = useState(false)
   const helpRef = useRef<HTMLButtonElement>(null)
+  const profileBtnRef = useRef<HTMLButtonElement>(null)
 
   const isPartner = !!user?.roles?.includes('partner')
+  const activeRole = user?.activeRole ?? 'traveller'
   const menuSections = isLoggedIn ? MENU_SECTIONS_LOGGEDIN : MENU_SECTIONS_GUEST
 
   // Wait for client mount before rendering portal
@@ -100,6 +104,21 @@ export default function Navbar({categoryBar }: {categoryBar?: React.ReactNode}) 
     document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
   }, [])
+
+  function toggleProfileMenu() {
+    if (!profileMenuOpen && profileBtnRef.current) {
+      const rect = profileBtnRef.current.getBoundingClientRect()
+      setProfileMenuPos({ top: rect.bottom + 8, right: window.innerWidth - rect.right })
+    }
+    setProfileMenuOpen(o => !o)
+  }
+
+  function handleSwitchRole(role: 'traveller' | 'partner') {
+    setActiveRole(role)
+    setProfileMenuOpen(false)
+    setMenuOpen(false)
+    router.push(role === 'partner' ? '/vendor' : '/')
+  }
 
   // Drawer rendered via portal — escapes any stacking context
   const Drawer = () => (
@@ -130,6 +149,22 @@ export default function Navbar({categoryBar }: {categoryBar?: React.ReactNode}) 
             <X size={16} color="#1a1a1a" />
           </button>
         </div>
+
+        {/* Role switcher */}
+        {isLoggedIn && isPartner && (
+          <div className="px-5 py-4 border-b border-gray-100">
+            <div className="flex bg-gray-100 rounded-full p-1">
+              {(['traveller', 'partner'] as const).map((r) => (
+                <button key={r}
+                  onClick={() => handleSwitchRole(r)}
+                  className={`flex-1 text-xs font-semibold py-2 rounded-full capitalize transition-all
+                    ${activeRole === r ? 'bg-white text-[#1a1a1a] shadow-sm' : 'text-gray-500'}`}>
+                  {r}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Currency + language */}
         <div className="px-5 py-4 border-b border-gray-100 flex flex-col gap-4">
@@ -182,6 +217,77 @@ export default function Navbar({categoryBar }: {categoryBar?: React.ReactNode}) 
               <span className="text-sm text-red-500 font-medium">Log out</span>
             </button>
           )}
+        </div>
+      </div>
+    </>
+  )
+
+  // Profile dropdown rendered via portal — escapes AppShell's overflow:hidden scroll wrapper
+  const ProfileMenu = () => (
+    <>
+      <div className="fixed inset-0" style={{ zIndex: 9998 }} onClick={() => setProfileMenuOpen(false)} />
+      <div
+        className="fixed w-64 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden"
+        style={{ zIndex: 9999, top: profileMenuPos.top, right: profileMenuPos.right }}
+      >
+        <div className="flex items-center gap-3 px-4 py-3.5 border-b border-gray-100">
+          <div className="w-9 h-9 rounded-full bg-[#304333] flex items-center
+                          justify-center text-[#EAF98E] text-sm font-bold flex-shrink-0">
+            {user?.name?.[0]?.toUpperCase() ?? 'E'}
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-[#1a1a1a] truncate">{user?.name}</p>
+            <p className="text-xs text-gray-400 truncate">{user?.email}</p>
+          </div>
+        </div>
+
+        {isPartner && (
+          <div className="px-4 py-3 border-b border-gray-100">
+            <div className="flex bg-gray-100 rounded-full p-1">
+              {(['traveller', 'partner'] as const).map((r) => (
+                <button key={r}
+                  onClick={() => handleSwitchRole(r)}
+                  className={`flex-1 text-xs font-semibold py-1.5 rounded-full capitalize transition-all
+                    ${activeRole === r ? 'bg-white text-[#1a1a1a] shadow-sm' : 'text-gray-500'}`}>
+                  {r}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div className="py-1">
+          <button
+            onClick={() => { setProfileMenuOpen(false); router.push('/profile') }}
+            className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-[#1a1a1a]
+                       hover:bg-gray-50 transition-colors text-left"
+          >
+            <User size={15} /> Profile
+          </button>
+          <button
+            onClick={() => { setProfileMenuOpen(false); router.push(isPartner ? '/vendor' : '/partner') }}
+            className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-[#1a1a1a]
+                       hover:bg-gray-50 transition-colors text-left"
+          >
+            <LayoutDashboard size={15} /> {isPartner ? 'Vendor dashboard' : 'Become a vendor'}
+          </button>
+          <button
+            onClick={() => { setProfileMenuOpen(false); router.push('/help') }}
+            className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-[#1a1a1a]
+                       hover:bg-gray-50 transition-colors text-left"
+          >
+            <HelpCircle size={15} /> Help Centre
+          </button>
+        </div>
+
+        <div className="border-t border-gray-100 py-1">
+          <button
+            onClick={() => { setProfileMenuOpen(false); logout(); router.push('/') }}
+            className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-500
+                       hover:bg-red-50 transition-colors text-left"
+          >
+            <LogOut size={15} /> Log out
+          </button>
         </div>
       </div>
     </>
@@ -243,7 +349,8 @@ export default function Navbar({categoryBar }: {categoryBar?: React.ReactNode}) 
                 </div>
 
                 <button
-                  onClick={() => router.push('/profile')}
+                  ref={profileBtnRef}
+                  onClick={toggleProfileMenu}
                   className="w-8 h-8 rounded-full bg-[#304333] flex items-center
                              justify-center text-[#EAF98E] text-sm font-bold
                              hover:bg-[#2c4a1e] transition-colors"
@@ -363,8 +470,9 @@ export default function Navbar({categoryBar }: {categoryBar?: React.ReactNode}) 
         </div>
       </header>
 
-      {/* Drawer rendered into document.body via portal */}
+      {/* Drawer / dropdown rendered into document.body via portal — escapes any stacking/clip context */}
       {mounted && menuOpen && createPortal(<Drawer />, document.body)}
+      {mounted && profileMenuOpen && createPortal(<ProfileMenu />, document.body)}
     </>
   )
 }

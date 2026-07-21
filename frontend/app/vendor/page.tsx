@@ -183,15 +183,19 @@ export default function VendorDashboard() {
 
 export function StatusBadge({ status }: { status: string }) {
   const styles: Record<string, string> = {
-    pending:   'bg-amber-50 text-amber-700',
-    confirmed: 'bg-[#eaf5e4] text-[#2c4a1e]',
-    completed: 'bg-gray-100 text-gray-500',
-    cancelled: 'bg-red-50 text-red-500',
+    pending:              'bg-amber-50 text-amber-700',
+    confirmed:            'bg-[#eaf5e4] text-[#2c4a1e]',
+    completed:            'bg-gray-100 text-gray-500',
+    cancelled:            'bg-red-50 text-red-500',
+    alternative_proposed: 'bg-blue-50 text-blue-600',
+  }
+  const labels: Record<string, string> = {
+    alternative_proposed: 'Date proposed',
   }
   return (
     <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full capitalize
                       ${styles[status] ?? 'bg-gray-100 text-gray-500'}`}>
-      {status}
+      {labels[status] ?? status}
     </span>
   )
 }

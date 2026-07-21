@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { Calendar, Users, ChevronRight } from 'lucide-react'
-import { VENDOR_BOOKINGS } from '@/data/vendor'
+import { VENDOR_BOOKINGS, bookingRequiresApproval } from '@/data/vendor'
 import { StatusBadge } from '../page'
 
 const FILTERS = ['All', 'Pending', 'Confirmed', 'Completed', 'Cancelled']
@@ -11,10 +11,27 @@ const FILTERS = ['All', 'Pending', 'Confirmed', 'Completed', 'Cancelled']
 export default function VendorBookingsPage() {
   const router = useRouter()
   const [filter, setFilter] = useState('All')
+  const [, forceUpdate] = useState(0)
 
   const filtered = VENDOR_BOOKINGS.filter(b =>
     filter === 'All' || b.status.toLowerCase() === filter.toLowerCase()
   )
+
+  function acceptBooking(id: string, e: React.MouseEvent) {
+    e.stopPropagation()
+    const booking = VENDOR_BOOKINGS.find(b => b.id === id)
+    if (!booking) return
+    booking.status = 'confirmed'
+    forceUpdate(n => n + 1)
+  }
+
+  function declineBooking(id: string, e: React.MouseEvent) {
+    e.stopPropagation()
+    const booking = VENDOR_BOOKINGS.find(b => b.id === id)
+    if (!booking) return
+    booking.status = 'cancelled'
+    forceUpdate(n => n + 1)
+  }
 
   return (
     <div className="p-5 lg:p-8 max-w-4xl mx-auto">
@@ -81,15 +98,15 @@ export default function VendorBookingsPage() {
               </div>
             </div>
 
-            {/* Pending actions */}
-            {booking.status === 'pending' && (
+            {/* Pending actions — only for listings that require approval (Safari/Packages) */}
+            {booking.status === 'pending' && bookingRequiresApproval(booking) && (
               <div className="flex gap-2 mt-3 pt-3 border-t border-gray-100">
-                <button onClick={(e) => e.stopPropagation()}
+                <button onClick={(e) => acceptBooking(booking.id, e)}
                   className="flex-1 py-2 rounded-xl bg-[#2c4a1e] text-white text-xs
                              font-semibold hover:bg-[#3d6b28] transition-colors">
                   Accept
                 </button>
-                <button onClick={(e) => e.stopPropagation()}
+                <button onClick={(e) => declineBooking(booking.id, e)}
                   className="flex-1 py-2 rounded-xl border border-gray-200 text-xs
                              font-semibold text-[#1a1a1a] hover:bg-gray-50 transition-colors">
                   Decline
