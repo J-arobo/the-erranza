@@ -4,7 +4,7 @@ import {
   useEffect, ReactNode, useMemo
 } from 'react'
 
-type Role = 'traveller' | 'partner'
+type Role = 'traveller' | 'partner' | 'admin' | 'super_admin'
 
 type User = {
   name: string
@@ -58,6 +58,8 @@ type AuthContextType = {
   isLoggedIn: boolean
   completeOnboarding: () => void
   addPartnerRole: () => void
+  addAdminRole: () => void
+  addSuperAdminRole: () => void
   setActiveRole: (role: Role) => void
   wishlists: Listing[]
   addToWishlist: (item: Listing) => void
@@ -75,6 +77,8 @@ const AuthContext = createContext<AuthContextType>({
   isLoggedIn: false,
   completeOnboarding: () => {},
   addPartnerRole: () => {},
+  addAdminRole: () => {},
+  addSuperAdminRole: () => {},
   setActiveRole: () => {},
   wishlists: [],
   addToWishlist: () => {},
@@ -162,6 +166,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     })
   }
 
+  function addAdminRole() {
+    setUser(u => {
+      if (!u) return u
+      const roles = Array.from(new Set([...(u.roles ?? ['traveller']), 'admin' as Role]))
+      return { ...u, roles }
+    })
+  }
+
+  function addSuperAdminRole() {
+    setUser(u => {
+      if (!u) return u
+      const roles = Array.from(new Set([...(u.roles ?? ['traveller']), 'super_admin' as Role]))
+      return { ...u, roles }
+    })
+  }
+
   function setActiveRole(role: Role) {
     setUser(u => u ? { ...u, activeRole: role } : u)
   }
@@ -187,6 +207,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isLoggedIn: !!user,
     completeOnboarding,
     addPartnerRole,
+    addAdminRole,
+    addSuperAdminRole,
     setActiveRole,
     wishlists,
     addToWishlist,
