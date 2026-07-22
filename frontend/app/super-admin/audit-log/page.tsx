@@ -17,12 +17,12 @@ export default function SuperAdminAuditLogPage() {
       </p>
 
       {AUDIT_LOG.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-gray-200 p-8 text-center">
+        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-8 text-center">
           <History size={24} color="#ccc" className="mx-auto mb-2" />
           <p className="text-sm text-gray-400">No actions logged yet.</p>
         </div>
       ) : (
-        <div className="bg-white rounded-2xl border border-gray-200 divide-y divide-gray-100 px-5">
+        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm divide-y divide-gray-100 px-5">
           {AUDIT_LOG.map((e) => (
             <div key={e.id} className="py-3.5">
               <div className="flex items-center justify-between gap-2">

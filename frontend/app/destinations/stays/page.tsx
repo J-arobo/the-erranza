@@ -119,7 +119,7 @@ export default function StaysPage() {
                             md:w-[calc((100vw-164px)/4)]
                             lg:w-[calc((100vw-452px)/4)]
                             xl:w-[calc((100vw-464px)/5)]">
-                        <div className="relative w-full aspect-[3/2] rounded-xl border border-[#e0d9cc]
+                        <div className="relative w-full aspect-[3/2] rounded-xl border border-[#e0d9cc] shadow-sm
                             bg-[#f5f0e8] flex flex-col items-center justify-center gap-2
                             hover:bg-[#ece8e0] transition-colors cursor-pointer">
                           <div className="w-10 h-10 rounded-full bg-[#2c4a1e22] flex items-center justify-center">

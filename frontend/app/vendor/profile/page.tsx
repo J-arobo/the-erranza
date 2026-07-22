@@ -74,17 +74,27 @@ export default function VendorProfilePage() {
   const hasActiveListing = VENDOR_LISTINGS.some(l => l.status === 'active')
 
   const STEPS = [
-    { key: 'email', label: 'Verify email address', done: true, actionLabel: null as string | null, action: () => {} },
-    { key: 'phone', label: 'Verify phone number', done: checklist.phone, actionLabel: 'Verify',
-      action: () => setChecklist(c => ({ ...c, phone: true })) },
-    { key: 'id', label: 'Upload government ID', done: checklist.id, actionLabel: 'Upload',
-      action: () => setChecklist(c => ({ ...c, id: true })) },
-    { key: 'insurance', label: 'Upload insurance certificate', done: checklist.insurance, actionLabel: 'Upload',
-      action: () => setChecklist(c => ({ ...c, insurance: true })) },
-    { key: 'payout', label: 'Add payout details', done: checklist.payout, actionLabel: 'Add',
-      action: () => setChecklist(c => ({ ...c, payout: true })) },
-    { key: 'listing', label: 'Publish your first listing', done: hasActiveListing, actionLabel: 'Add listing',
-      action: () => router.push('/vendor/listings/new') },
+    { key: 'email', label: 'Verify email address', done: true, actionLabel: null as string | null, action: () => { } },
+    {
+      key: 'phone', label: 'Verify phone number', done: checklist.phone, actionLabel: 'Verify',
+      action: () => setChecklist(c => ({ ...c, phone: true }))
+    },
+    {
+      key: 'id', label: 'Upload government ID', done: checklist.id, actionLabel: 'Upload',
+      action: () => setChecklist(c => ({ ...c, id: true }))
+    },
+    {
+      key: 'insurance', label: 'Upload insurance certificate', done: checklist.insurance, actionLabel: 'Upload',
+      action: () => setChecklist(c => ({ ...c, insurance: true }))
+    },
+    {
+      key: 'payout', label: 'Add payout details', done: checklist.payout, actionLabel: 'Add',
+      action: () => setChecklist(c => ({ ...c, payout: true }))
+    },
+    {
+      key: 'listing', label: 'Publish your first listing', done: hasActiveListing, actionLabel: 'Add listing',
+      action: () => router.push('/vendor/listings/new')
+    },
   ]
 
   const completedCount = STEPS.filter(s => s.done).length
@@ -126,7 +136,7 @@ export default function VendorProfilePage() {
     <div className="p-5 lg:p-8 max-w-2xl mx-auto">
       <h1 className="text-2xl font-bold text-[#1a1a1a] mb-6">Profile</h1>
 
-      <div className="bg-white rounded-2xl border border-[#e0d9cc] p-5 mb-5">
+      <div className="bg-white rounded-2xl border border-[#e0d9cc] shadow-sm p-5 mb-5">
         <div className="flex items-center gap-4 mb-5">
           <div className="w-16 h-16 rounded-full bg-[#2c4a1e] flex items-center
                           justify-center text-white text-2xl font-bold flex-shrink-0">
@@ -147,7 +157,7 @@ export default function VendorProfilePage() {
 
         <div className="grid grid-cols-3 gap-3">
           {STATS.map(({ label, value, Icon }) => (
-            <div key={label} className="text-center bg-[#f5f0e8] rounded-xl py-3">
+            <div key={label} className="text-center bg-[#f3f4f6] rounded-xl py-3">
               <Icon size={16} color="#2c4a1e" className="mx-auto mb-1" />
               <p className="text-sm font-bold text-[#1a1a1a]">{value}</p>
               <p className="text-[10px] text-gray-500">{label}</p>
@@ -157,7 +167,7 @@ export default function VendorProfilePage() {
       </div>
 
       {/* Verification / onboarding */}
-      <div className="bg-white rounded-2xl border border-[#e0d9cc] p-5 mb-5">
+      <div className="bg-white rounded-2xl border border-[#e0d9cc] shadow-sm p-5 mb-5">
         <div className="flex items-center justify-between mb-1">
           <div className="flex items-center gap-2">
             <ShieldCheck size={16} color="#2c4a1e" />
@@ -204,7 +214,7 @@ export default function VendorProfilePage() {
 
       {/* Document renewals */}
       {(checklist.id || checklist.insurance) && (
-        <div className="bg-white rounded-2xl border border-[#e0d9cc] p-5 mb-5">
+        <div className="bg-white rounded-2xl border border-[#e0d9cc] shadow-sm p-5 mb-5">
           <div className="flex items-center gap-2 mb-1">
             <FileClock size={16} color="#2c4a1e" />
             <h2 className="text-base font-bold text-[#1a1a1a]">Document renewals</h2>
@@ -246,7 +256,7 @@ export default function VendorProfilePage() {
         </div>
       )}
 
-      <div className="bg-white rounded-2xl border border-[#e0d9cc] p-5 mb-5">
+      <div className="bg-white rounded-2xl border border-[#e0d9cc] shadow-sm p-5 mb-5">
         <h2 className="text-base font-bold text-[#1a1a1a] mb-4">Business details</h2>
 
         {editing ? (
@@ -298,7 +308,7 @@ export default function VendorProfilePage() {
       </div>
 
       {/* Team / co-hosts */}
-      <div className="bg-white rounded-2xl border border-[#e0d9cc] p-5 mb-5">
+      <div className="bg-white rounded-2xl border border-[#e0d9cc] shadow-sm p-5 mb-5">
         <div className="flex items-center justify-between mb-1">
           <div className="flex items-center gap-2">
             <Users size={16} color="#2c4a1e" />

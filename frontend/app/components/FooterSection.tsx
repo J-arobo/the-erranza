@@ -52,7 +52,7 @@ const footerData: FooterGroup[] = [
 // Replace the FooterGroup function with this — always expanded, no toggle
 function FooterGroup({ heading, links }: FooterGroup) {
   return (
-    <div className="border-b border-[#e0d9cc] px-4 sm:px-6 py-5">
+    <div className="border-b border-[#e0d9cc] shadow-sm px-4 sm:px-6 py-5">
       <h3 className="text-sm font-bold text-[#1a1a1a] mb-3">{heading}</h3>
       <ul className="flex flex-col gap-2">
         {links.map((link) => (

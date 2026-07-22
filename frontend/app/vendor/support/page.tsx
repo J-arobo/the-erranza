@@ -57,7 +57,7 @@ export default function VendorSupportPage() {
       <h1 className="text-2xl font-bold text-[#1a1a1a] mb-6">Support &amp; compliance</h1>
 
       {/* Report a problem */}
-      <div className="bg-white rounded-2xl border border-[#e0d9cc] p-5 mb-5">
+      <div className="bg-white rounded-2xl border border-[#e0d9cc] shadow-sm p-5 mb-5">
         <div className="flex items-center justify-between mb-1">
           <div className="flex items-center gap-2">
             <AlertTriangle size={16} color="#dc2626" />
@@ -138,7 +138,7 @@ export default function VendorSupportPage() {
       </div>
 
       {/* Policies */}
-      <div className="bg-white rounded-2xl border border-[#e0d9cc] p-5 mb-5">
+      <div className="bg-white rounded-2xl border border-[#e0d9cc] shadow-sm p-5 mb-5">
         <div className="flex items-center gap-2 mb-4">
           <FileText size={16} color="#2c4a1e" />
           <h2 className="text-base font-bold text-[#1a1a1a]">Platform policies</h2>

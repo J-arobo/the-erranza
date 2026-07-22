@@ -33,7 +33,7 @@ export default function Home() {
     <AppShell showCollapse={true}>
 
       {/* Continue searching card */}
-      <div className="mx-4 sm:mx-6 mt-3 bg-white rounded-2xl border border-[#e0d9cc] p-4 flex items-center gap-3">
+      <div className="mx-4 sm:mx-6 mt-3 bg-white rounded-2xl border border-[#e0d9cc] shadow-sm p-4 flex items-center gap-3">
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold text-[#1a1a1a] leading-tight">
             Continue searching for homes in Nairobi
@@ -83,7 +83,7 @@ export default function Home() {
                 <button
                   onClick={() => router.push(`/destinations/${slug}`)}
                   className="flex-shrink-0 w-[36vw] sm:w-[26vw] md:w-[22vw] lg:w-[17vw] xl:w-[13vw] rounded-2xl border
-               border-[#e0d9cc] bg-white flex flex-col items-center
+               border-[#e0d9cc] shadow-sm bg-white flex flex-col items-center
                justify-center gap-2 hover:bg-[#f5f0e8] transition-colors"
                 >
                   <div

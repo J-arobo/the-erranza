@@ -59,14 +59,14 @@ export default function SuperAdminConfigPage() {
             <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">Commission — Standard (%)</label>
             <input value={commissionStandard} onChange={(e) => setCommissionStandard(e.target.value)}
               type="number"
-              className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm
+              className="w-full border border-gray-200 shadow-sm rounded-xl px-4 py-2.5 text-sm
                          outline-none focus:border-[#161616] transition-colors" />
           </div>
           <div>
             <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">Commission — Plus (%)</label>
             <input value={commissionPlus} onChange={(e) => setCommissionPlus(e.target.value)}
               type="number"
-              className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm
+              className="w-full border border-gray-200 shadow-sm rounded-xl px-4 py-2.5 text-sm
                          outline-none focus:border-[#161616] transition-colors" />
           </div>
         </div>
@@ -75,7 +75,7 @@ export default function SuperAdminConfigPage() {
           <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">Plus subscription price (Ksh / month)</label>
           <input value={plusPrice} onChange={(e) => setPlusPrice(e.target.value)}
             type="number"
-            className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm
+            className="w-full border border-gray-200 shadow-sm rounded-xl px-4 py-2.5 text-sm
                        outline-none focus:border-[#161616] transition-colors" />
         </div>
 
@@ -85,7 +85,7 @@ export default function SuperAdminConfigPage() {
             <input value={categoryInput} onChange={(e) => setCategoryInput(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCategory() } }}
               placeholder="e.g. Road Trips"
-              className="flex-1 border border-gray-200 rounded-xl px-4 py-2.5 text-sm
+              className="flex-1 border border-gray-200 shadow-sm rounded-xl px-4 py-2.5 text-sm
                          outline-none focus:border-[#161616] transition-colors" />
             <button onClick={addCategory}
               className="px-4 rounded-xl bg-[#161616] text-white hover:bg-black transition-colors">
@@ -111,7 +111,7 @@ export default function SuperAdminConfigPage() {
                 className={`px-4 py-1.5 rounded-full text-sm font-semibold border capitalize transition-all
                   ${defaultPolicy === p
                     ? 'bg-[#161616] text-white border-[#161616]'
-                    : 'bg-white text-[#1a1a1a] border-gray-200 hover:border-[#161616]'}`}>
+                    : 'bg-white text-[#1a1a1a] border-gray-200 shadow-sm hover:border-[#161616]'}`}>
                 {p}
               </button>
             ))}
@@ -124,7 +124,7 @@ export default function SuperAdminConfigPage() {
           </label>
           <input value={disputeCeiling} onChange={(e) => setDisputeCeiling(e.target.value)}
             type="number"
-            className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm
+            className="w-full border border-gray-200 shadow-sm rounded-xl px-4 py-2.5 text-sm
                        outline-none focus:border-[#161616] transition-colors" />
           <p className="text-xs text-gray-400 mt-1.5">
             Disputes above this amount are escalated to Super Admin instead of Admin.
@@ -144,7 +144,7 @@ export default function SuperAdminConfigPage() {
           {maintenanceMode && (
             <textarea value={maintenanceMessage} onChange={(e) => setMaintenanceMessage(e.target.value)}
               rows={2} placeholder="Message shown to users while in maintenance mode..."
-              className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm mt-2
+              className="w-full border border-gray-200 shadow-sm rounded-xl px-4 py-2.5 text-sm mt-2
                          outline-none focus:border-[#161616] transition-colors resize-none" />
           )}
         </div>

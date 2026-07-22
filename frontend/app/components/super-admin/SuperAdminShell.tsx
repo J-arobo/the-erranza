@@ -37,7 +37,7 @@ export default function SuperAdminShell({ children }: { children: React.ReactNod
   const currentLabel = NAV_ITEMS.find(i => isActive(i.path))?.label ?? 'Dashboard'
 
   return (
-    <div className="flex h-screen bg-white overflow-hidden">
+    <div className="flex h-screen bg-[#f9fafb] overflow-hidden">
 
       {/* ── DESKTOP SIDEBAR ── */}
       <aside className="hidden lg:flex flex-col w-64 bg-[#161616] flex-shrink-0">
@@ -128,7 +128,7 @@ export default function SuperAdminShell({ children }: { children: React.ReactNod
       )}
 
       {/* ── MAIN AREA ── */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-white">
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-[#f9fafb]">
         <div className="lg:hidden flex items-center justify-between px-4 py-3
                         bg-[#161616] flex-shrink-0">
           <button onClick={() => setMobileOpen(true)}

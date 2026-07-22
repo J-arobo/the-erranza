@@ -68,7 +68,7 @@ export default function AdminVendorsPage() {
             className={`px-4 py-1.5 rounded-full text-sm font-semibold border transition-all
               ${tab === t
                 ? 'bg-[#2c4a1e] text-white border-[#2c4a1e]'
-                : 'bg-white text-[#1a1a1a] border-gray-200 hover:border-[#2c4a1e]'}`}>
+                : 'bg-white text-[#1a1a1a] border-gray-200 shadow-sm hover:border-[#2c4a1e]'}`}>
             {t}
           </button>
         ))}
@@ -82,12 +82,12 @@ export default function AdminVendorsPage() {
             </p>
             <div className="flex flex-col gap-3">
               {pending.length === 0 && (
-                <p className="text-sm text-gray-400 text-center py-6 bg-white rounded-2xl border border-gray-200">
+                <p className="text-sm text-gray-400 text-center py-6 bg-white rounded-2xl border border-gray-200 shadow-sm">
                   Nothing pending review.
                 </p>
               )}
               {pending.map((s) => (
-                <div key={s.id} className="bg-white rounded-2xl border border-gray-200 p-4">
+                <div key={s.id} className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4">
                   <div className="flex items-center justify-between gap-2 mb-1">
                     <p className="text-sm font-bold text-[#1a1a1a]">{s.vendorName}</p>
                     <span className="text-xs text-gray-400">{s.submittedDate}</span>
@@ -101,7 +101,7 @@ export default function AdminVendorsPage() {
                     </button>
                     <button onClick={() => rejectSubmission(s.id)}
                       className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold
-                                 border border-gray-200 text-[#1a1a1a] hover:bg-gray-50 transition-colors">
+                                 border border-gray-200 shadow-sm text-[#1a1a1a] hover:bg-gray-50 transition-colors">
                       <X size={13} /> Reject
                     </button>
                   </div>
@@ -113,7 +113,7 @@ export default function AdminVendorsPage() {
           {history.length > 0 && (
             <div>
               <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">History</p>
-              <div className="flex flex-col divide-y divide-gray-100 bg-white rounded-2xl border border-gray-200 px-4">
+              <div className="flex flex-col divide-y divide-gray-100 bg-white rounded-2xl border border-gray-200 shadow-sm px-4">
                 {history.map((s) => (
                   <div key={s.id} className="flex items-center justify-between gap-2 py-3">
                     <div>
@@ -135,7 +135,7 @@ export default function AdminVendorsPage() {
       {tab === 'All vendors' && (
         <div className="flex flex-col gap-3">
           {PLATFORM_VENDORS.map((v) => (
-            <div key={v.id} className="bg-white rounded-2xl border border-gray-200 p-4">
+            <div key={v.id} className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4">
               <div className="flex items-center justify-between gap-2 mb-1">
                 <p className="text-sm font-bold text-[#1a1a1a]">{v.name}</p>
                 <div className="flex items-center gap-1.5">
@@ -181,11 +181,11 @@ export default function AdminVendorsPage() {
                 <div className="flex flex-col gap-2">
                   <textarea value={suspendReason} onChange={(e) => setSuspendReason(e.target.value)}
                     rows={2} placeholder="Reason for suspension..."
-                    className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none
+                    className="w-full border border-gray-200 shadow-sm rounded-xl px-3 py-2 text-sm outline-none
                                focus:border-[#2c4a1e] transition-colors resize-none" />
                   <div className="flex gap-2">
                     <button onClick={() => { setSuspendingId(null); setSuspendReason('') }}
-                      className="flex-1 py-2 rounded-lg border border-gray-200 text-xs font-semibold
+                      className="flex-1 py-2 rounded-lg border border-gray-200 shadow-sm text-xs font-semibold
                                  text-[#1a1a1a] hover:bg-gray-50 transition-colors">
                       Cancel
                     </button>

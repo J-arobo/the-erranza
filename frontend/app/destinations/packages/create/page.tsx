@@ -40,7 +40,7 @@ export default function CreatePackagePage() {
 
       {/* Header */}
       <div className="flex items-center gap-3 px-4 pt-12 pb-4 bg-[#faf8f1]
-                      sticky top-0 z-40 border-b border-[#e0d9cc]">
+                      sticky top-0 z-40 border-b border-[#e0d9cc] shadow-sm">
         <button onClick={() => step > 1 ? setStep(s => s - 1) : router.back()}
           className="w-9 h-9 rounded-full bg-white border border-gray-200
                      flex items-center justify-center">
@@ -179,7 +179,7 @@ export default function CreatePackagePage() {
         {step === 4 && (
           <div>
             <h2 className="text-lg font-bold text-[#1a1a1a] mb-4">Review your package</h2>
-            <div className="bg-white rounded-2xl border border-[#e0d9cc] p-5 mb-4">
+            <div className="bg-white rounded-2xl border border-[#e0d9cc] shadow-sm p-5 mb-4">
               {[
                 { label: 'Destinations', value: selectedDestinations.join(', ') || '—' },
                 { label: 'Duration',     value: duration || '—' },
@@ -210,7 +210,7 @@ export default function CreatePackagePage() {
       </div>
 
       {/* Bottom navigation */}
-      <div className="px-4 py-4 bg-[#faf8f1] border-t border-[#e0d9cc]">
+      <div className="px-4 py-4 bg-[#faf8f1] border-t border-[#e0d9cc] shadow-sm">
         {step < 4 ? (
           <button
             onClick={() => setStep(s => s + 1)}

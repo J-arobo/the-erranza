@@ -347,8 +347,8 @@ export default function SearchBar({
             ) : (
               <div className="flex flex-1 items-center overflow-hidden">
                 <span className="text-xs font-bold text-[#304333] pr-2 border-r
-                           border-[#e0d9cc] mr-2 whitespace-nowrap">{activeCat}</span>
-                <span className="text-xs text-gray-400 pr-2 border-r border-[#e0d9cc]
+                           border-[#e0d9cc] shadow-sm mr-2 whitespace-nowrap">{activeCat}</span>
+                <span className="text-xs text-gray-400 pr-2 border-r border-[#e0d9cc] shadow-sm
                            mr-2 whitespace-nowrap">Anywhere</span>
                 <span className="text-xs text-gray-400 whitespace-nowrap">Any week</span>
               </div>

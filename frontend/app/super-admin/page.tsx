@@ -36,7 +36,7 @@ export default function SuperAdminDashboardPage() {
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-6">
         {STATS.map(({ label, value, path }) => (
           <button key={label} onClick={() => router.push(path)}
-            className="bg-white rounded-2xl border border-gray-200 p-4 text-left
+            className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 text-left
                        hover:shadow-md transition-all">
             <p className="text-xl font-bold text-[#1a1a1a]">{value}</p>
             <p className="text-xs text-gray-500 mt-0.5">{label}</p>
@@ -44,7 +44,7 @@ export default function SuperAdminDashboardPage() {
         ))}
       </div>
 
-      <div className="bg-white rounded-2xl border border-gray-200 p-5">
+      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5">
         <h2 className="text-base font-bold text-[#1a1a1a] mb-4">Platform revenue this year</h2>
         <div className="flex items-end gap-2 h-32">
           {PLATFORM_MONTHLY_REVENUE.map(({ month, amount }) => (

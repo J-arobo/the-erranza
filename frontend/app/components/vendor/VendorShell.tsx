@@ -9,14 +9,14 @@ import { useAuth } from '@/context/AuthContext'
 import { VENDOR_BOOKINGS, VENDOR_NOTIFICATIONS, type VendorNotification } from '@/data/vendor'
 
 const NAV_ITEMS = [
-  { label: 'Dashboard',  Icon: LayoutDashboard, path: '/vendor' },
-  { label: 'Listings',   Icon: List,            path: '/vendor/listings' },
-  { label: 'Bookings',   Icon: Calendar,        path: '/vendor/bookings' },
-  { label: 'Messages',   Icon: MessageCircle,   path: '/vendor/messages' },
-  { label: 'Earnings',   Icon: TrendingUp,      path: '/vendor/earnings' },
-  { label: 'Reviews',    Icon: Star,            path: '/vendor/reviews' },
-  { label: 'Support',    Icon: LifeBuoy,        path: '/vendor/support' },
-  { label: 'Profile',    Icon: User,            path: '/vendor/profile' },
+  { label: 'Dashboard', Icon: LayoutDashboard, path: '/vendor' },
+  { label: 'Listings', Icon: List, path: '/vendor/listings' },
+  { label: 'Bookings', Icon: Calendar, path: '/vendor/bookings' },
+  { label: 'Messages', Icon: MessageCircle, path: '/vendor/messages' },
+  { label: 'Earnings', Icon: TrendingUp, path: '/vendor/earnings' },
+  { label: 'Reviews', Icon: Star, path: '/vendor/reviews' },
+  { label: 'Support', Icon: LifeBuoy, path: '/vendor/support' },
+  { label: 'Profile', Icon: User, path: '/vendor/profile' },
 ]
 
 const NOTIF_ICON: Record<string, typeof Calendar> = {
@@ -28,15 +28,15 @@ const NOTIF_ICON: Record<string, typeof Calendar> = {
 
 export default function VendorShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
-  const router   = useRouter()
+  const router = useRouter()
   const { user, logout, setActiveRole } = useAuth()
   const [mobileOpen, setMobileOpen] = useState(false)
   const [notifOpen, setNotifOpen] = useState(false)
   const [, forceUpdate] = useState(0)
 
   const pendingCount = VENDOR_BOOKINGS.filter(b => b.status === 'pending').length
-  const unreadCount  = VENDOR_NOTIFICATIONS.filter(n => !n.read).length
-  const activeRole   = user?.activeRole ?? 'partner'
+  const unreadCount = VENDOR_NOTIFICATIONS.filter(n => !n.read).length
+  const activeRole = user?.activeRole ?? 'partner'
 
   function isActive(path: string) {
     if (path === '/vendor') return pathname === '/vendor'
@@ -130,8 +130,7 @@ export default function VendorShell({ children }: { children: React.ReactNode })
   )
 
   return (
-    <div className="flex h-screen bg-[#f5f0e8] overflow-hidden">
-
+    <div className="flex h-screen bg-[#f9fafb] overflow-hidden">
       {/* ── DESKTOP SIDEBAR ── */}
       <aside className="hidden lg:flex flex-col w-64 bg-[#2c4a1e] flex-shrink-0">
 
@@ -278,13 +277,13 @@ export default function VendorShell({ children }: { children: React.ReactNode })
         <div className="lg:hidden flex items-center justify-between px-4 py-3
                         bg-white border-b border-gray-100 flex-shrink-0">
           <button onClick={() => setMobileOpen(true)}
-            className="w-9 h-9 rounded-xl bg-[#f5f0e8] flex items-center justify-center">
+            className="w-9 h-9 rounded-xl bg-[#f3f4f6] flex items-center justify-center">
             <Menu size={18} color="#2c4a1e" />
           </button>
           <p className="text-sm font-bold text-[#1a1a1a]">{currentLabel}</p>
           <div className="flex items-center gap-2">
             <button onClick={() => setNotifOpen(o => !o)}
-              className="relative w-9 h-9 rounded-xl bg-[#f5f0e8] flex items-center justify-center">
+              className="relative w-9 h-9 rounded-xl bg-[#f3f4f6] flex items-center justify-center">
               <Bell size={17} color="#2c4a1e" />
               {unreadCount > 0 && (
                 <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[#2c4a1e]

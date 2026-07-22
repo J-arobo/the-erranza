@@ -65,14 +65,14 @@ export default function SuperAdminAdminsPage() {
       </div>
 
       {adding && (
-        <div className="bg-white rounded-2xl border border-gray-200 p-4 mb-5 flex flex-col gap-3">
+        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 mb-5 flex flex-col gap-3">
           <input value={name} onChange={(e) => setName(e.target.value)}
             placeholder="Full name"
-            className="w-full border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm
+            className="w-full border border-gray-200 shadow-sm rounded-xl px-3.5 py-2.5 text-sm
                        outline-none focus:border-[#161616] transition-colors" />
           <input value={email} onChange={(e) => setEmail(e.target.value)}
             placeholder="Email address" type="email"
-            className="w-full border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm
+            className="w-full border border-gray-200 shadow-sm rounded-xl px-3.5 py-2.5 text-sm
                        outline-none focus:border-[#161616] transition-colors" />
           <div className="flex gap-2">
             {(['admin', 'super_admin'] as const).map((r) => (
@@ -80,7 +80,7 @@ export default function SuperAdminAdminsPage() {
                 className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all
                   ${role === r
                     ? 'bg-[#161616] text-white border-[#161616]'
-                    : 'bg-white text-[#1a1a1a] border-gray-200 hover:border-[#161616]'}`}>
+                    : 'bg-white text-[#1a1a1a] border-gray-200 shadow-sm hover:border-[#161616]'}`}>
                 {r === 'admin' ? 'Admin' : 'Super Admin'}
               </button>
             ))}
@@ -95,7 +95,7 @@ export default function SuperAdminAdminsPage() {
 
       <div className="flex flex-col gap-3">
         {PLATFORM_ADMINS.map((a) => (
-          <div key={a.id} className="bg-white rounded-2xl border border-gray-200 p-4">
+          <div key={a.id} className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4">
             <div className="flex items-center justify-between gap-2 mb-1">
               <div className="flex items-center gap-2">
                 <Shield size={14} color="#161616" />
@@ -116,7 +116,7 @@ export default function SuperAdminAdminsPage() {
             <div className="flex gap-2">
               {a.role === 'admin' && !a.revoked && (
                 <button onClick={() => promote(a.id)}
-                  className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-gray-200
+                  className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-gray-200 shadow-sm
                              text-[#1a1a1a] hover:bg-gray-50 transition-colors">
                   Promote to Super Admin
                 </button>

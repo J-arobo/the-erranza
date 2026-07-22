@@ -14,7 +14,7 @@ function MaskedField({
       <div className="relative">
         <input value={value} onChange={(e) => onChange(e.target.value)}
           type={visible ? 'text' : 'password'}
-          className="w-full border border-gray-200 rounded-xl px-4 py-2.5 pr-10 text-sm font-mono
+          className="w-full border border-gray-200 shadow-sm rounded-xl px-4 py-2.5 pr-10 text-sm font-mono
                      outline-none focus:border-[#161616] transition-colors" />
         <button onClick={() => setVisible(v => !v)}
           className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#1a1a1a]">
@@ -75,7 +75,7 @@ export default function SuperAdminPaymentsPage() {
         <div>
           <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">Shortcode</label>
           <input value={mpesaShortcode} onChange={(e) => setMpesaShortcode(e.target.value)}
-            className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-mono
+            className="w-full border border-gray-200 shadow-sm rounded-xl px-4 py-2.5 text-sm font-mono
                        outline-none focus:border-[#161616] transition-colors" />
         </div>
         <MaskedField label="Passkey" value={mpesaPasskey} onChange={setMpesaPasskey} />

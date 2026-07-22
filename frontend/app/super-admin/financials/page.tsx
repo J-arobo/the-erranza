@@ -17,14 +17,14 @@ export default function SuperAdminFinancialsPage() {
           { label: 'Commission collected', value: `Ksh ${totalCommission.toLocaleString()}` },
           { label: 'Vendor payouts', value: `Ksh ${totalPayouts.toLocaleString()}` },
         ].map(({ label, value }) => (
-          <div key={label} className="bg-white rounded-2xl border border-gray-200 p-4">
+          <div key={label} className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4">
             <p className="text-lg font-bold text-[#1a1a1a]">{value}</p>
             <p className="text-xs text-gray-500 mt-0.5">{label}</p>
           </div>
         ))}
       </div>
 
-      <div className="bg-white rounded-2xl border border-gray-200 p-5 mb-5">
+      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 mb-5">
         <h2 className="text-base font-bold text-[#1a1a1a] mb-4">Monthly revenue</h2>
         <div className="flex items-end gap-2 h-40">
           {PLATFORM_MONTHLY_REVENUE.map(({ month, amount }) => (
@@ -38,7 +38,7 @@ export default function SuperAdminFinancialsPage() {
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl border border-gray-200 p-5">
+      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5">
         <h2 className="text-base font-bold text-[#1a1a1a] mb-4">Vendor payouts</h2>
         <div className="flex flex-col divide-y divide-gray-100">
           {VENDOR_PAYOUTS.map((v) => (

@@ -70,7 +70,7 @@ export default function ListingBookingsPage({ params }: Props) {
           {filtered.map((booking) => (
             <button key={booking.id}
               onClick={() => router.push(`/vendor/bookings/${booking.id}`)}
-              className="bg-white rounded-2xl border border-[#e0d9cc] p-4 text-left
+              className="bg-white rounded-2xl border border-[#e0d9cc] shadow-sm p-4 text-left
                          hover:shadow-md transition-all w-full">
               <div className="flex items-center gap-4">
                 <div className="w-10 h-10 rounded-full flex items-center justify-center

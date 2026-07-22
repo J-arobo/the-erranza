@@ -45,7 +45,7 @@ export default function SuperAdminDisputesPage() {
 
       <div className="flex flex-col gap-3">
         {DISPUTES.map((d) => (
-          <div key={d.id} className="bg-white rounded-2xl border border-gray-200 p-4">
+          <div key={d.id} className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4">
             <div className="flex items-center justify-between gap-2 mb-1">
               <p className="text-sm font-bold text-[#1a1a1a]">{d.bookingRef}</p>
               <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0

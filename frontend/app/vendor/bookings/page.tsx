@@ -61,10 +61,11 @@ export default function VendorBookingsPage() {
 
       <div className="flex flex-col gap-3">
         {filtered.map((booking) => (
-          <button key={booking.id}
+          <div key={booking.id}
             onClick={() => router.push(`/vendor/bookings/${booking.id}`)}
-            className="bg-white rounded-2xl border border-[#e0d9cc] p-4 text-left
-                       hover:shadow-md transition-all w-full">
+            role="button" tabIndex={0}
+            className="bg-white rounded-2xl border border-[#e0d9cc] shadow-sm p-4 text-left
+                       hover:shadow-md transition-all w-full cursor-pointer">
             <div className="flex items-start gap-4">
               <div className="relative w-16 h-16 rounded-xl overflow-hidden
                               flex-shrink-0 bg-[#e0d9cc]">
@@ -113,7 +114,7 @@ export default function VendorBookingsPage() {
                 </button>
               </div>
             )}
-          </button>
+          </div>
         ))}
       </div>
     </div>

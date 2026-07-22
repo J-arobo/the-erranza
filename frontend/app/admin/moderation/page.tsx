@@ -61,7 +61,7 @@ export default function ModerationPage() {
             className={`px-4 py-1.5 rounded-full text-sm font-semibold border transition-all
               ${tab === t
                 ? 'bg-[#2c4a1e] text-white border-[#2c4a1e]'
-                : 'bg-white text-[#1a1a1a] border-gray-200 hover:border-[#2c4a1e]'}`}>
+                : 'bg-white text-[#1a1a1a] border-gray-200 shadow-sm hover:border-[#2c4a1e]'}`}>
             {t}
           </button>
         ))}
@@ -70,7 +70,7 @@ export default function ModerationPage() {
       {tab === 'Listings' && (
         <div className="flex flex-col gap-3">
           {PLATFORM_LISTINGS.map((l) => (
-            <div key={l.id} className="bg-white rounded-2xl border border-gray-200 p-4">
+            <div key={l.id} className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4">
               <div className="flex gap-3">
                 <div className="relative w-16 h-16 rounded-xl overflow-hidden flex-shrink-0 bg-gray-100">
                   <Image src={l.image} alt={l.title} fill sizes="64px" className="object-cover" />
@@ -97,7 +97,7 @@ export default function ModerationPage() {
                 {l.flagged && (
                   <button onClick={() => clearFlag(l.id)}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold
-                               border border-gray-200 text-[#1a1a1a] hover:bg-gray-50 transition-colors">
+                               border border-gray-200 shadow-sm text-[#1a1a1a] hover:bg-gray-50 transition-colors">
                     <Check size={13} /> Clear flag
                   </button>
                 )}
@@ -123,7 +123,7 @@ export default function ModerationPage() {
       {tab === 'Reviews' && (
         <div className="flex flex-col gap-3">
           {PLATFORM_REVIEWS.map((r) => (
-            <div key={r.id} className="bg-white rounded-2xl border border-gray-200 p-4">
+            <div key={r.id} className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4">
               <div className="flex items-center justify-between gap-2 mb-1">
                 <p className="text-sm font-bold text-[#1a1a1a]">{r.guestName}</p>
                 <div className="flex">
@@ -144,11 +144,11 @@ export default function ModerationPage() {
                 <div className="flex flex-col gap-2">
                   <textarea value={removeReason} onChange={(e) => setRemoveReason(e.target.value)}
                     rows={2} placeholder="Reason for removal..."
-                    className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none
+                    className="w-full border border-gray-200 shadow-sm rounded-xl px-3 py-2 text-sm outline-none
                                focus:border-[#2c4a1e] transition-colors resize-none" />
                   <div className="flex gap-2">
                     <button onClick={() => { setRemovingId(null); setRemoveReason('') }}
-                      className="flex-1 py-2 rounded-lg border border-gray-200 text-xs font-semibold
+                      className="flex-1 py-2 rounded-lg border border-gray-200 shadow-sm text-xs font-semibold
                                  text-[#1a1a1a] hover:bg-gray-50 transition-colors">
                       Cancel
                     </button>

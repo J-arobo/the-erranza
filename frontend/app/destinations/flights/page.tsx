@@ -75,7 +75,7 @@ export default function FlightsPage() {
 
             return (
               <div key={flight.id}
-                className="bg-white rounded-2xl border border-[#e0d9cc] overflow-hidden
+                className="bg-white rounded-2xl border border-[#e0d9cc] shadow-sm overflow-hidden
                            shadow-sm">
 
                 {/* Flight header */}

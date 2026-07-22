@@ -23,7 +23,7 @@ export default function VendorEarningsPage() {
           { label: 'Total views',     value: totalViews.toLocaleString() },
         ].map(({ label, value }) => (
           <div key={label}
-            className="bg-white rounded-2xl border border-[#e0d9cc] p-4">
+            className="bg-white rounded-2xl border border-[#e0d9cc] shadow-sm p-4">
             <p className="text-xl font-bold text-[#1a1a1a]">{value}</p>
             <p className="text-xs text-gray-400 mt-0.5">{label}</p>
           </div>
@@ -31,7 +31,7 @@ export default function VendorEarningsPage() {
       </div>
 
       {/* Bar chart */}
-      <div className="bg-white rounded-2xl border border-[#e0d9cc] p-5 mb-5">
+      <div className="bg-white rounded-2xl border border-[#e0d9cc] shadow-sm p-5 mb-5">
         <h2 className="text-base font-bold text-[#1a1a1a] mb-4">Monthly earnings</h2>
         <div className="flex items-end gap-2 h-40">
           {VENDOR_EARNINGS.map(({ month, amount }) => (
@@ -49,7 +49,7 @@ export default function VendorEarningsPage() {
       </div>
 
       {/* Listing performance */}
-      <div className="bg-white rounded-2xl border border-[#e0d9cc] p-5 mb-5">
+      <div className="bg-white rounded-2xl border border-[#e0d9cc] shadow-sm p-5 mb-5">
         <h2 className="text-base font-bold text-[#1a1a1a] mb-1">Listing performance</h2>
         <p className="text-xs text-gray-400 mb-4">Views and conversion rate per listing.</p>
         <div className="flex flex-col divide-y divide-gray-100">
@@ -80,7 +80,7 @@ export default function VendorEarningsPage() {
       </div>
 
       {/* Transaction list */}
-      <div className="bg-white rounded-2xl border border-[#e0d9cc] p-5">
+      <div className="bg-white rounded-2xl border border-[#e0d9cc] shadow-sm p-5">
         <h2 className="text-base font-bold text-[#1a1a1a] mb-4">Completed bookings</h2>
         <div className="flex flex-col divide-y divide-gray-100">
           {completed.map((b) => (

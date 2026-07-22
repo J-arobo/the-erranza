@@ -26,7 +26,7 @@ export default function VendorReviewsPage() {
 
       {/* Summary */}
       <div className="flex items-center gap-3 mb-5 bg-white rounded-2xl border
-                      border-[#e0d9cc] p-5">
+                      border-[#e0d9cc] shadow-sm p-5">
         <div className="text-center">
           <p className="text-4xl font-bold text-[#1a1a1a]">{avgRating}</p>
           <div className="flex justify-center mt-1">
@@ -56,11 +56,11 @@ export default function VendorReviewsPage() {
       </div>
 
       {/* Reputation & performance */}
-      <div className="bg-white rounded-2xl border border-[#e0d9cc] p-5 mb-5">
+      <div className="bg-white rounded-2xl border border-[#e0d9cc] shadow-sm p-5 mb-5">
         <h2 className="text-base font-bold text-[#1a1a1a] mb-4">Reputation &amp; performance</h2>
 
         <div className="grid grid-cols-2 gap-3 mb-5">
-          <div className="bg-[#f5f0e8] rounded-xl p-4">
+          <div className="bg-[#f3f4f6] rounded-xl p-4">
             <div className="flex items-center gap-1.5 mb-1">
               <MessageCircle size={13} color="#2c4a1e" />
               <p className="text-xs text-gray-500">Response rate</p>
@@ -68,7 +68,7 @@ export default function VendorReviewsPage() {
             <p className="text-xl font-bold text-[#1a1a1a]">{responseRate}%</p>
             <p className="text-[10px] text-gray-400 mt-0.5">{answeredThreads} of {totalThreads} conversations</p>
           </div>
-          <div className="bg-[#f5f0e8] rounded-xl p-4">
+          <div className="bg-[#f3f4f6] rounded-xl p-4">
             <div className="flex items-center gap-1.5 mb-1">
               <Clock size={13} color="#2c4a1e" />
               <p className="text-xs text-gray-500">Avg. response time</p>
@@ -108,7 +108,7 @@ export default function VendorReviewsPage() {
       <div className="flex flex-col gap-4">
         {VENDOR_REVIEWS.map((review) => (
           <div key={review.id}
-            className="bg-white rounded-2xl border border-[#e0d9cc] p-5">
+            className="bg-white rounded-2xl border border-[#e0d9cc] shadow-sm p-5">
             <div className="flex items-center gap-3 mb-3">
               <div className="w-10 h-10 rounded-full flex items-center justify-center
                               text-sm font-bold flex-shrink-0"

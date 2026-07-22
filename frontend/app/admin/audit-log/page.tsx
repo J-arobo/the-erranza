@@ -21,7 +21,7 @@ export default function AdminAuditLogPage() {
       </p>
 
       {myEntries.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-gray-200 p-8 text-center">
+        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-8 text-center">
           <History size={24} color="#ccc" className="mx-auto mb-2" />
           <p className="text-sm text-gray-400">No actions logged yet under {user?.email}.</p>
           <p className="text-xs text-gray-400 mt-1">
@@ -29,7 +29,7 @@ export default function AdminAuditLogPage() {
           </p>
         </div>
       ) : (
-        <div className="bg-white rounded-2xl border border-gray-200 divide-y divide-gray-100 px-5">
+        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm divide-y divide-gray-100 px-5">
           {myEntries.map((e) => (
             <div key={e.id} className="py-3.5">
               <p className="text-sm font-semibold text-[#1a1a1a]">{e.action}</p>

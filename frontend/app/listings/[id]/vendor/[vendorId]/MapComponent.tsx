@@ -36,7 +36,7 @@ export default function MapComponent({ lat, lng, label }: Props) {
   }, [lat, lng, label])
 
   return (
-    <div className="w-full h-[220px] rounded-2xl overflow-hidden border border-[#e0d9cc]">
+    <div className="w-full h-[220px] rounded-2xl overflow-hidden border border-[#e0d9cc] shadow-sm">
       <div ref={containerRef} style={{ width: '100%', height: '100%' }} />
     </div>
   )

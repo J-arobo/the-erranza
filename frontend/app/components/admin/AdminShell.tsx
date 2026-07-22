@@ -34,7 +34,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
   const currentLabel = NAV_ITEMS.find(i => isActive(i.path))?.label ?? 'Dashboard'
 
   return (
-    <div className="flex h-screen bg-white overflow-hidden">
+    <div className="flex h-screen bg-[#f9fafb] overflow-hidden">
 
       {/* ── DESKTOP SIDEBAR ── */}
       <aside className="hidden lg:flex flex-col w-64 bg-[#1e293b] flex-shrink-0">
@@ -125,7 +125,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
       )}
 
       {/* ── MAIN AREA ── */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-white">
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-[#f9fafb]">
         <div className="lg:hidden flex items-center justify-between px-4 py-3
                         bg-[#1e293b] flex-shrink-0">
           <button onClick={() => setMobileOpen(true)}
@@ -139,7 +139,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
           </div>
         </div>
 
-        <main className="flex-1 overflow-y-auto scrollbar-hide bg-white">
+        <main className="flex-1 overflow-y-auto scrollbar-hide bg-[#f9fafb]">
           {children}
         </main>
       </div>

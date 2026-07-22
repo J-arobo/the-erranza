@@ -31,7 +31,7 @@ export default function AdminDashboardPage() {
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-6">
         {STATS.map(({ label, value, path }) => (
           <button key={label} onClick={() => router.push(path)}
-            className="bg-white rounded-2xl border border-gray-200 p-4 text-left
+            className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 text-left
                        hover:shadow-md transition-all">
             <p className="text-2xl font-bold text-[#1a1a1a]">{value}</p>
             <p className="text-xs text-gray-500 mt-0.5">{label}</p>
@@ -39,7 +39,7 @@ export default function AdminDashboardPage() {
         ))}
       </div>
 
-      <div className="bg-white rounded-2xl border border-gray-200 p-5">
+      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5">
         <div className="flex items-center gap-2 mb-1">
           <Calendar size={16} color="#2c4a1e" />
           <h2 className="text-base font-bold text-[#1a1a1a]">Recent bookings</h2>

@@ -65,7 +65,7 @@ export default function VendorListingsPage() {
       <div className="flex flex-col gap-3">
         {filtered.map((listing) => (
           <div key={listing.id}
-            className="bg-white rounded-2xl border border-[#e0d9cc] overflow-hidden
+            className="bg-white rounded-2xl border border-[#e0d9cc] shadow-sm overflow-hidden
                        hover:shadow-md transition-all">
             <div className="flex gap-4 p-4">
               <div className="relative w-20 h-20 sm:w-24 sm:h-24 rounded-xl overflow-hidden

@@ -82,7 +82,7 @@ export default function BookingDetailPage({ params }: Props) {
         <ArrowLeft size={16} /> Back to bookings
       </button>
 
-      <div className="bg-white rounded-2xl border border-[#e0d9cc] p-5 mb-5">
+      <div className="bg-white rounded-2xl border border-[#e0d9cc] shadow-sm p-5 mb-5">
         <div className="flex items-center gap-3 mb-4">
           <div className="w-12 h-12 rounded-full flex items-center justify-center
                           text-base font-bold flex-shrink-0"
@@ -131,7 +131,7 @@ export default function BookingDetailPage({ params }: Props) {
 
       {/* Traveller details */}
       {(booking.travelers?.length || booking.specialRequests) && (
-        <div className="bg-white rounded-2xl border border-[#e0d9cc] p-5 mb-5">
+        <div className="bg-white rounded-2xl border border-[#e0d9cc] shadow-sm p-5 mb-5">
           <p className="text-sm font-semibold text-[#1a1a1a] mb-3">Traveller details</p>
           {booking.travelers && booking.travelers.length > 0 && (
             <div className="mb-3">
@@ -159,7 +159,7 @@ export default function BookingDetailPage({ params }: Props) {
       )}
 
       {booking.message && (
-        <div className="bg-white rounded-2xl border border-[#e0d9cc] p-5 mb-5">
+        <div className="bg-white rounded-2xl border border-[#e0d9cc] shadow-sm p-5 mb-5">
           <div className="flex items-center gap-2 mb-2">
             <MessageCircle size={16} color="#2c4a1e" />
             <p className="text-sm font-semibold text-[#1a1a1a]">Message from guest</p>
@@ -217,7 +217,7 @@ export default function BookingDetailPage({ params }: Props) {
 
       {/* ── Propose alternative dates form ── */}
       {proposing && (
-        <div className="bg-white rounded-2xl border border-[#e0d9cc] p-5 flex flex-col gap-3">
+        <div className="bg-white rounded-2xl border border-[#e0d9cc] shadow-sm p-5 flex flex-col gap-3">
           <p className="text-sm font-semibold text-[#1a1a1a]">Propose a new date</p>
           <input value={proposedDate} onChange={(e) => setProposedDate(e.target.value)}
             type="date"

@@ -106,7 +106,7 @@ export default function VendorOnboardingPage() {
   const selectedPlan = PLANS.find(p => p.id === plan)!
 
   return (
-    <div className="min-h-screen bg-[#f5f0e8] px-5 py-8 sm:py-12">
+    <div className="min-h-screen bg-[#f9fafb] px-5 py-8 sm:py-12">
       <div className="max-w-xl mx-auto">
 
         <div className="flex items-center justify-between mb-6">
@@ -124,7 +124,7 @@ export default function VendorOnboardingPage() {
 
         {/* Progress */}
         <div className="mb-6">
-          <div className="h-1.5 bg-white rounded-full overflow-hidden mb-2 border border-[#e0d9cc]">
+          <div className="h-1.5 bg-white rounded-full overflow-hidden mb-2 border border-[#e0d9cc] shadow-sm">
             <div className="h-full bg-[#2c4a1e] rounded-full transition-all" style={{ width: `${percent}%` }} />
           </div>
           <div className="flex items-center justify-between">
@@ -135,7 +135,7 @@ export default function VendorOnboardingPage() {
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl border border-[#e0d9cc] p-6 sm:p-8">
+        <div className="bg-white rounded-2xl border border-[#e0d9cc] shadow-sm shadow-sm p-6 sm:p-8">
           <div className="flex items-center gap-2.5 mb-1">
             <div className="w-8 h-8 rounded-lg bg-[#eaf5e4] flex items-center justify-center flex-shrink-0">
               <StepIcon size={16} color="#2c4a1e" />
@@ -159,8 +159,9 @@ export default function VendorOnboardingPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">
-                    Business license no. <span className="text-gray-400 font-normal">(if required)</span>
+                    Business license no.
                   </label>
+
                   <input value={licenseNumber} onChange={(e) => setLicenseNumber(e.target.value)}
                     placeholder="Optional"
                     className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm
@@ -376,7 +377,7 @@ export default function VendorOnboardingPage() {
           {step === 3 && (
             <div className="flex flex-col gap-4 mt-5">
               {plan === 'standard' ? (
-                <div className="bg-[#f5f0e8] rounded-xl p-4">
+                <div className=" bg-[#f3f4f6]rounded-xl p-4">
                   <p className="text-sm font-semibold text-[#1a1a1a] mb-1">No payment required</p>
                   <p className="text-xs text-gray-500 leading-relaxed">
                     You're on the Standard plan — no subscription fee. Erranza's 12% commission is

@@ -83,7 +83,7 @@ export default function VendorDashboard() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
         {STATS.map(({ label, value, Icon, color, path }) => (
           <button key={label} onClick={() => router.push(path)}
-            className="bg-white rounded-2xl border border-[#e0d9cc] p-4 text-left
+            className="bg-white rounded-2xl border border-[#e0d9cc] shadow-sm p-4 text-left
                        hover:shadow-md transition-all active:scale-[0.98]">
             <div className={`w-9 h-9 rounded-xl flex items-center justify-center mb-3 ${color}`}>
               <Icon size={16} />
@@ -95,7 +95,7 @@ export default function VendorDashboard() {
       </div>
 
       {/* Earnings chart */}
-      <div className="bg-white rounded-2xl border border-[#e0d9cc] p-5 mb-5">
+      <div className="bg-white rounded-2xl border border-[#e0d9cc] shadow-sm p-5 mb-5">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-base font-bold text-[#1a1a1a]">Earnings this year</h2>
           <button onClick={() => router.push('/vendor/earnings')}
@@ -115,7 +115,7 @@ export default function VendorDashboard() {
       </div>
 
       {/* Recent bookings */}
-      <div className="bg-white rounded-2xl border border-[#e0d9cc] p-5 mb-5">
+      <div className="bg-white rounded-2xl border border-[#e0d9cc] shadow-sm p-5 mb-5">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-base font-bold text-[#1a1a1a]">Recent bookings</h2>
           <button onClick={() => router.push('/vendor/bookings')}
@@ -125,7 +125,7 @@ export default function VendorDashboard() {
           {VENDOR_BOOKINGS.slice(0, 3).map((b) => (
             <button key={b.id}
               onClick={() => router.push(`/vendor/bookings/${b.id}`)}
-              className="flex items-center gap-3 p-3 rounded-xl hover:bg-[#f5f0e8]
+              className="flex items-center gap-3 p-3 rounded-xl hover:bg-[#f3f4f6]
                          transition-colors text-left w-full">
               <div className="w-10 h-10 rounded-full flex items-center justify-center
                               text-sm font-bold flex-shrink-0"
@@ -147,7 +147,7 @@ export default function VendorDashboard() {
       </div>
 
       {/* Recent reviews */}
-      <div className="bg-white rounded-2xl border border-[#e0d9cc] p-5">
+      <div className="bg-white rounded-2xl border border-[#e0d9cc] shadow-sm p-5">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-base font-bold text-[#1a1a1a]">Recent reviews</h2>
           <button onClick={() => router.push('/vendor/reviews')}

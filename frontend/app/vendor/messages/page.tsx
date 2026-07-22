@@ -87,7 +87,7 @@ export default function VendorMessagesPage() {
 
       {/* Thread */}
       {activeId && active ? (
-        <div className="flex-1 flex flex-col bg-[#f5f0e8]">
+        <div className="flex-1 flex flex-col bg-[#f3f4f6]">
           <div className="flex items-center gap-3 px-4 py-3 bg-white border-b border-gray-100">
             <button onClick={() => setActiveId(null)} className="lg:hidden text-sm text-[#2c4a1e]">
               ← Back
@@ -107,7 +107,7 @@ export default function VendorMessagesPage() {
                 <div className={`px-4 py-2.5 rounded-2xl text-sm max-w-[75%]
                   ${m.sender === 'vendor'
                     ? 'bg-[#2c4a1e] text-white rounded-br-sm'
-                    : 'bg-white text-[#1a1a1a] border border-[#e0d9cc] rounded-bl-sm'}`}>
+                    : 'bg-white text-[#1a1a1a] border border-[#e0d9cc] shadow-sm rounded-bl-sm'}`}>
                   {m.text}
                 </div>
                 <span className="text-[10px] text-gray-400 mt-1 px-1">{formatTimestamp(m.timestamp)}</span>
