@@ -17,9 +17,15 @@ return [
 
     'paths' => ['api/*', 'sanctum/csrf-cookie'],
 
-    'allowed_methods' => ['http://localhost:3001'],
+    'allowed_methods' => ['*'],
 
-    'allowed_origins' => ['*'],
+    'allowed_origins' => [
+        'http://localhost:3000',
+        'http://localhost:3001',
+        'http://192.168.1.183:3001',
+        'http://192.168.1.148:3001',
+        /* 'http://localhost:3001', */
+    ],
 
     'allowed_origins_patterns' => [],
 

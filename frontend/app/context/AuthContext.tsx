@@ -1,18 +1,21 @@
 'use client'
 import {
   createContext, useContext, useState,
-  useEffect, ReactNode, useMemo
+  useEffect, ReactNode, useMemo, useCallback,
 } from 'react'
+import { apiFetch, getToken, setToken } from '@/lib/api'
 
 type Role = 'traveller' | 'partner' | 'admin' | 'super_admin'
 
 type User = {
+  id: number
   name: string
   email: string
-  avatar?: string
+  phone?: string | null
+  avatar?: string | null
   onboardingComplete?: boolean
-  roles?: Role[]
-  activeRole?: Role
+  roles: Role[]
+  activeRole: Role
 }
 
 type Listing = {
@@ -53,11 +56,13 @@ type Message = {
 
 type AuthContextType = {
   user: User | null
-  login: (user: User) => void
+  ready: boolean
+  register: (name: string, email: string, password: string, phone?: string) => Promise<void>
+  login: (email: string, password: string) => Promise<void>
   logout: () => void
   isLoggedIn: boolean
   completeOnboarding: () => void
-  addPartnerRole: () => void
+  becomePartner: () => Promise<void>
   addAdminRole: () => void
   addSuperAdminRole: () => void
   setActiveRole: (role: Role) => void
@@ -72,11 +77,13 @@ type AuthContextType = {
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
-  login: () => {},
+  ready: false,
+  register: async () => {},
+  login: async () => {},
   logout: () => {},
   isLoggedIn: false,
   completeOnboarding: () => {},
-  addPartnerRole: () => {},
+  becomePartner: async () => {},
   addAdminRole: () => {},
   addSuperAdminRole: () => {},
   setActiveRole: () => {},
@@ -137,39 +144,95 @@ const MOCK_MESSAGES: Message[] = [
   },
 ]
 
+type ApiUser = {
+  id: number
+  name: string
+  email: string
+  phone: string | null
+  avatarUrl: string | null
+  roles: string[]
+  activeRole: string
+}
+
+function mapUser(apiUser: ApiUser): User {
+  return {
+    id: apiUser.id,
+    name: apiUser.name,
+    email: apiUser.email,
+    phone: apiUser.phone,
+    avatar: apiUser.avatarUrl ?? undefined,
+    roles: apiUser.roles as Role[],
+    activeRole: apiUser.activeRole as Role,
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser]           = useState<User | null>(null)
   const [wishlists, setWishlists] = useState<Listing[]>([])
   const [trips, setTrips]         = useState<Trip[]>(MOCK_TRIPS)
-  const [mounted, setMounted]     = useState(false)
+  const [ready, setReady]         = useState(false)
 
-  // CRITICAL: Only mark as mounted after first client render
-  // This prevents hydration mismatches
+  // Restore session from a stored token on first load.
   useEffect(() => {
-    setMounted(true)
+    const token = getToken()
+    if (!token) { setReady(true); return }
+
+    apiFetch<{ user: ApiUser }>('/auth/me')
+      .then(({ user }) => setUser(mapUser(user)))
+      .catch(() => setToken(null))
+      .finally(() => setReady(true))
   }, [])
 
-  function login(u: User) {
-    setUser({ roles: ['traveller'], activeRole: 'traveller', ...u })
-  }
-  function logout() { setUser(null); setWishlists([]) }
+  const register = useCallback(async (name: string, email: string, password: string, phone?: string) => {
+    const { user, token } = await apiFetch<{ user: ApiUser; token: string }>('/auth/register', {
+      method: 'POST',
+      body: JSON.stringify({
+        name, email, password,
+        password_confirmation: password,
+        phone,
+      }),
+    })
+    setToken(token)
+    setUser(mapUser(user))
+  }, [])
+
+  const login = useCallback(async (email: string, password: string) => {
+    const { user, token } = await apiFetch<{ user: ApiUser; token: string }>('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email, password }),
+    })
+    setToken(token)
+    setUser(mapUser(user))
+  }, [])
+
+  const logout = useCallback(() => {
+    apiFetch('/auth/logout', { method: 'POST' }).catch(() => {})
+    setToken(null)
+    setUser(null)
+    setWishlists([])
+  }, [])
 
   function completeOnboarding() {
     setUser(u => u ? { ...u, onboardingComplete: true } : u)
   }
 
-  function addPartnerRole() {
+  const becomePartner = useCallback(async () => {
+    await apiFetch('/become-partner', { method: 'POST' })
     setUser(u => {
       if (!u) return u
-      const roles = Array.from(new Set([...(u.roles ?? ['traveller']), 'partner' as Role]))
+      const roles = Array.from(new Set([...u.roles, 'partner' as Role]))
       return { ...u, roles, activeRole: 'partner' }
     })
-  }
+  }, [])
 
+  // Dev-only shortcuts — local state only, not backed by the real backend.
+  // Admin/super-admin elevation is deliberately not self-service; real accounts
+  // are seeded server-side. Pages later wired to the real admin/super-admin API
+  // will 403 for accounts "promoted" this way.
   function addAdminRole() {
     setUser(u => {
       if (!u) return u
-      const roles = Array.from(new Set([...(u.roles ?? ['traveller']), 'admin' as Role]))
+      const roles = Array.from(new Set([...u.roles, 'admin' as Role]))
       return { ...u, roles }
     })
   }
@@ -177,7 +240,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   function addSuperAdminRole() {
     setUser(u => {
       if (!u) return u
-      const roles = Array.from(new Set([...(u.roles ?? ['traveller']), 'super_admin' as Role]))
+      const roles = Array.from(new Set([...u.roles, 'super_admin' as Role]))
       return { ...u, roles }
     })
   }
@@ -199,14 +262,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setTrips(t => [trip, ...t])
   }
 
-  // Memoize to prevent unnecessary re-renders
   const value = useMemo(() => ({
     user,
+    ready,
+    register,
     login,
     logout,
     isLoggedIn: !!user,
     completeOnboarding,
-    addPartnerRole,
+    becomePartner,
     addAdminRole,
     addSuperAdminRole,
     setActiveRole,
@@ -218,10 +282,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     addTrip,
     messages: MOCK_MESSAGES,
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [user, wishlists, trips])
+  }), [user, ready, wishlists, trips, register, login, logout, becomePartner])
 
-  // Render children immediately — no loading gate
-  // suppressHydrationWarning on children handles the mismatch
   return (
     <AuthContext.Provider value={value}>
       {children}

@@ -15,6 +15,15 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
+        $this->call(RoleSeeder::class);
+        $this->call(AdminSeeder::class);
+        $this->call(PlatformConfigSeeder::class);
+        $this->call(VendorSeeder::class);
+        $this->call(ListingSeeder::class);
+        $this->call(BookingSeeder::class);
+        $this->call(ReviewSeeder::class);
+        $this->call(DisputeSeeder::class);
+
         // User::factory(10)->create();
 
         User::factory()->create([
@@ -22,4 +31,5 @@ class DatabaseSeeder extends Seeder
             'email' => 'test@example.com',
         ]);
     }
+
 }
