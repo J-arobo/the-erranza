@@ -58,9 +58,15 @@ class BookingController extends Controller
             }
         }
 
-        // Simplified pricing: base price × guests. Duration options, seasonal
-        // rates and group discounts aren't factored in server-side yet.
-        $total = $listing->price * $validated['guests'];
+                // Simplified pricing: base price × guests × nights (when a check-out
+        // date is given). Duration options, seasonal rates and group
+        // discounts still aren't factored in server-side.
+        $nights = $validated['check_out'] ?? null
+            ? max(1, Carbon::parse($validated['check_out'])->diffInDays(Carbon::parse($validated['check_in'])))
+            : 1;
+
+        $total = $listing->price * $validated['guests'] * $nights;
+
 
         $booking = $request->user()->bookings()->create([
             'listing_id' => $listing->id,

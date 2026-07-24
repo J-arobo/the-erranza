@@ -5,44 +5,59 @@ import Image from 'next/image'
 import {
   ArrowLeft, Share2, Heart, Star, X, Camera, Grid2X2,
   ChevronRight, ChevronLeft, Flag, Shield, Calendar, CalendarX2, Key, ShieldHalf,
-  MessageCircle, Check, MapPin, Globe, Award,
+  MessageCircle, Check, MapPin,
 } from 'lucide-react'
-import { safari } from '@/data/safari'
-import { stays } from '@/data/stays'
-import { Vendor } from '@/data/stays'
+import { apiFetch, apiErrorMessage } from '@/lib/api'
 import FooterSection from '@/components/FooterSection'
-
-const allListings = [...safari, ...stays]
 
 type Props = {
   params: Promise<{ id: string; vendorId: string }>
 }
 
-// Reviews mock data
-const REVIEWS = [
-  {
-    name: 'Mark Gillet',
-    meta: '5 years on Safari',
-    date: 'March 2026',
-    stars: 4,
-    text: 'Absolutely incredible experience. The guides were knowledgeable and patient. We spotted all of the Big Five on day one. The tented camp was comfortable and the food was outstanding. Would highly recommend to anyone visiting Kenya.',
-    avatar: '#f0c4d4',
-  },
-  {
-    name: 'Sarah Omondi',
-    meta: '2 years on Safari',
-    date: 'February 2026',
-    stars: 5,
-    text: 'Best safari experience I\'ve ever had. The team went above and beyond to ensure we had the perfect game drive. Morning and evening drives were both exceptional.',
-    avatar: '#c4d4f0',
-  },
+const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1547471080-7cc2caa01a7e?w=1200&q=80'
+
+const SAFARI_VIDEOS = [
+  'https://assets.mixkit.co/videos/3668/3668-720.mp4',
+  'https://assets.mixkit.co/videos/11326/11326-720.mp4',
+  'https://assets.mixkit.co/videos/11067/11067-720.mp4',
+  'https://assets.mixkit.co/videos/11087/11087-720.mp4',
+  'https://assets.mixkit.co/videos/51501/51501-720.mp4',
+  'https://assets.mixkit.co/videos/4681/4681-720.mp4',
+  'https://assets.mixkit.co/videos/11165/11165-720.mp4',
 ]
 
-const REVIEW_TAGS = [
-  { icon: '🏖️', label: 'Scenic', count: 35 },
-  { icon: '🚗', label: 'Sunroof', count: 20 },
-  { icon: '📷', label: 'Camera', count: 14 },
-]
+
+function formatDuration(minutes: number): string {
+  if (minutes < 60) return `within ${Math.round(minutes)}m`
+  const hours = Math.floor(minutes / 60)
+  const mins = Math.round(minutes % 60)
+  return mins > 0 ? `within ${hours}h ${mins}m` : `within ${hours}h`
+}
+
+type ApiReview = { id: number; rating: number; comment: string; created_at: string; traveller: { name: string } }
+
+type ApiListingDetail = {
+  id: number
+  title: string
+  location: string
+  price: string
+  description: string | null
+  amenities: string[] | null
+  lat: string | null
+  lng: string | null
+  min_lead_time_days: number | null
+  images: { url: string }[]
+  reviews: ApiReview[]
+  reviews_count: number
+  reviews_avg_rating: string | null
+  years_hosting: number
+  response_rate: number | null
+  avg_response_minutes: number | null
+  vendor: { business_name: string }
+}
+
+type ApiListingSummary = { id: number; title: string; price: string; images: { url: string }[] }
+type PaginatedListings = { data: ApiListingSummary[] }
 
 // Dynamic import for Leaflet map to avoid SSR issues
 function MapPlaceholder({ lat, lng, label }: { lat: number; lng: number; label: string }) {
@@ -82,7 +97,6 @@ function MiniCalendar({ selected, onSelect }: {
   const today = new Date()
   const [year, setYear] = useState(today.getFullYear())
   const [month, setMonth] = useState(today.getMonth())
-
 
   const firstDay = new Date(year, month, 1).getDay()
   const daysInMonth = new Date(year, month + 1, 0).getDate()
@@ -248,13 +262,14 @@ function DesktopCalendar({ selected, onSelect, stacked = false }: {
   )
 }
 
-
 export default function VendorDetailPage({ params }: Props) {
-  const { id, vendorId } = use(params)
+  const { vendorId } = use(params)
   const router = useRouter()
 
-  const listing = allListings.find(l => l.id === id)
-  const vendor: Vendor | undefined = listing?.vendors?.find(v => v.id === vendorId)
+  const [listing, setListing] = useState<ApiListingDetail | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [notFound, setNotFound] = useState(false)
+  const [otherListings, setOtherListings] = useState<ApiListingSummary[]>([])
 
   const [wishlisted, setWishlisted] = useState(false)
   const [showFullDesc, setShowFullDesc] = useState(false)
@@ -278,11 +293,32 @@ export default function VendorDetailPage({ params }: Props) {
   const [showGuestPanel, setShowGuestPanel] = useState(false)
   const [showMobileDatePicker, setShowMobileDatePicker] = useState(false)
 
-  if (!listing || !vendor) {
+  useEffect(() => {
+    apiFetch<{ listing: ApiListingDetail }>(`/listings/${vendorId}`)
+      .then(({ listing }) => setListing(listing))
+      .catch(() => setNotFound(true))
+      .finally(() => setLoading(false))
+  }, [vendorId])
+
+  useEffect(() => {
+    apiFetch<PaginatedListings>('/listings?category=Safari&per_page=100')
+      .then(({ data }) => setOtherListings(data.filter(l => String(l.id) !== vendorId).slice(0, 4)))
+      .catch(() => { })
+  }, [vendorId])
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center h-screen gap-4 bg-white">
+        <div className="w-8 h-8 rounded-full border-2 border-[#304333] border-t-transparent animate-spin" />
+      </div>
+    )
+  }
+
+  if (notFound || !listing) {
     return (
       <div className="flex flex-col items-center justify-center h-screen gap-4 bg-white">
         <span className="text-5xl">🔍</span>
-        <p className="text-gray-500 text-sm">Vendor not found</p>
+        <p className="text-gray-500 text-sm">Tour not found</p>
         <button onClick={() => router.back()}
           className="text-sm font-semibold underline text-[#2c4a1e]">
           Go back
@@ -291,14 +327,18 @@ export default function VendorDetailPage({ params }: Props) {
     )
   }
 
-  const amenities = vendor.amenities ?? []
-  const features = vendor.features ?? []
-  const images = vendor.images ?? [vendor.image]
+  const amenities = listing.amenities ?? []
+  const images = listing.images.length > 0 ? listing.images.map(i => i.url) : [FALLBACK_IMAGE]
+  const heroVideo = SAFARI_VIDEOS[Number(listing.id) % SAFARI_VIDEOS.length]
   const visibleAmenities = showAllAmenities ? amenities : amenities.slice(0, 4)
-  const visibleReviewsDesktop = showAllReviews ? REVIEWS : REVIEWS.slice(0, 2)
-  const visibleReviewsMobile = showAllReviews ? REVIEWS : REVIEWS.slice(0, 1)
-  const otherVendors = listing.vendors?.filter(v => v.id !== vendorId) ?? []
-  const basePrice = parseFloat(vendor.price.replace(/[^0-9.]/g, '')) || 100
+  const reviews = listing.reviews
+  const visibleReviewsDesktop = showAllReviews ? reviews : reviews.slice(0, 2)
+  const visibleReviewsMobile = showAllReviews ? reviews : reviews.slice(0, 1)
+  const basePrice = Math.round(Number(listing.price))
+  const rating = listing.reviews_avg_rating ? Number(listing.reviews_avg_rating).toFixed(2) : '4.50'
+  const lat = listing.lat != null && isFinite(Number(listing.lat)) ? Number(listing.lat) : null
+  const lng = listing.lng != null && isFinite(Number(listing.lng)) ? Number(listing.lng) : null
+  const responseTime = listing.avg_response_minutes !== null ? formatDuration(listing.avg_response_minutes) : null
 
   function handleTouchStart(e: React.TouchEvent) {
     touchStartX.current = e.changedTouches[0].clientX
@@ -339,7 +379,7 @@ export default function VendorDetailPage({ params }: Props) {
         >
           <Image
             src={images[activeImage]}
-            alt={`${vendor.name} ${activeImage + 1}`}
+            alt={`${listing.vendor.business_name} ${activeImage + 1}`}
             fill sizes="100vw" className="object-contain"
           />
         </div>
@@ -399,7 +439,7 @@ export default function VendorDetailPage({ params }: Props) {
               )}
               <div className="flex items-center gap-1">
                 <Star size={12} fill="#F5D06E" color="#304333" />
-                <span className="text-xs text-[#78716c]">{vendor.rating}</span>
+                <span className="text-xs text-[#78716c]">{rating}</span>
               </div>
             </div>
             <button
@@ -420,16 +460,11 @@ export default function VendorDetailPage({ params }: Props) {
     )
   }
 
-
   return (
     <div className="fixed inset-0 flex flex-col" style={{ background: '#FEFDFC', fontFamily: "Georgia, 'Times New Roman', serif" }}>
       <div className="flex-1 overflow-y-auto overflow-x-hidden" style={{ WebkitOverflowScrolling: 'touch', background: '#FEFDFC' }}>
 
-
-        {/* ═══════════════════════════════════════
-          MOBILE PHOTO — single active image
-          with overlay controls + count badge
-          ═══════════════════════════════════════ */}
+        {/* MOBILE PHOTO */}
         <div className="sm:hidden">
           <div
             className="relative overflow-hidden"
@@ -439,12 +474,11 @@ export default function VendorDetailPage({ params }: Props) {
           >
             <Image
               src={images[activeImage]}
-              alt={`${vendor.name} ${activeImage + 1}`}
+              alt={`${listing.vendor.business_name} ${activeImage + 1}`}
               fill sizes="100vw" className="object-cover"
               onClick={() => setShowGallery(true)}
             />
 
-            {/* Top overlay controls */}
             <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-4 z-10"
               style={{ paddingTop: 'max(48px, env(safe-area-inset-top, 48px))', paddingBottom: 12 }}>
               <button
@@ -471,14 +505,12 @@ export default function VendorDetailPage({ params }: Props) {
               </div>
             </div>
 
-            {/* Count badge bottom-right */}
             <div className="absolute bottom-3 right-3 bg-black/60 text-white
                           text-xs font-semibold px-2.5 py-1.5 rounded-full flex items-center gap-1.5 z-10">
               <Camera size={12} />
               {activeImage + 1} / {images.length}
             </div>
 
-            {/* Left/right tap zones — transparent */}
             <button
               className="absolute left-0 top-0 w-1/3 h-full"
               onClick={() => setActiveImage(i => Math.max(0, i - 1))}
@@ -489,7 +521,6 @@ export default function VendorDetailPage({ params }: Props) {
             />
           </div>
 
-          {/* Dot indicators */}
           <div className="flex justify-center gap-1.5 py-2">
             {images.map((_, i) => (
               <button
@@ -505,10 +536,7 @@ export default function VendorDetailPage({ params }: Props) {
           </div>
         </div>
 
-        {/* ═══════════════════════════════════════
-          DESKTOP PHOTO GRID —
-          back/share/save row + 1 large left + 2×2 right grid
-          ═══════════════════════════════════════ */}
+        {/* DESKTOP PHOTO GRID */}
         <div className="hidden sm:block pt-4">
           <div className="max-w-6xl mx-auto px-6 lg:px-12">
 
@@ -536,20 +564,19 @@ export default function VendorDetailPage({ params }: Props) {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 3, height: '100%' }}>
                 <div className="relative overflow-hidden group cursor-pointer"
                   onClick={() => { setActiveImage(0); setShowGallery(true) }}>
-                  <Image
-                    src={images[0]}
-                    alt={vendor.name}
-                    fill sizes="(min-width: 1280px) 500px, 50vw"
-                    className="object-cover transition-transform duration-300 group-hover:scale-105"
+                  <video
+                    src={heroVideo}
+                    autoPlay muted loop playsInline
+                    className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                   />
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gridTemplateRows: '1fr 1fr', gap: 3 }}>
-                  {[1, 2, 3, 4].map((imgIdx) => (
+                  {[0, 1, 2, 3].map((imgIdx) => (
                     <div key={imgIdx} className="relative overflow-hidden group cursor-pointer"
                       onClick={() => { setActiveImage(imgIdx); setShowGallery(true) }}>
                       <Image
                         src={images[imgIdx] ?? images[0]}
-                        alt={`${vendor.name} ${imgIdx + 1}`}
+                        alt={`${listing.vendor.business_name} ${imgIdx + 1}`}
                         fill sizes="(min-width: 1280px) 250px, 25vw"
                         className="object-cover transition-transform duration-300 group-hover:scale-105"
                       />
@@ -557,6 +584,7 @@ export default function VendorDetailPage({ params }: Props) {
                   ))}
                 </div>
               </div>
+
               <button
                 onClick={() => setShowGallery(true)}
                 className="absolute bottom-4 right-4 flex items-center gap-2 bg-white rounded-xl px-4 py-2.5 text-sm font-semibold text-[#304333] hover:bg-[#f5f0e6] transition-colors z-10"
@@ -576,19 +604,18 @@ export default function VendorDetailPage({ params }: Props) {
             {/* ══ LEFT COLUMN  ══ */}
             <div>
 
-              {/* Title section */}
               <div className="pt-5 pb-1 sm:pt-6 text-center sm:text-left">
                 <h1 className="text-2xl sm:text-[28px] font-semibold text-[#304333] leading-tight mb-1">
-                  {vendor.name}
+                  {listing.title}
                 </h1>
                 <p className="text-sm sm:text-base text-[#78716c] mb-2 flex items-center gap-1 justify-center sm:justify-start">
-                  <MapPin size={13} /> {vendor.locationLabel ?? listing.location} · {listing.title}
+                  <MapPin size={13} /> {listing.location}
                 </p>
                 <div className="flex items-center justify-center sm:justify-start gap-1.5">
                   <Star size={14} fill="#F5D06E" color="#304333" />
-                  <span className="text-sm font-semibold text-[#304333]">{vendor.rating}</span>
+                  <span className="text-sm font-semibold text-[#304333]">{rating}</span>
                   <button className="text-sm text-[#304333] font-semibold underline">
-                    {vendor.reviews} reviews
+                    {listing.reviews_count} reviews
                   </button>
                 </div>
               </div>
@@ -599,41 +626,24 @@ export default function VendorDetailPage({ params }: Props) {
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 rounded-full flex items-center justify-center
                               flex-shrink-0 text-white text-lg font-semibold" style={{ background: '#2c4a1e' }}>
-                  {vendor.name[0]}
+                  {listing.vendor.business_name[0]}
                 </div>
                 <div>
                   <p className="text-base font-semibold text-[#304333]">
-                    Toured by {vendor.name}
+                    Toured by {listing.vendor.business_name}
                   </p>
                   <p className="text-sm text-[#78716c]">
-                    {vendor.yearsTouring ?? 3} year{(vendor.yearsTouring ?? 3) !== 1 ? 's' : ''} touring
+                    {listing.years_hosting > 0 ? `${listing.years_hosting} year${listing.years_hosting !== 1 ? 's' : ''} touring` : 'New operator'}
                   </p>
                 </div>
               </div>
-
-              {features.length > 0 && (
-                <>
-                  <Divider />
-                  <div className="flex flex-col gap-5">
-                    {features.map((f, i) => (
-                      <div key={i} className="flex items-start gap-4">
-                        <span className="text-2xl flex-shrink-0 mt-0.5">{f.icon}</span>
-                        <div>
-                          <p className="text-sm font-semibold text-[#304333]">{f.title}</p>
-                          <p className="text-sm text-[#78716c] mt-0.5">{f.description}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </>
-              )}
 
               <Divider />
 
               {/* Description */}
               <div>
                 <p className={`text-base text-[#304333] leading-relaxed ${!showFullDesc ? 'line-clamp-4' : ''}`}>
-                  {vendor.description} Explore the vast savannah landscapes, encounter Africa's most iconic wildlife, and create memories that will last a lifetime. Our experienced guides bring the ecosystem to life with their deep knowledge of animal behaviour and local ecology. Every drive is different — every sighting unforgettable.
+                  {listing.description ?? 'No description provided yet.'}
                 </p>
                 <button
                   onClick={() => setShowFullDesc(s => !s)}
@@ -687,12 +697,12 @@ export default function VendorDetailPage({ params }: Props) {
                 <div className="rounded-2xl shadow-xl p-6 bg-white" style={{ border: '1px solid #e8e0d0' }}>
 
                   <div className="flex items-end gap-2 mb-4">
-                    <span className="text-2xl font-semibold text-[#304333]">{vendor.price}</span>
+                    <span className="text-2xl font-semibold text-[#304333]">Ksh {basePrice.toLocaleString()}</span>
                     <span className="text-base text-[#78716c]">/ person</span>
                     <div className="flex items-center gap-1 ml-auto">
                       <Star size={13} fill="#F5D06E" color="#304333" />
-                      <span className="text-sm font-semibold text-[#304333]">{vendor.rating}</span>
-                      <span className="text-sm text-[#78716c]">({vendor.reviews})</span>
+                      <span className="text-sm font-semibold text-[#304333]">{rating}</span>
+                      <span className="text-sm text-[#78716c]">({listing.reviews_count})</span>
                     </div>
                   </div>
 
@@ -705,7 +715,7 @@ export default function VendorDetailPage({ params }: Props) {
                         <p className="text-sm font-semibold" style={{ color: selectedDate ? '#304333' : '#78716c' }}>
                           {selectedDate
                             ? selectedDate.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' })
-                            : (vendor.availability ?? 'Add date')}
+                            : 'Add date'}
                         </p>
                       </div>
                       <div className="p-3 flex items-center justify-between cursor-pointer hover:bg-[#f9f5ef] transition-colors"
@@ -782,7 +792,7 @@ export default function VendorDetailPage({ params }: Props) {
                   </div>
 
                   <button
-                    onClick={() => router.push(`/listings/${id}/vendor/${vendorId}/book?guests=${guests}`)}
+                    onClick={() => router.push(`/listings/${vendorId}/vendor/${vendorId}/book?guests=${guests}${selectedDate ? `&date=${selectedDate.toISOString()}` : ''}`)}
                     className="w-full py-3.5 rounded-xl font-semibold text-sm text-white mb-3 transition-opacity hover:opacity-90"
                     style={{ background: 'linear-gradient(to right, #e8612a, #d44d1a)', border: 'none', cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}>
                     Reserve
@@ -791,12 +801,12 @@ export default function VendorDetailPage({ params }: Props) {
 
                   <div className="flex flex-col gap-2.5">
                     <div className="flex justify-between text-sm">
-                      <span className="text-[#304333] underline cursor-pointer">{vendor.price} × {guests} guest{guests > 1 ? 's' : ''}</span>
-                      <span className="text-[#304333]">{vendor.price.replace(/[\d,]+/, String(basePrice * guests))}</span>
+                      <span className="text-[#304333] underline cursor-pointer">Ksh {basePrice.toLocaleString()} × {guests} guest{guests > 1 ? 's' : ''}</span>
+                      <span className="text-[#304333]">Ksh {(basePrice * guests).toLocaleString()}</span>
                     </div>
                     <div className="flex justify-between pt-3" style={{ borderTop: '1px solid #e8e0d0' }}>
                       <span className="text-sm font-semibold text-[#304333]">Total</span>
-                      <span className="text-sm font-semibold text-[#304333]">{vendor.price.replace(/[\d,]+/, String(basePrice * guests))}</span>
+                      <span className="text-sm font-semibold text-[#304333]">Ksh {(basePrice * guests).toLocaleString()}</span>
                     </div>
                   </div>
 
@@ -812,7 +822,9 @@ export default function VendorDetailPage({ params }: Props) {
               {selectedDate ? `Selected: ${selectedDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}` : 'Select a date'}
             </h2>
             <p className="text-sm text-[#78716c] mb-4">
-              {vendor.availability ? `Typically runs ${vendor.availability}` : 'Add your preferred tour date'}
+              {listing.min_lead_time_days
+                ? `Requires at least ${listing.min_lead_time_days} days' notice`
+                : 'Add your preferred tour date'}
             </p>
             <div className="hidden sm:block">
               <DesktopCalendar selected={selectedDate} onSelect={setSelectedDate} />
@@ -835,18 +847,13 @@ export default function VendorDetailPage({ params }: Props) {
           <div>
             <h2 className="text-xl font-semibold text-[#304333] mb-1">Where you'll be</h2>
             <p className="text-sm text-[#78716c] mb-4 flex items-center gap-1">
-              <MapPin size={13} /> {vendor.locationLabel ?? listing.location}
+              <MapPin size={13} /> {listing.location}
             </p>
-            {vendor.lat && vendor.lng ? (
+            {lat !== null && lng !== null ? (
               <div style={{ position: 'relative', isolation: 'isolate' }}>
-                <MapPlaceholder
-                  lat={vendor.lat}
-                  lng={vendor.lng}
-                  label={vendor.locationLabel ?? listing.location}
-                />
+                <MapPlaceholder lat={lat} lng={lng} label={listing.location} />
               </div>
             ) : (
-
               <div className="w-full h-[200px] rounded-2xl flex items-center justify-center" style={{ background: '#e8e3d9', border: '1px solid #e8e0d0' }}>
                 <p className="text-sm" style={{ color: '#78716c' }}>Location map coming soon</p>
               </div>
@@ -858,106 +865,88 @@ export default function VendorDetailPage({ params }: Props) {
             <div className="flex items-center gap-2 mb-2">
               <Star size={18} fill="#F5D06E" color="#304333" />
               <span className="text-xl font-semibold text-[#304333]">
-                {vendor.rating} · {vendor.reviews} reviews
+                {rating} · {listing.reviews_count} reviews
               </span>
             </div>
 
-            <div className="flex gap-2 overflow-x-auto scrollbar-hide py-3" style={{ scrollbarWidth: 'none' }}>
-              {REVIEW_TAGS.map(({ icon, label, count }) => (
-                <div key={label}
-                  className="flex items-center gap-2 px-4 py-2 rounded-xl flex-shrink-0"
-                  style={{ border: '1px solid #e8e0d0', background: 'white' }}>
-                  <span className="text-base">{icon}</span>
-                  <span className="text-sm text-[#304333]">{label}</span>
-                  <span className="text-sm text-[#78716c]">{count}</span>
+            {reviews.length === 0 ? (
+              <p className="text-sm text-[#78716c] py-3">No reviews yet.</p>
+            ) : (
+              <>
+                <div className="hidden sm:grid grid-cols-2 gap-6 mt-2">
+                  {visibleReviewsDesktop.map((review) => (
+                    <div key={review.id} className="flex flex-col gap-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full flex items-center justify-center
+                                                        text-sm font-semibold flex-shrink-0 text-white" style={{ background: '#2c4a1e' }}>
+                          {review.traveller.name[0]}
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold text-[#304333]">{review.traveller.name}</p>
+                          <p className="text-xs text-[#78716c]">
+                            {new Date(review.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex gap-0.5">
+                        {Array.from({ length: 5 }).map((_, j) => (
+                          <Star key={j} size={11} fill={j < review.rating ? '#304333' : '#ddd'} color={j < review.rating ? '#304333' : '#ddd'} />
+                        ))}
+                      </div>
+                      <p className="text-sm text-[#304333] leading-relaxed"
+                        style={{ display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical' as any, overflow: 'hidden' }}>
+                        {review.comment}
+                      </p>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
 
-            <div className="hidden sm:grid grid-cols-2 gap-6 mt-2">
-              {visibleReviewsDesktop.map((review, i) => (
-                <div key={i} className="flex flex-col gap-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full flex items-center justify-center
-                                                    text-sm font-semibold flex-shrink-0 text-[#304333]"
-                      style={{ background: review.avatar }}>
-                      {review.name[0]}
+                <div className="sm:hidden flex flex-col gap-5 mt-2">
+                  {visibleReviewsMobile.map((review, i) => (
+                    <div key={review.id}>
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className="w-10 h-10 rounded-full flex items-center justify-center
+                                                        text-sm font-semibold flex-shrink-0 text-white" style={{ background: '#2c4a1e' }}>
+                          {review.traveller.name[0]}
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold text-[#304333]">{review.traveller.name}</p>
+                          <p className="text-xs text-[#78716c]">
+                            {new Date(review.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className="flex">
+                          {Array.from({ length: 5 }).map((_, j) => (
+                            <Star key={j} size={13} fill={j < review.rating ? '#304333' : '#ddd'} color={j < review.rating ? '#304333' : '#ddd'} />
+                          ))}
+                        </div>
+                      </div>
+                      <p className={`text-sm text-[#304333] leading-relaxed ${expandedReview !== i ? 'line-clamp-3' : ''}`}>
+                        {review.comment}
+                      </p>
+                      <button
+                        onClick={() => setExpandedReview(expandedReview === i ? null : i)}
+                        className="text-sm font-semibold text-[#304333] underline mt-1">
+                        {expandedReview === i ? 'Show less' : 'Show more'}
+                      </button>
                     </div>
-                    <div>
-                      <p className="text-sm font-semibold text-[#304333]">{review.name}</p>
-                      <p className="text-xs text-[#78716c]">{review.meta}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="flex gap-0.5">
-                      {Array.from({ length: 5 }).map((_, j) => (
-                        <Star key={j} size={11} fill={j < review.stars ? '#304333' : '#ddd'} color={j < review.stars ? '#304333' : '#ddd'} />
-                      ))}
-                    </div>
-                    <span className="text-xs text-[#78716c]">· {review.date}</span>
-                  </div>
-                  <p className="text-sm text-[#304333] leading-relaxed"
-                    style={{ display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical' as any, overflow: 'hidden' }}>
-                    {review.text}
-                  </p>
+                  ))}
                 </div>
-              ))}
-            </div>
 
-            <div className="sm:hidden flex flex-col gap-5 mt-2">
-              {visibleReviewsMobile.map((review, i) => (
-                <div key={i}>
-                  <div className="flex items-center gap-3 mb-2">
-                    <div className="w-10 h-10 rounded-full flex items-center justify-center
-                                                    text-sm font-semibold flex-shrink-0 text-[#304333]"
-                      style={{ background: review.avatar }}>
-                      {review.name[0]}
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold text-[#304333]">{review.name}</p>
-                      <p className="text-xs text-[#78716c]">{review.meta}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3 mb-2">
-                    <div className="flex">
-                      {Array.from({ length: 5 }).map((_, j) => (
-                        <Star key={j} size={13} fill={j < review.stars ? '#304333' : '#ddd'} color={j < review.stars ? '#304333' : '#ddd'} />
-                      ))}
-                    </div>
-                    <span className="text-xs text-[#78716c]">{review.date}</span>
-                  </div>
-                  <p className={`text-sm text-[#304333] leading-relaxed ${expandedReview !== i ? 'line-clamp-3' : ''}`}>
-                    {review.text}
-                  </p>
+                {reviews.length > 2 && (
                   <button
-                    onClick={() => setExpandedReview(expandedReview === i ? null : i)}
-                    className="text-sm font-semibold text-[#304333] underline mt-1">
-                    {expandedReview === i ? 'Show less' : 'Show more'}
+                    onClick={() => setShowAllReviews(s => !s)}
+                    className="mt-4 px-8 py-3.5 rounded-xl text-sm font-semibold text-[#304333] transition-colors hover:bg-[#ede8df]"
+                    style={{ background: '#F1F5E4' }}
+                  >
+                    {showAllReviews ? 'Show fewer reviews' : `Show all ${listing.reviews_count} reviews`}
                   </button>
-                </div>
-              ))}
-            </div>
-
-            <button
-              onClick={() => setShowAllReviews(s => !s)}
-              className="mt-4 px-8 py-3.5 rounded-xl text-sm font-semibold text-[#304333] transition-colors hover:bg-[#ede8df]"
-              style={{ background: '#F1F5E4' }}
-            >
-              {showAllReviews ? 'Show fewer reviews' : `Show all ${vendor.reviews} reviews`}
-            </button>
+                )}
+              </>
+            )}
           </div>
-          <Divider />
-          {/* Availability */}
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <Calendar size={16} color="#304333" />
-              <h2 className="text-xl font-semibold text-[#304333]">Availability</h2>
-            </div>
-            <p className="text-sm text-[#78716c]">
-              {vendor.availability ?? 'Contact vendor for availability'}
-            </p>
-          </div>
-
           <Divider />
 
           {/* Meet your host */}
@@ -971,26 +960,26 @@ export default function VendorDetailPage({ params }: Props) {
                     <div className="w-1/2 flex flex-col items-center">
                       <div className="relative mb-3">
                         <div className="w-24 h-24 rounded-full flex items-center justify-center text-white text-4xl font-bold" style={{ background: '#2c4a1e' }}>
-                          {vendor.name[0]}
+                          {listing.vendor.business_name[0]}
                         </div>
                         <div className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-white border border-gray-200 flex items-center justify-center">
                           <Shield size={12} color="#2c4a1e" />
                         </div>
                       </div>
-                      <p className="text-xl font-bold text-[#304333] text-center">{vendor.name}</p>
+                      <p className="text-xl font-bold text-[#304333] text-center">{listing.vendor.business_name}</p>
                       <p className="text-sm text-[#78716c]">Tour operator</p>
                     </div>
                     <div className="w-1/2 pl-4">
                       <div className="py-2.5" style={{ borderBottom: '1px solid #e8e0d0' }}>
-                        <p className="text-xl font-bold text-[#304333]">{vendor.reviews}</p>
+                        <p className="text-xl font-bold text-[#304333]">{listing.reviews_count}</p>
                         <p className="text-xs text-[#78716c]">Reviews</p>
                       </div>
                       <div className="py-3" style={{ borderBottom: '1px solid #e8e0d0' }}>
-                        <p className="text-xl font-bold text-[#304333]">{vendor.rating} <span className="text-base">★</span></p>
+                        <p className="text-xl font-bold text-[#304333]">{rating} <span className="text-base">★</span></p>
                         <p className="text-xs text-[#78716c]">Rating</p>
                       </div>
                       <div className="py-2.5">
-                        <p className="text-xl font-bold text-[#304333]">{vendor.yearsTouring ?? 3}</p>
+                        <p className="text-xl font-bold text-[#304333]">{listing.years_hosting}</p>
                         <p className="text-xs text-[#78716c]">Yrs touring</p>
                       </div>
                     </div>
@@ -1001,8 +990,14 @@ export default function VendorDetailPage({ params }: Props) {
               <div className="flex-1">
                 <div className="mb-6">
                   <p className="text-base font-semibold text-[#304333] mb-2">Host details</p>
-                  <p className="text-sm text-[#304333]">Response rate: {vendor.responseRate ?? 98}%</p>
-                  <p className="text-sm text-[#304333]">Responds {vendor.responseTime ?? 'within a few hours'}</p>
+                  {listing.response_rate !== null ? (
+                    <>
+                      <p className="text-sm text-[#304333]">Response rate: {listing.response_rate}%</p>
+                      <p className="text-sm text-[#304333]">Responds {responseTime}</p>
+                    </>
+                  ) : (
+                    <p className="text-sm text-[#78716c]">No message history yet.</p>
+                  )}
                 </div>
                 <button className="px-8 py-3.5 rounded-xl text-sm font-semibold text-[#304333] transition-colors hover:bg-[#ede8df] flex items-center gap-2"
                   style={{ background: '#F1F5E4' }}>
@@ -1022,26 +1017,26 @@ export default function VendorDetailPage({ params }: Props) {
                   <div className="w-1/2 flex flex-col items-center">
                     <div className="relative mb-1.5">
                       <div className="w-24 h-24 rounded-full flex items-center justify-center text-white text-3xl font-bold" style={{ background: '#2c4a1e' }}>
-                        {vendor.name[0]}
+                        {listing.vendor.business_name[0]}
                       </div>
                       <div className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-white border border-gray-200 flex items-center justify-center">
                         <Shield size={10} color="#2c4a1e" />
                       </div>
                     </div>
-                    <p className="text-base font-bold text-[#304333] text-center">{vendor.name}</p>
+                    <p className="text-base font-bold text-[#304333] text-center">{listing.vendor.business_name}</p>
                     <p className="text-xs text-[#78716c]">Tour operator</p>
                   </div>
                   <div className="w-1/2 pl-3">
                     <div className="py-2" style={{ borderBottom: '1px solid #e8e0d0' }}>
-                      <p className="text-base font-bold text-[#304333]">{vendor.reviews}</p>
+                      <p className="text-base font-bold text-[#304333]">{listing.reviews_count}</p>
                       <p className="text-xs text-[#78716c]">Reviews</p>
                     </div>
                     <div className="py-2" style={{ borderBottom: '1px solid #e8e0d0' }}>
-                      <p className="text-base font-bold text-[#304333]">{vendor.rating} <span className="text-sm">★</span></p>
+                      <p className="text-base font-bold text-[#304333]">{rating} <span className="text-sm">★</span></p>
                       <p className="text-xs text-[#78716c]">Rating</p>
                     </div>
                     <div className="py-2">
-                      <p className="text-base font-bold text-[#304333]">{vendor.yearsTouring ?? 3}</p>
+                      <p className="text-base font-bold text-[#304333]">{listing.years_hosting}</p>
                       <p className="text-xs text-[#78716c]">Yrs touring</p>
                     </div>
                   </div>
@@ -1050,8 +1045,14 @@ export default function VendorDetailPage({ params }: Props) {
 
               <div className="mb-5">
                 <p className="text-base font-semibold text-[#304333] mb-2">Host details</p>
-                <p className="text-sm text-[#304333]">Response rate: {vendor.responseRate ?? 98}%</p>
-                <p className="text-sm text-[#304333]">Responds {vendor.responseTime ?? 'within a few hours'}</p>
+                {listing.response_rate !== null ? (
+                  <>
+                    <p className="text-sm text-[#304333]">Response rate: {listing.response_rate}%</p>
+                    <p className="text-sm text-[#304333]">Responds {responseTime}</p>
+                  </>
+                ) : (
+                  <p className="text-sm text-[#78716c]">No message history yet.</p>
+                )}
               </div>
               <button className="w-full py-3.5 rounded-xl text-sm font-semibold text-[#304333] transition-colors hover:bg-[#ede8df] mb-5 flex items-center justify-center gap-2"
                 style={{ background: '#F1F5E4' }}>
@@ -1065,7 +1066,6 @@ export default function VendorDetailPage({ params }: Props) {
             </div>
           </div>
           <Divider />
-
 
           {/* Things to know */}
           <div>
@@ -1108,8 +1108,8 @@ export default function VendorDetailPage({ params }: Props) {
             </button>
           </div>
 
-          {/* More vendors */}
-          {otherVendors.length > 0 && (
+          {/* More tours */}
+          {otherListings.length > 0 && (
             <>
               <Divider />
               <div className="pb-1">
@@ -1118,36 +1118,36 @@ export default function VendorDetailPage({ params }: Props) {
                 </h2>
                 <div className="sm:hidden overflow-x-auto scrollbar-hide -mx-4 px-4">
                   <div className="flex gap-3">
-                    {otherVendors.slice(0, 4).map((v) => (
+                    {otherListings.map((l) => (
                       <button
-                        key={v.id}
-                        onClick={() => router.push(`/listings/${id}/vendor/${v.id}`)}
+                        key={l.id}
+                        onClick={() => router.push(`/listings/${l.id}/vendor/${l.id}`)}
                         className="relative flex-shrink-0 w-[45vw] h-[130px] rounded-2xl overflow-hidden active:scale-95 transition-transform"
                         style={{ background: '#e8e0d0' }}
                       >
-                        <Image src={v.image} alt={v.name} fill className="object-cover" sizes="45vw" />
+                        <Image src={l.images[0]?.url ?? FALLBACK_IMAGE} alt={l.title} fill className="object-cover" sizes="45vw" />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                         <div className="absolute bottom-0 left-0 right-0 p-2 text-left">
-                          <p className="text-white text-xs font-semibold truncate">{v.name}</p>
-                          <p className="text-white/70 text-[10px]">{v.price}</p>
+                          <p className="text-white text-xs font-semibold truncate">{l.title}</p>
+                          <p className="text-white/70 text-[10px]">Ksh {Math.round(Number(l.price)).toLocaleString()}</p>
                         </div>
                       </button>
                     ))}
                   </div>
                 </div>
                 <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                  {otherVendors.slice(0, 4).map((v) => (
+                  {otherListings.map((l) => (
                     <button
-                      key={v.id}
-                      onClick={() => router.push(`/listings/${id}/vendor/${v.id}`)}
+                      key={l.id}
+                      onClick={() => router.push(`/listings/${l.id}/vendor/${l.id}`)}
                       className="relative h-[130px] rounded-2xl overflow-hidden active:scale-95 transition-transform"
                       style={{ background: '#e8e0d0' }}
                     >
-                      <Image src={v.image} alt={v.name} fill className="object-cover" sizes="50vw" />
+                      <Image src={l.images[0]?.url ?? FALLBACK_IMAGE} alt={l.title} fill className="object-cover" sizes="50vw" />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                       <div className="absolute bottom-0 left-0 right-0 p-2 text-left">
-                        <p className="text-white text-xs font-semibold truncate">{v.name}</p>
-                        <p className="text-white/70 text-[10px]">{v.price}</p>
+                        <p className="text-white text-xs font-semibold truncate">{l.title}</p>
+                        <p className="text-white/70 text-[10px]">Ksh {Math.round(Number(l.price)).toLocaleString()}</p>
                       </div>
                     </button>
                   ))}
@@ -1167,24 +1167,24 @@ export default function VendorDetailPage({ params }: Props) {
           <div className="flex items-center justify-between">
             <div>
               <div className="flex items-baseline gap-1">
-                <span className="text-base font-semibold text-[#304333]">{vendor.price}</span>
+                <span className="text-base font-semibold text-[#304333]">Ksh {basePrice.toLocaleString()}</span>
                 <span className="text-sm text-[#78716c]">/ person</span>
               </div>
               {selectedDate ? (
                 <p className="text-xs font-semibold" style={{ color: '#2c4a1e' }}>
-                  {selectedDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} · {vendor.price.replace(/[\d,]+/, String(basePrice * guests))}
+                  {selectedDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} · Ksh {(basePrice * guests).toLocaleString()}
                 </p>
               ) : (
                 <button className="text-sm text-[#304333] underline font-semibold"
                   style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
-                  {vendor.reviews} reviews
+                  {listing.reviews_count} reviews
                 </button>
               )}
             </div>
             <button
               onClick={() => {
                 if (selectedDate) {
-                  router.push(`/listings/${id}/vendor/${vendorId}/book?guests=${guests}`)
+                  router.push(`/listings/${vendorId}/vendor/${vendorId}/book?guests=${guests}&date=${selectedDate.toISOString()}`)
                 } else {
                   setShowMobileDatePicker(true)
                 }
@@ -1196,7 +1196,6 @@ export default function VendorDetailPage({ params }: Props) {
 
           </div>
         </div>
-
 
       </div >
     </div>

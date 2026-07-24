@@ -9,14 +9,21 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Vendor extends Model
 {
     protected $fillable = [
-        'user_id', 'business_name', 'email', 'phone', 'bio', 'logo_url',
+        'user_id', 'business_name', 'email', 'phone', 'bio', 'logo_url', 'languages',
         'verification_status', 'suspended', 'suspend_reason',
+        'license_number', 'tax_pin', 'payout_method', 'payout_details',
+        'categories', 'regions', 'plan', 'default_cancellation_policy',
+        'onboarding_complete',
     ];
 
     protected function casts(): array
     {
         return [
             'suspended' => 'boolean',
+            'onboarding_complete' => 'boolean',
+            'categories' => 'array',
+            'regions' => 'array',
+            'languages' => 'array',
         ];
     }
 
@@ -34,22 +41,19 @@ class Vendor extends Model
     {
         return $this->hasMany(VerificationSubmission::class);
     }
-    // Add a relationship to the Listing model
+
     public function listings(): HasMany
     {
         return $this->hasMany(Listing::class);
     }
-    // Reviews relationship
+
     public function reviews(): HasMany
     {
         return $this->hasMany(Review::class);
     }
-    // Admin & Platform ops relationship
+
     public function notifications(): HasMany
     {
         return $this->hasMany(VendorNotification::class);
     }
-
-
-
 }

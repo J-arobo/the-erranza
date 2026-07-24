@@ -6,6 +6,7 @@ import {
   Plus, X, Check, LogOut
 } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
+import { apiFetch, apiErrorMessage } from '@/lib/api'
 
 const STEP_LABELS = ['Business details', 'Categories', 'Plan', 'Payment', 'Pending review']
 const STEP_ICONS = [Building2, Layers, Package, CreditCard, Clock]
@@ -49,6 +50,9 @@ export default function VendorOnboardingPage() {
   const [payoutDetails, setPayoutDetails] = useState('')
   const [idUploaded, setIdUploaded] = useState(false)
   const [insuranceUploaded, setInsuranceUploaded] = useState(false)
+  const [uploadingId, setUploadingId] = useState(false)
+  const [uploadingInsurance, setUploadingInsurance] = useState(false)
+  const [uploadError, setUploadError] = useState('')
 
   // Step 2 — Categories
   const [selectedCategories, setSelectedCategories] = useState<string[]>([])
@@ -61,11 +65,16 @@ export default function VendorOnboardingPage() {
   const [agreedTerms, setAgreedTerms] = useState(false)
   const [agreedLiability, setAgreedLiability] = useState(false)
 
-  // Step 4 — Payment
+  // Step 4 — Payment (Plus plan only — card fields never leave the browser;
+  // there's no real payment processor wired up yet, so this stays a local-only
+  // placeholder rather than pretending to submit card data anywhere.)
   const [cardName, setCardName] = useState('')
   const [cardNumber, setCardNumber] = useState('')
   const [cardExpiry, setCardExpiry] = useState('')
   const [cardCvc, setCardCvc] = useState('')
+
+  const [submitting, setSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState('')
 
   function toggleCategory(cat: string) {
     setSelectedCategories(c => c.includes(cat) ? c.filter(x => x !== cat) : [...c, cat])
@@ -77,6 +86,38 @@ export default function VendorOnboardingPage() {
   }
   function removeRegion(region: string) {
     setRegions(r => r.filter(x => x !== region))
+  }
+
+  async function handleUploadId() {
+    setUploadingId(true)
+    setUploadError('')
+    try {
+      await apiFetch('/vendor/verification-submissions', {
+        method: 'POST',
+        body: JSON.stringify({ doc_type: 'Government ID' }),
+      })
+      setIdUploaded(true)
+    } catch (err) {
+      setUploadError(apiErrorMessage(err))
+    } finally {
+      setUploadingId(false)
+    }
+  }
+
+  async function handleUploadInsurance() {
+    setUploadingInsurance(true)
+    setUploadError('')
+    try {
+      await apiFetch('/vendor/verification-submissions', {
+        method: 'POST',
+        body: JSON.stringify({ doc_type: 'Insurance certificate' }),
+      })
+      setInsuranceUploaded(true)
+    } catch (err) {
+      setUploadError(apiErrorMessage(err))
+    } finally {
+      setUploadingInsurance(false)
+    }
   }
 
   const canContinue = [
@@ -91,12 +132,42 @@ export default function VendorOnboardingPage() {
     if (step > 0) setStep(s => s - 1)
   }
 
-  function handleContinue() {
-    if (!canContinue) return
+  async function handleContinue() {
+    if (!canContinue || submitting) return
+
+    if (step === 3) {
+      // Last data-entry step — persist everything to the backend now.
+      setSubmitting(true)
+      setSubmitError('')
+      try {
+        await apiFetch('/vendor/onboarding', {
+          method: 'PATCH',
+          body: JSON.stringify({
+            business_name: companyName.trim(),
+            license_number: licenseNumber.trim() || null,
+            tax_pin: taxPin.trim() || null,
+            phone: contactPhone.trim(),
+            payout_method: payoutMethod,
+            payout_details: payoutDetails.trim(),
+            categories: selectedCategories,
+            regions,
+            plan,
+            default_cancellation_policy: defaultCancellationPolicy,
+          }),
+        })
+        completeOnboarding()
+        setStep(s => s + 1)
+      } catch (err) {
+        setSubmitError(apiErrorMessage(err))
+      } finally {
+        setSubmitting(false)
+      }
+      return
+    }
+
     if (step < STEP_LABELS.length - 1) {
       setStep(s => s + 1)
     } else {
-      completeOnboarding()
       router.push('/vendor')
     }
   }
@@ -211,10 +282,10 @@ export default function VendorOnboardingPage() {
                     <Check size={14} /> Uploaded
                   </span>
                 ) : (
-                  <button onClick={() => setIdUploaded(true)}
+                  <button onClick={handleUploadId} disabled={uploadingId}
                     className="px-3 py-1.5 rounded-lg bg-[#2c4a1e] text-white text-xs font-semibold
-                               hover:bg-[#3d6b28] transition-colors flex-shrink-0">
-                    Upload
+                               hover:bg-[#3d6b28] transition-colors flex-shrink-0 disabled:opacity-50">
+                    {uploadingId ? 'Uploading…' : 'Upload'}
                   </button>
                 )}
               </div>
@@ -231,13 +302,15 @@ export default function VendorOnboardingPage() {
                     <Check size={14} /> Uploaded
                   </span>
                 ) : (
-                  <button onClick={() => setInsuranceUploaded(true)}
+                  <button onClick={handleUploadInsurance} disabled={uploadingInsurance}
                     className="px-3 py-1.5 rounded-lg bg-gray-100 text-[#1a1a1a] text-xs font-semibold
-                               hover:bg-gray-200 transition-colors flex-shrink-0">
-                    Upload
+                               hover:bg-gray-200 transition-colors flex-shrink-0 disabled:opacity-50">
+                    {uploadingInsurance ? 'Uploading…' : 'Upload'}
                   </button>
                 )}
               </div>
+
+              {uploadError && <p className="text-xs text-red-500">{uploadError}</p>}
             </div>
           )}
 
@@ -418,8 +491,12 @@ export default function VendorOnboardingPage() {
                                    outline-none focus:border-[#2c4a1e] transition-colors" />
                     </div>
                   </div>
+                  <p className="text-xs text-gray-400">
+                    Card details are not sent anywhere yet — real payment processing isn't wired up.
+                  </p>
                 </>
               )}
+              {submitError && <p className="text-xs text-red-500">{submitError}</p>}
             </div>
           )}
 
@@ -468,10 +545,10 @@ export default function VendorOnboardingPage() {
                 Back
               </button>
             )}
-            <button onClick={handleContinue} disabled={!canContinue}
+            <button onClick={handleContinue} disabled={!canContinue || submitting}
               className="flex-1 bg-[#2c4a1e] text-white py-3 rounded-xl font-semibold text-sm
                          hover:bg-[#3d6b28] transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
-              {step < STEP_LABELS.length - 1 ? 'Continue' : 'Go to dashboard →'}
+              {submitting ? 'Saving…' : step < STEP_LABELS.length - 1 ? 'Continue' : 'Go to dashboard →'}
             </button>
           </div>
         </div>

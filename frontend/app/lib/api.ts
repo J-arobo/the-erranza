@@ -53,3 +53,13 @@ export function apiErrorMessage(err: unknown): string {
   }
   return 'Something went wrong. Please try again.'
 }
+
+// Email validation 
+export function apiFieldErrors(err: unknown): Record<string, string> {
+  if (err instanceof ApiError && err.errors) {
+    return Object.fromEntries(
+      Object.entries(err.errors).map(([field, messages]) => [field, messages[0]])
+    )
+  }
+  return {}
+}

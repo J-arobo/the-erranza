@@ -1,24 +1,40 @@
 'use client'
 // src/app/listings/stays/[id]/book/page.tsx
 
-import { use, useState } from 'react'
+import { use, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Image from 'next/image'
 import { ArrowLeft, X, ChevronRight, Shield, Star, ChevronLeft } from 'lucide-react'
-import { stays } from '@/data/stays'
+import { apiFetch, apiErrorMessage } from '@/lib/api'
 
 type Props = { params: Promise<{ id: string }> }
 type Step = 'review' | 'message' | 'confirm'
 const STEPS: Step[] = ['review', 'message', 'confirm']
 
-const STAY_IMAGES: Record<string, string> = {
-  '1': 'https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?w=400&q=80',
-  '2': 'https://images.unsplash.com/photo-1499793983690-e29da59ef1c2?w=400&q=80',
-  '3': 'https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=400&q=80',
+const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?w=400&q=80'
+
+type ApiListing = {
+  id: number
+  title: string
+  location: string
+  price: string
+  min_guests: number | null
+  max_guests: number | null
+  images: { url: string }[]
+  reviews_count: number
+  reviews_avg_rating: string | null
+  vendor: { business_name: string }
 }
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 const WDAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
+
+function toDateStr(d: Date): string {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
 
 function BookMonthGrid({ year, month, checkIn, checkOut, onSelect }: {
   year: number; month: number; checkIn: Date | null; checkOut: Date | null; onSelect: (d: Date) => void
@@ -126,8 +142,6 @@ function BookCalendar({ checkIn, checkOut, onSelect }: {
   )
 }
 
-
-
 export default function StayBookingPage({ params }: Props) {
   const { id } = use(params)
   const router = useRouter()
@@ -149,6 +163,10 @@ export default function StayBookingPage({ params }: Props) {
     return `${fmtDate(ci)} – ${fmtDate(co)}`
   }
 
+  const [listing, setListing] = useState<ApiListing | null>(null)
+  const [loadingListing, setLoadingListing] = useState(true)
+  const [notFound, setNotFound] = useState(false)
+
   const [localCheckIn, setLocalCheckIn] = useState<Date | null>(checkIn)
   const [localCheckOut, setLocalCheckOut] = useState<Date | null>(checkOut)
   const [showDateSheet, setShowDateSheet] = useState(false)
@@ -161,21 +179,36 @@ export default function StayBookingPage({ params }: Props) {
   const [sheetChildren, setSheetChildren] = useState(0)
   const [sheetInfants, setSheetInfants] = useState(0)
   const [sheetPets, setSheetPets] = useState(0)
-  {/* fUll Policy Opens modal */ }
   const [showPolicySheet, setShowPolicySheet] = useState(false)
-  const stay = stays.find(s => s.id === id)
 
   const [step, setStep] = useState<Step>('review')
   const [payMode, setPayMode] = useState<'full' | 'instalments'>('full')
   const [message, setMessage] = useState('')
   const [insurance, setInsurance] = useState(false)
-  const [guests, setGuests] = useState(1)
+  const [submitting, setSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState('')
+
   const dateDiff = (localCheckIn && localCheckOut) ? Math.max(1, Math.round((localCheckOut.getTime() - localCheckIn.getTime()) / 86400000)) : null
   const [nights, setNights] = useState(2)
   const effectiveNights = dateDiff ?? nights
+  const guests = sheetAdults + sheetChildren
 
+  useEffect(() => {
+    apiFetch<{ listing: ApiListing }>(`/listings/${id}`)
+      .then(({ listing }) => setListing(listing))
+      .catch(() => setNotFound(true))
+      .finally(() => setLoadingListing(false))
+  }, [id])
 
-  if (!stay) {
+  if (loadingListing) {
+    return (
+      <div className="flex flex-col items-center justify-center h-screen bg-white gap-4">
+        <div className="w-8 h-8 rounded-full border-2 border-[#2c4a1e] border-t-transparent animate-spin" />
+      </div>
+    )
+  }
+
+  if (notFound || !listing) {
     return (
       <div className="flex flex-col items-center justify-center h-screen bg-white gap-4">
         <span className="text-5xl">🔍</span>
@@ -187,19 +220,53 @@ export default function StayBookingPage({ params }: Props) {
   }
 
   const stepIndex = STEPS.indexOf(step)
-  const priceNum = parseInt(stay.price.replace(/[^0-9]/g, '')) || 8500
+  const priceNum = Math.round(Number(listing.price))
+  const rating = listing.reviews_avg_rating ? Number(listing.reviews_avg_rating).toFixed(2) : '4.50'
+  const reviewCount = listing.reviews_count
   const total = priceNum * effectiveNights * guests
   const fee = Math.round(total * 0.12)
   const weeklyDiscount = effectiveNights >= 7 ? Math.round(total * 0.02) : 0
   const insureFee = Math.round(total * 0.08)
   const grandTotal = total + fee + (insurance ? insureFee : 0)
-  const stayImage = STAY_IMAGES[id] ?? stay.image
+  const stayImage = listing.images[0]?.url ?? FALLBACK_IMAGE
+  const hostName = listing.vendor.business_name
+  const datesReady = !!(localCheckIn && localCheckOut)
 
-  function goNext() {
+  async function goNext() {
     if (step === 'review') { setStep('message'); return }
     if (step === 'message') { setStep('confirm'); return }
     if (step === 'confirm') {
-      router.push(`/listings/stays/${id}/book/success`)
+      if (!localCheckIn || !localCheckOut) {
+        setSubmitError('Please select your check-in and check-out dates first.')
+        return
+      }
+
+      setSubmitting(true)
+      setSubmitError('')
+      try {
+        const { booking } = await apiFetch<{ booking: { id: number } }>('/bookings', {
+          method: 'POST',
+          body: JSON.stringify({
+            listing_id: listing!.id,
+            guests,
+            check_in: toDateStr(localCheckIn),
+            check_out: toDateStr(localCheckOut),
+          }),
+        })
+
+        if (message.trim()) {
+          await apiFetch(`/bookings/${booking.id}/messages`, {
+            method: 'POST',
+            body: JSON.stringify({ text: message.trim() }),
+          })
+        }
+
+        router.push(`/listings/stays/${id}/book/success`)
+      } catch (err) {
+        setSubmitError(apiErrorMessage(err))
+      } finally {
+        setSubmitting(false)
+      }
     }
   }
   function goBack() {
@@ -218,25 +285,23 @@ export default function StayBookingPage({ params }: Props) {
     }
   }
 
-
   // ── Summary card ───────────────────────────────────────────────────────
   const SummaryCard = ({ highlighted = false }: { highlighted?: boolean }) => (
     <div className={`rounded-2xl border p-4 mb-4 ${highlighted ? 'border-2 border-[#304333]' : 'border-gray-200'}`}>
       <div className="flex items-center gap-3 mb-3">
         <div className="relative w-20 h-20 rounded-xl overflow-hidden bg-[#e0d9cc] flex-shrink-0">
-          <Image src={stayImage} alt={stay.title} fill sizes="80px" className="object-cover" />
+          <Image src={stayImage} alt={listing.title} fill sizes="80px" className="object-cover" />
         </div>
         <div>
-          <p className="text-sm font-bold text-[#1a1a1a] leading-snug">{stay.title}</p>
+          <p className="text-sm font-bold text-[#1a1a1a] leading-snug">{listing.title}</p>
           <div className="flex items-center gap-1 mt-0.5">
             <Star size={11} fill="#1a1a1a" color="#1a1a1a" />
-            <span className="text-xs font-semibold text-[#1a1a1a]">{stay.rating}</span>
-            <span className="text-xs text-gray-400">(89 reviews)</span>
+            <span className="text-xs font-semibold text-[#1a1a1a]">{rating}</span>
+            <span className="text-xs text-gray-400">({reviewCount} reviews)</span>
           </div>
         </div>
       </div>
 
-      {/* Free cancellation — desktop: below image */}
       <div className="hidden sm:block py-3" style={{ borderTop: '1px solid #f0ede8', borderBottom: '1px solid #f0ede8', marginBottom: 0 }}>
         <p className="text-sm font-semibold text-[#1a1a1a]">Free cancellation</p>
         <p className="text-sm text-gray-500">Cancel before check-in for a full refund.{' '}
@@ -248,7 +313,6 @@ export default function StayBookingPage({ params }: Props) {
       </div>
 
       <div style={{ borderTop: '1px solid #f0ede8' }}>
-        {/* Dates */}
         <div className="flex items-center justify-between py-3" style={{ borderBottom: '1px solid #f0ede8' }}>
           <div>
             <p className="text-sm font-semibold text-[#1a1a1a]">Dates</p>
@@ -263,7 +327,6 @@ export default function StayBookingPage({ params }: Props) {
           </button>
         </div>
 
-        {/* Guests */}
         <div className="flex items-center justify-between py-3" style={{ borderBottom: '1px solid #f0ede8' }}>
           <div>
             <p className="text-sm font-semibold text-[#1a1a1a]">Guests</p>
@@ -276,12 +339,11 @@ export default function StayBookingPage({ params }: Props) {
           </button>
         </div>
 
-        {/* Price details — desktop only */}
         <div className="hidden sm:block py-3" style={{ borderBottom: '1px solid #f0ede8' }}>
           <p className="text-sm font-bold text-[#1a1a1a] mb-2">Price details</p>
           <div className="flex flex-col gap-1.5">
             <div className="flex justify-between text-sm">
-              <span className="text-gray-500">{effectiveNights} night{effectiveNights !== 1 ? 's' : ''} × {stay.price}</span>
+              <span className="text-gray-500">{effectiveNights} night{effectiveNights !== 1 ? 's' : ''} × Ksh {priceNum.toLocaleString()}</span>
               <span className="text-[#1a1a1a]">Ksh {total.toLocaleString()}</span>
             </div>
             <div className="flex justify-between text-sm">
@@ -299,7 +361,6 @@ export default function StayBookingPage({ params }: Props) {
           </div>
         </div>
 
-        {/* Total price — mobile only */}
         <div className="flex items-center justify-between py-3 sm:hidden" style={{ borderBottom: '1px solid #f0ede8' }}>
           <div>
             <p className="text-sm font-semibold text-[#1a1a1a]">Total price</p>
@@ -312,7 +373,6 @@ export default function StayBookingPage({ params }: Props) {
           </button>
         </div>
 
-        {/* Free cancellation — mobile: below total price */}
         <div className="pt-3 sm:hidden">
           <p className="text-sm font-semibold text-[#1a1a1a]">Free cancellation</p>
           <p className="text-sm text-gray-500">Cancel before check-in for a full refund.{' '}
@@ -369,12 +429,9 @@ export default function StayBookingPage({ params }: Props) {
             </div>
           </div>
         )}
-
-
       </div>
     </div>
   )
-
 
   return (
     <div className="flex flex-col min-h-screen bg-white max-w-lg mx-auto">
@@ -412,6 +469,11 @@ export default function StayBookingPage({ params }: Props) {
         {step === 'review' && (
           <>
             <SummaryCard />
+            {!datesReady && (
+              <p className="text-xs text-amber-700 bg-amber-50 rounded-xl px-3 py-2 mb-4">
+                Add your check-in and check-out dates to continue.
+              </p>
+            )}
             <div className="mb-4">
               <h2 className="text-base font-bold text-[#1a1a1a] mb-3">Choose how to pay</h2>
               <div className="border border-gray-200 rounded-2xl overflow-hidden">
@@ -452,15 +514,13 @@ export default function StayBookingPage({ params }: Props) {
             </p>
             <p className="text-sm text-gray-500 mb-5">
               Before you continue, let{' '}
-              <span className="font-semibold text-[#1a1a1a]">
-                {stays.find(s => s.id === id)?.title.split(' ').slice(0, 2).join(' ')}
-              </span>{' '}
+              <span className="font-semibold text-[#1a1a1a]">{hostName}</span>{' '}
               know about your trip and why this stay is a great fit.
             </p>
             <textarea
               value={message}
               onChange={(e) => setMessage(e.target.value)}
-              placeholder={`Hi! I'm excited about staying at your place. I'm travelling to ${stay.location} and…`}
+              placeholder={`Hi! I'm excited about staying at your place. I'm travelling to ${listing.location} and…`}
               rows={6}
               className="w-full border border-gray-300 rounded-2xl p-4 text-sm
                          text-[#1a1a1a] placeholder:text-gray-400 outline-none
@@ -476,6 +536,12 @@ export default function StayBookingPage({ params }: Props) {
         {step === 'confirm' && (
           <>
             <SummaryCard highlighted />
+
+            {submitError && (
+              <div className="mb-4 px-4 py-3 rounded-xl bg-red-50 text-red-600 text-sm">
+                {submitError}
+              </div>
+            )}
 
             {/* Payment method */}
             <button className="w-full flex items-center justify-between p-4 border
@@ -542,7 +608,7 @@ export default function StayBookingPage({ params }: Props) {
               <div className="flex flex-col gap-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-500 underline">
-                    {stay.price} × {nights} night{nights !== 1 ? 's' : ''} × {guests} guest{guests !== 1 ? 's' : ''}
+                    Ksh {priceNum.toLocaleString()} × {effectiveNights} night{effectiveNights !== 1 ? 's' : ''} × {guests} guest{guests !== 1 ? 's' : ''}
                   </span>
                   <span className="text-[#1a1a1a]">Ksh {total.toLocaleString()}</span>
                 </div>
@@ -579,7 +645,6 @@ export default function StayBookingPage({ params }: Props) {
       {/* Progress + CTA */}
       <div className="fixed bottom-0 left-0 right-0 max-w-lg mx-auto bg-white
                       border-t border-gray-100">
-        {/* Progress bar */}
         <div className="flex gap-1.5 px-5 pt-3">
           {STEPS.map((s, i) => (
             <div key={s}
@@ -593,11 +658,13 @@ export default function StayBookingPage({ params }: Props) {
             <>
               <button
                 onClick={goNext}
+                disabled={submitting || !datesReady}
                 className="w-full bg-[#2c4a1e] text-white py-4 rounded-2xl font-bold
-                           text-sm hover:bg-[#3d6b28] transition-colors"
+                           text-sm hover:bg-[#3d6b28] transition-colors
+                           disabled:opacity-40 disabled:cursor-not-allowed"
                 style={{ WebkitTapHighlightColor: 'transparent' }}
               >
-                Confirm and pay · Ksh {grandTotal.toLocaleString()}
+                {submitting ? 'Booking…' : `Confirm and pay · Ksh ${grandTotal.toLocaleString()}`}
               </button>
               <p className="text-xs text-gray-400 text-center mt-3 leading-relaxed">
                 By tapping, I agree to the{' '}
@@ -622,6 +689,7 @@ export default function StayBookingPage({ params }: Props) {
           )}
         </div>
       </div>
+
       {/* Date change bottom sheet */}
       {showDateSheet && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
@@ -669,10 +737,14 @@ export default function StayBookingPage({ params }: Props) {
                 <X size={16} color="#1a1a1a" />
               </button>
             </div>
-            <p className="text-sm text-gray-500 mb-4">This place has a maximum of 10 guests, not including infants. Pets aren't allowed.</p>
+            <p className="text-sm text-gray-500 mb-4">
+              {listing.max_guests
+                ? `This place has a maximum of ${listing.max_guests} guests, not including infants. Pets aren't allowed.`
+                : "Pets aren't allowed."}
+            </p>
             {[
-              { label: 'Adults', sub: 'Age 13+', count: sheetAdults, set: setSheetAdults, min: 1, max: 10 },
-              { label: 'Children', sub: 'Ages 2–12', count: sheetChildren, set: setSheetChildren, min: 0, max: 10 - sheetAdults },
+              { label: 'Adults', sub: 'Age 13+', count: sheetAdults, set: setSheetAdults, min: 1, max: listing.max_guests ?? 10 },
+              { label: 'Children', sub: 'Ages 2–12', count: sheetChildren, set: setSheetChildren, min: 0, max: Math.max(0, (listing.max_guests ?? 10) - sheetAdults) },
               { label: 'Infants', sub: 'Under 2', count: sheetInfants, set: setSheetInfants, min: 0, max: 5 },
               { label: 'Pets', sub: 'Bringing a service animal?', count: sheetPets, set: setSheetPets, min: 0, max: 5 },
             ].map(({ label, sub, count, set, min, max }) => (
@@ -719,7 +791,6 @@ export default function StayBookingPage({ params }: Props) {
           onClick={e => e.target === e.currentTarget && setShowPriceSheet(false)}>
           <div className="bg-white w-full sm:max-w-lg rounded-t-3xl sm:rounded-2xl p-6 max-h-[90vh] overflow-y-auto">
 
-            {/* Header — centered title, × on right */}
             <div className="flex items-center justify-between mb-6 pb-4" style={{ borderBottom: '1px solid #f0f0f0' }}>
               <div className="w-8" />
               <h2 className="text-base font-semibold text-[#1a1a1a]">Price breakdown</h2>
@@ -733,7 +804,6 @@ export default function StayBookingPage({ params }: Props) {
             </div>
 
             <div className="flex flex-col gap-5">
-              {/* Nights with date range */}
               <div className="flex justify-between text-sm">
                 <span className="text-[#1a1a1a]">
                   {effectiveNights} night{effectiveNights !== 1 ? 's' : ''}
@@ -745,7 +815,6 @@ export default function StayBookingPage({ params }: Props) {
                 <span className="text-[#1a1a1a]">Ksh {total.toLocaleString()}</span>
               </div>
 
-              {/* Service fee + VAT note on desktop */}
               <div className="flex justify-between text-sm items-start">
                 <div>
                   <p className="text-[#1a1a1a]">Erranza service fee</p>
@@ -754,7 +823,6 @@ export default function StayBookingPage({ params }: Props) {
                 <span className="text-[#1a1a1a]">Ksh {fee.toLocaleString()}</span>
               </div>
 
-              {/* Weekly discount — only shown if 7+ nights */}
               {weeklyDiscount > 0 && (
                 <div className="flex justify-between text-sm">
                   <span className="text-[#1a1a1a]">Weekly stay discount</span>
@@ -762,7 +830,6 @@ export default function StayBookingPage({ params }: Props) {
                 </div>
               )}
 
-              {/* Total */}
               <div className="flex justify-between text-sm font-bold pt-4" style={{ borderTop: '1px solid #e8e8e8' }}>
                 <span className="text-[#1a1a1a]">Total <span className="underline font-bold">KES</span></span>
                 <span className="text-[#1a1a1a]">Ksh {(total + fee - weeklyDiscount).toLocaleString()}</span>
@@ -772,7 +839,6 @@ export default function StayBookingPage({ params }: Props) {
           </div>
         </div>
       )}
-
 
     </div>
   )

@@ -1,12 +1,12 @@
 'use client'
-import { use, useState, useRef } from 'react'
+import { use, useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import {
   ArrowLeft, Share2, Heart, Star, X, Camera, Grid2X2,
-  MapPin, Plane, Clock, ChevronRight, Calendar, Award, Shield, Globe,
+  MapPin, Clock, ChevronRight, Calendar, Award, Shield, Globe,
 } from 'lucide-react'
-import { packages } from '@/data/packages'
+import { apiFetch, apiErrorMessage } from '@/lib/api'
 import FooterSection from '@/components/FooterSection'
 
 type Props = {
@@ -14,13 +14,52 @@ type Props = {
 }
 
 const Divider = () => <div className="border-t border-[#e8e0d0] my-6" />
+const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1547471080-7cc2caa01a7e?w=1200&q=80'
+
+function formatDuration(minutes: number): string {
+  if (minutes < 60) return `within ${Math.round(minutes)}m`
+  const hours = Math.floor(minutes / 60)
+  const mins = Math.round(minutes % 60)
+  return mins > 0 ? `within ${hours}h ${mins}m` : `within ${hours}h`
+}
+
+function nextDeparture(departures: { date: string }[]): string | null {
+  const today = new Date().toISOString().slice(0, 10)
+  const upcoming = departures.filter(d => d.date >= today).sort((a, b) => a.date.localeCompare(b.date))
+  return upcoming[0]?.date ?? null
+}
+
+type ApiListingDetail = {
+  id: number
+  title: string
+  location: string
+  price: string
+  description: string | null
+  amenities: string[] | null
+  duration_options: { label: string; price: string | null }[]
+  departures: { id: number; date: string; capacity: number; booked: number }[]
+  images: { url: string }[]
+  reviews_count: number
+  reviews_avg_rating: string | null
+  is_superhost: boolean
+  years_hosting: number
+  response_rate: number | null
+  avg_response_minutes: number | null
+  cohost: { name: string } | null
+  vendor: { business_name: string; languages: string[] | null }
+}
+
+type ApiListingSummary = { id: number; title: string; price: string; images: { url: string }[] }
+type PaginatedListings = { data: ApiListingSummary[] }
 
 export default function PackageDetailPage({ params }: Props) {
   const { id } = use(params)
   const router = useRouter()
 
-  const pkg = packages.find(p => p.id === id)
-  const otherPackages = packages.filter(p => p.id !== id).slice(0, 4)
+  const [pkg, setPkg] = useState<ApiListingDetail | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [notFound, setNotFound] = useState(false)
+  const [otherPackages, setOtherPackages] = useState<ApiListingSummary[]>([])
 
   const [wishlisted, setWishlisted] = useState(false)
   const [activeImage, setActiveImage] = useState(0)
@@ -36,7 +75,28 @@ export default function PackageDetailPage({ params }: Props) {
   const touchStartX = useRef<number>(0)
   const touchEndX = useRef<number>(0)
 
-  if (!pkg) {
+  useEffect(() => {
+    apiFetch<{ listing: ApiListingDetail }>(`/listings/${id}`)
+      .then(({ listing }) => setPkg(listing))
+      .catch(() => setNotFound(true))
+      .finally(() => setLoading(false))
+  }, [id])
+
+  useEffect(() => {
+    apiFetch<PaginatedListings>('/listings?category=Packages&per_page=100')
+      .then(({ data }) => setOtherPackages(data.filter(l => String(l.id) !== id).slice(0, 4)))
+      .catch(() => { })
+  }, [id])
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center h-screen gap-4 bg-white">
+        <div className="w-8 h-8 rounded-full border-2 border-[#304333] border-t-transparent animate-spin" />
+      </div>
+    )
+  }
+
+  if (notFound || !pkg) {
     return (
       <div className="flex flex-col items-center justify-center h-screen gap-4 bg-white">
         <span className="text-5xl">🔍</span>
@@ -49,9 +109,17 @@ export default function PackageDetailPage({ params }: Props) {
     )
   }
 
-  const images = pkg.images ?? [pkg.image]
-  const basePrice = parseFloat(pkg.price.replace(/[^0-9.]/g, '')) || 100
+  const images = pkg.images.length > 0 ? pkg.images.map(i => i.url) : [FALLBACK_IMAGE]
+  const basePrice = Math.round(Number(pkg.price))
   const total = basePrice * guests
+  const rating = pkg.reviews_avg_rating ? Number(pkg.reviews_avg_rating).toFixed(2) : '4.50'
+  const duration = pkg.duration_options[0]?.label ?? null
+  const nextDate = nextDeparture(pkg.departures)
+  const nextDateFormatted = nextDate
+    ? new Date(nextDate).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })
+    : null
+  const languages = pkg.vendor.languages?.length ? pkg.vendor.languages.join(', ') : null
+  const responseTime = pkg.avg_response_minutes !== null ? formatDuration(pkg.avg_response_minutes) : null
 
   function handleBook() {
     const bookParams = new URLSearchParams({
@@ -171,7 +239,6 @@ export default function PackageDetailPage({ params }: Props) {
           ))}
         </div>
 
-
         <div className="fixed bottom-0 left-0 right-0 bg-white px-5"
           style={{ borderTop: '1px solid #e8e0d0', paddingTop: 14, paddingBottom: 'calc(14px + env(safe-area-inset-bottom, 0px))' }}>
           <button
@@ -189,9 +256,7 @@ export default function PackageDetailPage({ params }: Props) {
     <div className="fixed inset-0 flex flex-col" style={{ background: '#FEFDFC', fontFamily: "Georgia, 'Times New Roman', serif" }}>
       <div className="flex-1 overflow-y-auto overflow-x-hidden" style={{ WebkitOverflowScrolling: 'touch', background: '#FEFDFC' }}>
 
-        {/* ═══════════════════════════════════════
-          MOBILE PHOTO — single active image
-          ═══════════════════════════════════════ */}
+        {/* MOBILE PHOTO */}
         <div className="sm:hidden">
           <div
             className="relative overflow-hidden"
@@ -232,9 +297,9 @@ export default function PackageDetailPage({ params }: Props) {
               </div>
             </div>
 
-            {pkg.duration && (
+            {duration && (
               <div className="absolute top-16 left-3 bg-[#304333] text-white text-xs font-semibold px-2.5 py-1 rounded-full z-10">
-                {pkg.duration}
+                {duration}
               </div>
             )}
 
@@ -269,9 +334,7 @@ export default function PackageDetailPage({ params }: Props) {
           </div>
         </div>
 
-        {/* ═══════════════════════════════════════
-          DESKTOP PHOTO GRID
-          ═══════════════════════════════════════ */}
+        {/* DESKTOP PHOTO GRID */}
         <div className="hidden sm:block pt-4">
           <div className="max-w-6xl mx-auto px-6 lg:px-12">
 
@@ -339,37 +402,35 @@ export default function PackageDetailPage({ params }: Props) {
             {/* ══ LEFT COLUMN ══ */}
             <div>
 
-              {/* Title + location */}
               <div className="pt-5 pb-1 sm:pt-6 text-center sm:text-left">
                 <h1 className="text-2xl sm:text-[28px] font-semibold text-[#304333] leading-tight mb-1">
                   {pkg.title}
                 </h1>
                 <p className="text-sm sm:text-base text-[#78716c] mb-2 flex items-center gap-1 justify-center sm:justify-start">
                   <MapPin size={13} /> {pkg.location.replace(/\s*\+\s*/g, ' → ')}
-                  {pkg.duration && <><span className="mx-1">·</span><Clock size={13} /> {pkg.duration}</>}
+                  {duration && <><span className="mx-1">·</span><Clock size={13} /> {duration}</>}
                 </p>
-                {pkg.dates && (
+                {nextDateFormatted && (
                   <p className="text-sm sm:text-base text-[#78716c] mb-2 flex items-center gap-1 justify-center sm:justify-start">
-                    <Calendar size={13} /> {pkg.dates}
+                    <Calendar size={13} /> Next departure: {nextDateFormatted}
                   </p>
                 )}
                 <div className="flex items-center justify-center sm:justify-start gap-1.5 mb-3">
                   <Star size={14} fill="#F5D06E" color="#304333" />
-                  <span className="text-sm font-semibold text-[#304333]">{pkg.rating}</span>
+                  <span className="text-sm font-semibold text-[#304333]">{rating}</span>
                 </div>
                 <p className="text-sm text-[#304333] leading-relaxed">
-                  {pkg.description}
+                  {pkg.description ?? 'No description provided yet.'}
                 </p>
               </div>
 
-              {/* What's included */}
-              {pkg.packageIncludes && pkg.packageIncludes.length > 0 && (
+              {pkg.amenities && pkg.amenities.length > 0 && (
                 <>
                   <Divider />
                   <div>
                     <h2 className="text-xl font-semibold text-[#304333] mb-4">What&apos;s included</h2>
                     <div className="flex flex-col gap-3">
-                      {pkg.packageIncludes.map((item) => (
+                      {pkg.amenities.map((item) => (
                         <div key={item} className="flex items-center gap-3">
                           <span className="text-sm text-[#304333]">{item}</span>
                         </div>
@@ -379,21 +440,14 @@ export default function PackageDetailPage({ params }: Props) {
                 </>
               )}
 
-              {/* Trip details */}
               <Divider />
               <div>
                 <h2 className="text-xl font-semibold text-[#304333] mb-4">Trip details</h2>
                 <div className="flex flex-col gap-3">
-                  {pkg.duration && (
+                  {duration && (
                     <div className="flex items-center gap-3">
                       <Clock size={16} color="#2c4a1e" strokeWidth={2} />
-                      <span className="text-sm text-[#304333]">{pkg.duration} itinerary</span>
-                    </div>
-                  )}
-                  {pkg.flightFrom && (
-                    <div className="flex items-center gap-3">
-                      <Plane size={16} color="#2c4a1e" strokeWidth={2} />
-                      <span className="text-sm text-[#304333]">Departs from {pkg.flightFrom}</span>
+                      <span className="text-sm text-[#304333]">{duration} itinerary</span>
                     </div>
                   )}
                   <div className="flex items-center gap-3">
@@ -402,8 +456,8 @@ export default function PackageDetailPage({ params }: Props) {
                   </div>
                 </div>
                 <p className="text-sm text-[#78716c] mt-4 leading-relaxed">
-                  This is a fixed-itinerary package — dates and route are pre-planned by our team, so there&apos;s
-                  no date picker here. Choose your group size and book directly.
+                  This is a fixed-itinerary package — dates and route are pre-planned by the operator, so
+                  you'll choose from their available departures when booking.
                 </p>
               </div>
 
@@ -416,11 +470,11 @@ export default function PackageDetailPage({ params }: Props) {
 
                   <div className="flex items-end gap-2 mb-4">
                     <span className="text-2xl font-semibold text-[#304333]">
-                      {pkg.price.replace(/[\d,]+/, String(Math.round(total)))}
+                      Ksh {total.toLocaleString()}
                     </span>
                     <div className="flex items-center gap-1 ml-auto">
                       <Star size={13} fill="#F5D06E" color="#304333" />
-                      <span className="text-sm font-semibold text-[#304333]">{pkg.rating}</span>
+                      <span className="text-sm font-semibold text-[#304333]">{rating}</span>
                     </div>
                   </div>
 
@@ -431,8 +485,8 @@ export default function PackageDetailPage({ params }: Props) {
                         <p className="text-sm font-semibold text-[#304333]">{pkg.location.replace(/\s*\+\s*/g, ' → ')}</p>
                       </div>
                       <div className="p-3" style={{ borderBottom: '1px solid #b0a898' }}>
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-[#304333] mb-0.5">Dates</p>
-                        <p className="text-sm font-semibold text-[#304333]">{pkg.dates ?? 'To be confirmed'}</p>
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-[#304333] mb-0.5">Next departure</p>
+                        <p className="text-sm font-semibold text-[#304333]">{nextDateFormatted ?? 'No dates available yet'}</p>
                       </div>
                       <div className="p-3 flex items-center justify-between cursor-pointer hover:bg-[#f9f5ef] transition-colors"
                         onClick={() => setShowGuestPanel(s => !s)}>
@@ -489,20 +543,21 @@ export default function PackageDetailPage({ params }: Props) {
 
                   <button
                     onClick={handleBook}
-                    className="w-full py-3.5 rounded-xl font-semibold text-sm text-white mb-3 transition-opacity hover:opacity-90"
+                    disabled={!nextDate}
+                    className="w-full py-3.5 rounded-xl font-semibold text-sm text-white mb-3 transition-opacity hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
                     style={{ background: 'linear-gradient(to right, #e8612a, #d44d1a)', border: 'none', cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}>
-                    Book
+                    {nextDate ? 'Book' : 'No dates available'}
                   </button>
                   <p className="text-xs text-center text-[#78716c] mb-4">You won&apos;t be charged yet</p>
 
                   <div className="flex flex-col gap-2.5">
                     <div className="flex justify-between text-sm">
-                      <span className="text-[#304333]">{pkg.price} × {guests} guest{guests > 1 ? 's' : ''}</span>
-                      <span className="text-[#304333]">{pkg.price.replace(/[\d,]+/, String(Math.round(total)))}</span>
+                      <span className="text-[#304333]">Ksh {basePrice.toLocaleString()} × {guests} guest{guests > 1 ? 's' : ''}</span>
+                      <span className="text-[#304333]">Ksh {total.toLocaleString()}</span>
                     </div>
                     <div className="flex justify-between pt-3" style={{ borderTop: '1px solid #e8e0d0' }}>
                       <span className="text-sm font-semibold text-[#304333]">Total</span>
-                      <span className="text-sm font-semibold text-[#304333]">{pkg.price.replace(/[\d,]+/, String(Math.round(total)))}</span>
+                      <span className="text-sm font-semibold text-[#304333]">Ksh {total.toLocaleString()}</span>
                     </div>
                   </div>
 
@@ -523,74 +578,76 @@ export default function PackageDetailPage({ params }: Props) {
                     <div className="w-1/2 flex flex-col items-center">
                       <div className="relative mb-3">
                         <div className="w-24 h-24 rounded-full flex items-center justify-center text-white text-4xl font-bold" style={{ background: '#2c4a1e' }}>
-                          {(pkg.operatorName ?? 'Erranza')[0]}
+                          {pkg.vendor.business_name[0]}
                         </div>
-                        <div className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-red-500 flex items-center justify-center">
-                          <Award size={14} color="white" />
-                        </div>
+                        {pkg.is_superhost && (
+                          <div className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-red-500 flex items-center justify-center">
+                            <Award size={14} color="white" />
+                          </div>
+                        )}
                       </div>
-                      <p className="text-xl font-bold text-[#304333] text-center">{pkg.operatorName ?? 'Erranza Travel'}</p>
+                      <p className="text-xl font-bold text-[#304333] text-center">{pkg.vendor.business_name}</p>
                       <p className="text-sm text-[#78716c]">Tour operator</p>
                     </div>
                     <div className="w-1/2 pl-4">
                       <div className="py-2.5" style={{ borderBottom: '1px solid #e8e0d0' }}>
-                        <p className="text-xl font-bold text-[#304333]">{pkg.operatorReviews ?? 0}</p>
+                        <p className="text-xl font-bold text-[#304333]">{pkg.reviews_count}</p>
                         <p className="text-xs text-[#78716c]">Reviews</p>
                       </div>
                       <div className="py-3" style={{ borderBottom: '1px solid #e8e0d0' }}>
-                        <p className="text-xl font-bold text-[#304333]">{pkg.rating} <span className="text-base">★</span></p>
+                        <p className="text-xl font-bold text-[#304333]">{rating} <span className="text-base">★</span></p>
                         <p className="text-xs text-[#78716c]">Rating</p>
                       </div>
                       <div className="py-2.5">
-                        <p className="text-xl font-bold text-[#304333]">{pkg.operatorYears ?? 3}</p>
+                        <p className="text-xl font-bold text-[#304333]">{pkg.years_hosting}</p>
                         <p className="text-xs text-[#78716c]">Yrs operating</p>
                       </div>
                     </div>
                   </div>
                 </div>
 
-                {pkg.operatorLanguages && (
+                {languages && (
                   <div className="flex items-center gap-2.5 mt-4">
                     <Globe size={18} strokeWidth={1.5} color="#304333" />
-                    <p className="text-sm text-[#304333]">Speaks {pkg.operatorLanguages}</p>
-                  </div>
-                )}
-                {pkg.operatorLoves && (
-                  <div className="flex items-center gap-2.5 mt-3">
-                    <Heart size={18} strokeWidth={1.5} color="#304333" />
-                    <p className="text-sm text-[#304333]">Loves: {pkg.operatorLoves}</p>
+                    <p className="text-sm text-[#304333]">Speaks {languages}</p>
                   </div>
                 )}
               </div>
 
-              {pkg.guideName && (
-                <div className="flex-1">
-                  <p className="text-base font-semibold text-[#304333] mb-3">Tour guide</p>
-                  <div className="flex items-center gap-3 mb-6">
-                    <div className="w-10 h-10 rounded-full bg-[#2c4a1e] flex items-center justify-center text-white text-sm font-bold">
-                      {pkg.guideName[0]}
+              <div className="flex-1">
+                {pkg.cohost && (
+                  <>
+                    <p className="text-base font-semibold text-[#304333] mb-3">Tour guide</p>
+                    <div className="flex items-center gap-3 mb-6">
+                      <div className="w-10 h-10 rounded-full bg-[#2c4a1e] flex items-center justify-center text-white text-sm font-bold">
+                        {pkg.cohost.name[0]}
+                      </div>
+                      <p className="text-sm font-semibold text-[#304333]">{pkg.cohost.name}</p>
                     </div>
-                    <p className="text-sm font-semibold text-[#304333]">{pkg.guideName}</p>
-                  </div>
+                  </>
+                )}
 
-                  <p className="text-base font-semibold text-[#304333] mb-2">Host details</p>
+                <p className="text-base font-semibold text-[#304333] mb-2">Host details</p>
+                {pkg.response_rate !== null ? (
                   <p className="text-sm text-[#304333] mb-6">
-                    Response rate: {pkg.operatorResponseRate ?? 98}%<br />
-                    Responds {pkg.operatorResponseTime ?? 'within a few hours'}
+                    Response rate: {pkg.response_rate}%<br />
+                    Responds {responseTime}
                   </p>
+                ) : (
+                  <p className="text-sm text-[#78716c] mb-6">No message history yet.</p>
+                )}
 
-                  <button
-                    className="px-8 py-3.5 rounded-xl text-sm font-semibold text-[#304333] transition-colors hover:bg-[#ede8df]"
-                    style={{ background: '#F1F5E4', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
-                    Message tour operator
-                  </button>
+                <button
+                  className="px-8 py-3.5 rounded-xl text-sm font-semibold text-[#304333] transition-colors hover:bg-[#ede8df]"
+                  style={{ background: '#F1F5E4', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
+                  Message tour operator
+                </button>
 
-                  <div className="flex items-start gap-3 mt-6 pt-6" style={{ borderTop: '1px solid #e8e0d0' }}>
-                    <Shield size={20} strokeWidth={1.5} color="#78716c" />
-                    <p className="text-xs text-[#78716c]">To help protect your payment, always communicate and pay through Erranza.</p>
-                  </div>
+                <div className="flex items-start gap-3 mt-6 pt-6" style={{ borderTop: '1px solid #e8e0d0' }}>
+                  <Shield size={20} strokeWidth={1.5} color="#78716c" />
+                  <p className="text-xs text-[#78716c]">To help protect your payment, always communicate and pay through Erranza.</p>
                 </div>
-              )}
+              </div>
             </div>
 
             <div className="sm:hidden">
@@ -599,79 +656,75 @@ export default function PackageDetailPage({ params }: Props) {
                   <div className="w-1/2 flex flex-col items-center">
                     <div className="relative mb-1.5">
                       <div className="w-24 h-24 rounded-full flex items-center justify-center text-white text-3xl font-bold" style={{ background: '#2c4a1e' }}>
-                        {(pkg.operatorName ?? 'Erranza')[0]}
+                        {pkg.vendor.business_name[0]}
                       </div>
-                      <div className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-red-500 flex items-center justify-center">
-                        <Award size={12} color="white" />
-                      </div>
+                      {pkg.is_superhost && (
+                        <div className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-red-500 flex items-center justify-center">
+                          <Award size={12} color="white" />
+                        </div>
+                      )}
                     </div>
-                    <p className="text-base font-bold text-[#304333] text-center">{pkg.operatorName ?? 'Erranza Travel'}</p>
+                    <p className="text-base font-bold text-[#304333] text-center">{pkg.vendor.business_name}</p>
                     <p className="text-xs text-[#78716c]">Tour operator</p>
                   </div>
                   <div className="w-1/2 pl-3">
                     <div className="py-2" style={{ borderBottom: '1px solid #e8e0d0' }}>
-                      <p className="text-base font-bold text-[#304333]">{pkg.operatorReviews ?? 0}</p>
+                      <p className="text-base font-bold text-[#304333]">{pkg.reviews_count}</p>
                       <p className="text-xs text-[#78716c]">Reviews</p>
                     </div>
                     <div className="py-2" style={{ borderBottom: '1px solid #e8e0d0' }}>
-                      <p className="text-base font-bold text-[#304333]">{pkg.rating} <span className="text-sm">★</span></p>
+                      <p className="text-base font-bold text-[#304333]">{rating} <span className="text-sm">★</span></p>
                       <p className="text-xs text-[#78716c]">Rating</p>
                     </div>
                     <div className="py-2">
-                      <p className="text-base font-bold text-[#304333]">{pkg.operatorYears ?? 3}</p>
+                      <p className="text-base font-bold text-[#304333]">{pkg.years_hosting}</p>
                       <p className="text-xs text-[#78716c]">Yrs operating</p>
                     </div>
                   </div>
                 </div>
               </div>
 
-              {pkg.operatorLanguages && (
-                <div className="flex items-center gap-2.5 mb-3">
-                  <Globe size={16} strokeWidth={1.5} color="#304333" />
-                  <p className="text-sm text-[#304333]">Speaks {pkg.operatorLanguages}</p>
-                </div>
-              )}
-              {pkg.operatorLoves && (
+              {languages && (
                 <div className="flex items-center gap-2.5 mb-5">
-                  <Heart size={16} strokeWidth={1.5} color="#304333" />
-                  <p className="text-sm text-[#304333]">Loves: {pkg.operatorLoves}</p>
+                  <Globe size={16} strokeWidth={1.5} color="#304333" />
+                  <p className="text-sm text-[#304333]">Speaks {languages}</p>
                 </div>
               )}
 
-              {pkg.guideName && (
+              {pkg.cohost && (
                 <>
                   <p className="text-base font-semibold text-[#304333] mb-3">Tour guide</p>
                   <div className="flex items-center gap-3 mb-5">
                     <div className="w-10 h-10 rounded-full bg-[#2c4a1e] flex items-center justify-center text-white text-sm font-bold">
-                      {pkg.guideName[0]}
+                      {pkg.cohost.name[0]}
                     </div>
-                    <p className="text-sm font-semibold text-[#304333]">{pkg.guideName}</p>
-                  </div>
-
-                  <p className="text-base font-semibold text-[#304333] mb-2">Host details</p>
-                  <p className="text-sm text-[#304333] mb-5">
-                    Response rate: {pkg.operatorResponseRate ?? 98}%<br />
-                    Responds {pkg.operatorResponseTime ?? 'within a few hours'}
-                  </p>
-
-                  <button
-                    className="w-full py-3.5 rounded-xl text-sm font-semibold text-[#304333] transition-colors hover:bg-[#ede8df] mb-5"
-                    style={{ background: '#F1F5E4', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
-                    Message tour operator
-                  </button>
-
-                  <div className="flex items-start gap-3">
-                    <Shield size={18} strokeWidth={1.5} color="#78716c" />
-
-                    <p className="text-xs text-[#78716c]">To help protect your payment, always communicate and pay through Erranza.</p>
+                    <p className="text-sm font-semibold text-[#304333]">{pkg.cohost.name}</p>
                   </div>
                 </>
               )}
+
+              <p className="text-base font-semibold text-[#304333] mb-2">Host details</p>
+              {pkg.response_rate !== null ? (
+                <p className="text-sm text-[#304333] mb-5">
+                  Response rate: {pkg.response_rate}%<br />
+                  Responds {responseTime}
+                </p>
+              ) : (
+                <p className="text-sm text-[#78716c] mb-5">No message history yet.</p>
+              )}
+
+              <button
+                className="w-full py-3.5 rounded-xl text-sm font-semibold text-[#304333] transition-colors hover:bg-[#ede8df] mb-5"
+                style={{ background: '#F1F5E4', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
+                Message tour operator
+              </button>
+
+              <div className="flex items-start gap-3">
+                <Shield size={18} strokeWidth={1.5} color="#78716c" />
+                <p className="text-xs text-[#78716c]">To help protect your payment, always communicate and pay through Erranza.</p>
+              </div>
             </div>
           </div>
-
-
-
 
           {/* More packages */}
           {otherPackages.length > 0 && (
@@ -689,11 +742,11 @@ export default function PackageDetailPage({ params }: Props) {
                         className="relative flex-shrink-0 w-[45vw] h-[130px] rounded-2xl overflow-hidden active:scale-95 transition-transform"
                         style={{ background: '#e8e0d0' }}
                       >
-                        <Image src={p.image} alt={p.title} fill className="object-cover" sizes="45vw" />
+                        <Image src={p.images[0]?.url ?? FALLBACK_IMAGE} alt={p.title} fill className="object-cover" sizes="45vw" />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                         <div className="absolute bottom-0 left-0 right-0 p-2 text-left">
                           <p className="text-white text-xs font-semibold truncate">{p.title}</p>
-                          <p className="text-white/70 text-[10px]">{p.price}</p>
+                          <p className="text-white/70 text-[10px]">Ksh {Math.round(Number(p.price)).toLocaleString()}</p>
                         </div>
                       </button>
                     ))}
@@ -707,11 +760,11 @@ export default function PackageDetailPage({ params }: Props) {
                       className="relative h-[130px] rounded-2xl overflow-hidden active:scale-95 transition-transform"
                       style={{ background: '#e8e0d0' }}
                     >
-                      <Image src={p.image} alt={p.title} fill className="object-cover" sizes="50vw" />
+                      <Image src={p.images[0]?.url ?? FALLBACK_IMAGE} alt={p.title} fill className="object-cover" sizes="50vw" />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                       <div className="absolute bottom-0 left-0 right-0 p-2 text-left">
                         <p className="text-white text-xs font-semibold truncate">{p.title}</p>
-                        <p className="text-white/70 text-[10px]">{p.price}</p>
+                        <p className="text-white/70 text-[10px]">Ksh {Math.round(Number(p.price)).toLocaleString()}</p>
                       </div>
                     </button>
                   ))}
@@ -733,7 +786,7 @@ export default function PackageDetailPage({ params }: Props) {
           <div>
             <div className="flex items-baseline gap-1">
               <span className="text-base font-semibold text-[#304333]">
-                {pkg.price.replace(/[\d,]+/, String(Math.round(total)))}
+                Ksh {total.toLocaleString()}
               </span>
               <span className="text-sm text-[#78716c]">total</span>
             </div>
@@ -746,9 +799,10 @@ export default function PackageDetailPage({ params }: Props) {
           </div>
           <button
             onClick={handleBook}
-            className="px-7 py-3 rounded-xl font-semibold text-sm text-white transition-opacity hover:opacity-90"
+            disabled={!nextDate}
+            className="px-7 py-3 rounded-xl font-semibold text-sm text-white transition-opacity hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
             style={{ background: 'linear-gradient(to right, #e8612a, #d44d1a)', border: 'none', cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}>
-            Book
+            {nextDate ? 'Book' : 'Unavailable'}
           </button>
         </div>
       </div>

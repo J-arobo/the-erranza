@@ -13,7 +13,12 @@ class VendorBookingController extends Controller
         $vendor = $request->attributes->get('vendor');
 
         $bookings = Booking::whereHas('listing', fn ($q) => $q->where('vendor_id', $vendor->id))
-            ->with(['listing:id,title,vendor_id', 'traveller:id,name,email', 'travelers'])
+            ->with([
+                'listing:id,title,category,vendor_id,cancellation_policy,custom_cancellation_text',
+                'listing.images',
+                'traveller:id,name,email',
+                'travelers',
+            ])
             ->latest()
             ->get();
 
@@ -24,11 +29,10 @@ class VendorBookingController extends Controller
     {
         $this->authorizeOwnership($request, $booking);
 
-        $booking->load(['listing', 'traveller', 'travelers', 'messages.sender']);
+        $booking->load(['listing', 'listing.images', 'traveller', 'travelers', 'messages.sender']);
 
         return response()->json(['booking' => $booking]);
     }
-
     public function accept(Request $request, Booking $booking)
     {
         $this->authorizeOwnership($request, $booking);

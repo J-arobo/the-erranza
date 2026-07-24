@@ -25,8 +25,13 @@ use App\Http\Controllers\Api\Vendor\VendorMessageController;
 use App\Http\Controllers\Api\Vendor\VendorNotificationController;
 use App\Http\Controllers\Api\Vendor\VendorProfileController;
 use App\Http\Controllers\Api\Vendor\VendorReviewController;
+use App\Http\Controllers\Api\Vendor\VendorVerificationController;
+use App\Http\Controllers\Api\VendorRegistrationController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Api\Vendor\VendorStatsController;
+use App\Http\Controllers\Api\Vendor\VendorTeamMemberController;
+
 
 Route::prefix('auth')->group(function () {
     Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:6,1');
@@ -49,11 +54,16 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/bookings/{booking}', [BookingController::class, 'show']);
     Route::post('/bookings/{booking}/cancel', [BookingController::class, 'cancel']);
     Route::post('/bookings/{booking}/messages', [MessageController::class, 'store']);
+    Route::get('/messages', [MessageController::class, 'index']);
+    Route::get('/bookings/{booking}/messages', [MessageController::class, 'show']);
     Route::post('/bookings/{booking}/review', [ReviewController::class, 'store']);
+    Route::post('/become-partner', [VendorRegistrationController::class, 'store']);
 });
 
 Route::prefix('vendor')->middleware(['auth:sanctum', 'vendor'])->group(function () {
     Route::get('/me', [VendorProfileController::class, 'show']);
+    Route::patch('/onboarding', [VendorProfileController::class, 'completeOnboarding']);
+    Route::post('/verification-submissions', [VendorVerificationController::class, 'store']);
 
     Route::apiResource('listings', VendorListingController::class);
 
@@ -74,6 +84,18 @@ Route::prefix('vendor')->middleware(['auth:sanctum', 'vendor'])->group(function 
     Route::get('/notifications', [VendorNotificationController::class, 'index']);
     Route::post('/notifications/{notification}/read', [VendorNotificationController::class, 'markRead']);
     Route::post('/notifications/read-all', [VendorNotificationController::class, 'markAllRead']);
+    //vendor stats
+    Route::get('/stats', [VendorStatsController::class, 'index']);
+    //Vendor profile
+    Route::put('/me', [VendorProfileController::class, 'update']);
+
+    Route::get('/verification-submissions', [VendorVerificationController::class, 'index']);
+    Route::patch('/verification-submissions/{submission}', [VendorVerificationController::class, 'update']);
+
+    Route::post('/team-members', [VendorTeamMemberController::class, 'store']);
+    Route::delete('/team-members/{member}', [VendorTeamMemberController::class, 'destroy']);
+
+
 });
 
 Route::prefix('admin')->middleware(['auth:sanctum', 'admin'])->group(function () {

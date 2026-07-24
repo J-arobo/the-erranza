@@ -1,5 +1,4 @@
 'use client'
-// src/app/listings/stays/[id]/page.tsx
 
 import { use, useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
@@ -13,8 +12,8 @@ import {
   MapPin, Camera, Globe, Calendar,
   CalendarX2, Key, ShieldHalf,
 } from 'lucide-react'
-import { stays } from '@/data/stays'
 import { useAuth } from '@/context/AuthContext'
+import { apiFetch, apiErrorMessage } from '@/lib/api'
 import FooterSection from '@/components/FooterSection'
 
 const MapComponent = dynamic(() => import('@/components/MapComponent'), {
@@ -49,102 +48,62 @@ const AMENITY_ICONS: Record<string, React.ReactNode> = {
 }
 const getIcon = (label: string) => AMENITY_ICONS[label] ?? <Check size={22} strokeWidth={1.5} />
 
-const DETAILS: Record<string, any> = {
-  '1': {
-    type: 'Entire apartment', lat: -1.2637, lng: 36.8030,
-    guests: 2, bedrooms: 1, beds: 1, baths: 1,
-    hostName: 'Sarah', cohostName: 'James',
-    hostBio: "Hi! I'm Sarah, a Nairobi local who loves helping travellers discover the best of the city.",
-    hostSpeaks: 'English and Swahili', hostObsessed: 'Coffee and travel',
-    isSuperhost: true, yearsHosting: 3, responseRate: 100, responseTime: 'within an hour',
-    description: "A beautifully designed, light-filled apartment in the heart of Westlands.Perfect for couples or solo travellers looking to explore Nairobi in style. The apartment features floor-to-ceiling windows with city views, a fully equipped kitchen, and high-speed WiFi throughout. The apartment features floor-to-ceiling windows with city views, a fully equipped kitchen, and high-speed WiFi throughout\n\nYou're walking distance from the best restaurants, cafes and shopping that Nairobi has to offer. Quick access to the CBD and major business districts makes this perfect for both leisure and business travellers.",
-    images: [
-      'https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?w=1200&q=80',
-      'https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?w=800&q=80',
-      'https://images.unsplash.com/photo-1560185893-a55cbc8c57e8?w=800&q=80',
-      'https://images.unsplash.com/photo-1484154218962-a197022b5858?w=800&q=80',
-      'https://images.unsplash.com/photo-1556020685-ae41abfc9365?w=800&q=80',
-    ],
-    amenities: ['High-speed WiFi', 'Air conditioning', 'Smart TV', 'Free parking', 'Full kitchen', 'Pool access', 'Hot water', 'Gym access', 'Washing machine', 'Balcony'],
-    highlights: [
-      { icon: '🏠', title: 'Outdoor entertainment', desc: 'The sun deck and pool area are great for relaxation.' },
-      { icon: '❄️', title: 'Designed for staying cool', desc: 'Beat the heat with the AC and ceiling fan.' },
-      { icon: '🔑', title: 'Self check-in', desc: 'Check yourself in with the lockbox.' },
-    ],
-    reviews: [
-      { name: 'Amina', date: '2 weeks ago', rating: 5, avatar: 'A', years: '2 years on Erranza', text: "An amazing stay from start to finish. The apartment is exactly as described — spacious, spotless, and beautifully put together. Sarah was incredibly helpful throughout." },
-      { name: 'David', date: '1 month ago', rating: 5, avatar: 'D', years: '1 year on Erranza', text: "Perfect location, perfect host. Will definitely be back next time I'm in Nairobi. The WiFi was super fast and the kitchen had everything I needed." },
-      { name: 'Grace', date: '2 months ago', rating: 4, avatar: 'G', years: '3 years on Erranza', text: "Lovely apartment in a great area. Very clean and well maintained. The city views are stunning especially at night. Would definitely recommend." },
-      { name: 'James', date: '3 months ago', rating: 5, avatar: 'J', years: '5 years on Erranza', text: "One of the best experiences I've had. Sarah is incredibly responsive and the apartment exceeded all expectations. Perfect for business travel." },
-    ],
-  },
-  '2': {
-    type: 'Entire villa', lat: -4.2950, lng: 39.5823,
-    guests: 6, bedrooms: 3, beds: 4, baths: 2,
-    hostName: 'James', cohostName: 'Fatuma',
-    hostBio: "Born and raised on the Kenyan coast, I know every hidden gem Diani has to offer.",
-    hostSpeaks: 'English and Swahili', hostObsessed: 'The ocean and sunsets',
-    isSuperhost: true, yearsHosting: 5, responseRate: 98, responseTime: 'within a few hours',
-    description: "Stunning beachfront villa with panoramic Indian Ocean views.\n\nFall asleep to the sound of waves and wake up to breathtaking sunrises. The villa features a private pool, direct beach access, and a fully staffed kitchen.\n\nPerfect for families or groups seeking a luxury coastal retreat.",
-    images: [
-      'https://images.unsplash.com/photo-1499793983690-e29da59ef1c2?w=1200&q=80',
-      'https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=800&q=80',
-      'https://images.unsplash.com/photo-1582610116397-edb72a8b8a6a?w=800&q=80',
-      'https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=800&q=80',
-      'https://images.unsplash.com/photo-1571896349842-33c89424de2d?w=800&q=80',
-    ],
-    amenities: ['Private pool', 'Beachfront access', 'WiFi', 'Air conditioning', 'Smart TV', 'Full kitchen', 'Free parking', 'Hot water'],
-    highlights: [
-      { icon: '🌊', title: 'Beachfront', desc: 'Direct access to a private beach.' },
-      { icon: '🏊', title: 'Private pool', desc: 'Exclusive pool for guests only.' },
-      { icon: '✅', title: 'Free cancellation', desc: 'Cancel before 3 days for a full refund.' },
-    ],
-    reviews: [
-      { name: 'Sophia', date: '1 week ago', rating: 5, avatar: 'S', years: '2 years on Erranza', text: "Absolutely breathtaking villa. Waking up to the ocean every morning was a dream." },
-      { name: 'Omar', date: '3 weeks ago', rating: 5, avatar: 'O', years: '4 years on Erranza', text: "Best holiday we've ever had. The private pool is incredible and the beach is just steps away." },
-    ],
-  },
-  '3': {
-    type: 'Private room in hotel', lat: -4.0435, lng: 39.6682,
-    guests: 2, bedrooms: 1, beds: 1, baths: 1,
-    hostName: 'Fatuma', cohostName: 'Ali',
-    hostBio: "Mombasa born and bred. Passionate about showcasing the beauty of the coast.",
-    hostSpeaks: 'English, Swahili and Arabic', hostObsessed: 'Coastal cuisine',
-    isSuperhost: false, yearsHosting: 2, responseRate: 92, responseTime: 'within a day',
-    description: "A stylish beachfront room with sweeping ocean views at one of Mombasa's finest boutique hotels.\n\nComplimentary breakfast is included, and you'll have access to all hotel facilities including the infinity pool and spa.",
-    images: [
-      'https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=1200&q=80',
-      'https://images.unsplash.com/photo-1582610116397-edb72a8b8a6a?w=800&q=80',
-      'https://images.unsplash.com/photo-1499793983690-e29da59ef1c2?w=800&q=80',
-      'https://images.unsplash.com/photo-1571896349842-33c89424de2d?w=800&q=80',
-      'https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=800&q=80',
-    ],
-    amenities: ['Breakfast included', 'Infinity pool', 'Spa access', 'WiFi', 'Air conditioning', 'Hot water', 'Beach access'],
-    highlights: [
-      { icon: '🌅', title: 'Ocean views', desc: 'Wake up to the Indian Ocean every day.' },
-      { icon: '🍳', title: 'Breakfast included', desc: 'Complimentary daily breakfast for 2.' },
-      { icon: '♾️', title: 'Infinity pool', desc: 'Exclusive access to the rooftop pool.' },
-    ],
-    reviews: [
-      { name: 'Lena', date: '2 weeks ago', rating: 5, avatar: 'L', years: '1 year on Erranza', text: "Absolutely loved this place. The views are stunning and the breakfast was delicious every morning." },
-    ],
-  },
+const CANCELLATION_POLICIES: Record<string, { label: string; description: string }> = {
+  flexible: { label: 'Flexible', description: 'Full refund up to 24 hours before check-in.' },
+  moderate: { label: 'Moderate', description: 'Full refund up to 5 days before check-in, 50% refund after that.' },
+  strict: { label: 'Strict', description: 'Full refund up to 14 days before check-in. No refund after that.' },
+  custom: { label: 'Custom', description: 'Refund terms set by the host.' },
 }
 
-const DEFAULT: any = {
-  type: 'Entire rental unit', lat: -1.2864, lng: 36.8172,
-  guests: 2, bedrooms: 1, beds: 1, baths: 1,
-  hostName: 'Host', cohostName: '',
-  hostBio: 'Experienced host committed to making your stay memorable.',
-  hostSpeaks: 'English', hostObsessed: 'Travel',
-  isSuperhost: false, yearsHosting: 1, responseRate: 95, responseTime: 'within a few hours',
-  description: 'A wonderful place to stay in Kenya. Comfortable, clean and well-located.',
-  images: [], amenities: ['WiFi', 'Air conditioning', 'Hot water', 'Kitchen'],
-  highlights: [
-    { icon: '📍', title: 'Great location', desc: 'Close to local attractions.' },
-    { icon: '🔑', title: 'Easy check-in', desc: 'Flexible check-in times.' },
-  ],
-  reviews: [],
+function formatDuration(minutes: number): string {
+  if (minutes < 60) return `${Math.round(minutes)}m`
+  const hours = Math.floor(minutes / 60)
+  const mins = Math.round(minutes % 60)
+  return mins > 0 ? `within ${hours}h ${mins}m` : `within ${hours}h`
+}
+function formatRelative(iso: string): string {
+  const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000)
+  if (days < 1) return 'Today'
+  if (days < 7) return `${days} day${days !== 1 ? 's' : ''} ago`
+  if (days < 30) return `${Math.floor(days / 7)} week${Math.floor(days / 7) !== 1 ? 's' : ''} ago`
+  if (days < 365) return `${Math.floor(days / 30)} month${Math.floor(days / 30) !== 1 ? 's' : ''} ago`
+  return `${Math.floor(days / 365)} year${Math.floor(days / 365) !== 1 ? 's' : ''} ago`
+}
+
+const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?w=1200&q=80'
+
+type ApiListingDetail = {
+  id: number
+  title: string
+  location: string
+  price: string
+  description: string | null
+  min_guests: number | null
+  max_guests: number | null
+  bedrooms: number | null
+  beds: number | null
+  bathrooms: number | null
+  lat: string | null
+  lng: string | null
+  cancellation_policy: 'flexible' | 'moderate' | 'strict' | 'custom'
+  custom_cancellation_text: string | null
+  amenities: string[] | null
+  images: { url: string }[]
+  reviews: { id: number; rating: number; comment: string; created_at: string; traveller: { name: string } }[]
+  reviews_count: number
+  reviews_avg_rating: string | null
+  is_superhost: boolean
+  years_hosting: number
+  response_rate: number | null
+  avg_response_minutes: number | null
+  cohost: { name: string } | null
+  vendor: {
+    id: number
+    business_name: string
+    bio: string | null
+    languages: string[] | null
+    verification_status: string
+  }
 }
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
@@ -257,7 +216,6 @@ function DesktopCalendar({ checkIn, checkOut, onSelect }: {
   const [startYear, setStartYear] = useState(today.getFullYear())
   const [startMonth, setStartMonth] = useState(today.getMonth())
 
-  // Second month = startMonth + 1
   const secondMonth = startMonth === 11 ? 0 : startMonth + 1
   const secondYear = startMonth === 11 ? startYear + 1 : startYear
 
@@ -286,7 +244,6 @@ function DesktopCalendar({ checkIn, checkOut, onSelect }: {
 
     return (
       <div style={{ flex: 1 }}>
-        {/* Month header */}
         <div className="flex items-center justify-between mb-4">
           {isLeft ? (
             <button onClick={prevMonth}
@@ -307,14 +264,12 @@ function DesktopCalendar({ checkIn, checkOut, onSelect }: {
           ) : <div className="w-8" />}
         </div>
 
-        {/* Day headers */}
         <div className="grid grid-cols-7 mb-1">
           {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map((d, i) => (
             <div key={i} className="text-center py-1" style={{ fontSize: 12, fontWeight: 600, color: '#78716c' }}>{d}</div>
           ))}
         </div>
 
-        {/* Day cells */}
         <div className="grid grid-cols-7" style={{ rowGap: 2 }}>
           {cells.map((d, i) => {
             if (!d) return <div key={i} />
@@ -373,7 +328,6 @@ function DesktopCalendar({ checkIn, checkOut, onSelect }: {
     <div style={{ borderRadius: 16, padding: '24px', background: '#FEFDFC' }}>
       <div style={{ display: 'flex', gap: 32 }}>
         {renderMonth(startYear, startMonth, true)}
-        {/* Thin vertical divider */}
         <div style={{ width: 1, background: '#e8e0d0', flexShrink: 0 }} />
         {renderMonth(secondYear, secondMonth, false)}
       </div>
@@ -391,8 +345,9 @@ export default function StayDetailPage({ params }: Props) {
   const router = useRouter()
   const { isWishlisted, addToWishlist, removeFromWishlist, isLoggedIn } = useAuth()
 
-  const base = stays.find(s => s.id === id)
-  const detail = DETAILS[id] ?? { ...DEFAULT, images: base ? [base.image] : [] }
+  const [listing, setListing] = useState<ApiListingDetail | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [notFound, setNotFound] = useState(false)
 
   const [activeImg, setActiveImg] = useState(0)
   const [showGallery, setShowGallery] = useState(false)
@@ -413,21 +368,12 @@ export default function StayDetailPage({ params }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const photoGridRef = useRef<HTMLDivElement>(null)
 
-  const wishlisted = isWishlisted(id)
-  const images = detail.images.length > 0 ? detail.images : ['https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?w=1200&q=80']
-  const title = base?.title ?? 'Cosy stay in Kenya'
-  const location = base?.location ?? 'Kenya'
-  const price = base?.price ?? 'Ksh 8,500'
-  const rating = base?.rating ?? 4.8
-  const reviewCount = detail.reviews.length || 89
-  const priceNum = parseInt(price.replace(/[^0-9]/g, '')) || 8500
-  const calNights = (checkIn && checkOut) ? Math.max(1, Math.round((checkOut.getTime() - checkIn.getTime()) / 86400000)) : nights
-  const total = priceNum * calNights
-  const fee = Math.round(total * 0.12)
-
-  const totalGuests = adults + children
-  const guestLabel = `${totalGuests} guest${totalGuests !== 1 ? 's' : ''}${infants > 0 ? `, ${infants} infant${infants !== 1 ? 's' : ''}` : ''}`
-
+  useEffect(() => {
+    apiFetch<{ listing: ApiListingDetail }>(`/listings/${id}`)
+      .then(({ listing }) => setListing(listing))
+      .catch(() => setNotFound(true))
+      .finally(() => setLoading(false))
+  }, [id])
 
   useEffect(() => {
     const el = scrollRef.current
@@ -449,6 +395,73 @@ export default function StayDetailPage({ params }: Props) {
     return () => { document.body.style.overflow = '' }
   }, [showDescModal])
 
+  if (loading) {
+    return (
+      <div className="fixed inset-0 flex items-center justify-center" style={{ background: '#FEFDFC' }}>
+        <div className="w-8 h-8 rounded-full border-2 border-[#304333] border-t-transparent animate-spin" />
+      </div>
+    )
+  }
+
+  if (notFound || !listing) {
+    return (
+      <div className="fixed inset-0 flex flex-col items-center justify-center gap-4" style={{ background: '#FEFDFC' }}>
+        <p className="text-sm text-[#78716c]">This stay could not be found.</p>
+        <button onClick={() => router.push('/destinations/stays')}
+          className="text-sm font-semibold text-[#304333] underline">
+          Back to stays
+        </button>
+      </div>
+    )
+  }
+
+  const title = listing.title
+  const location = listing.location
+  const price = `Ksh ${Math.round(Number(listing.price)).toLocaleString()}`
+  const priceNum = Math.round(Number(listing.price))
+  const rating = listing.reviews_avg_rating ? Number(listing.reviews_avg_rating) : 4.5
+  const reviewCount = listing.reviews_count
+
+  const detail = {
+    guests: listing.max_guests ?? listing.min_guests ?? 2,
+    bedrooms: listing.bedrooms ?? 1,
+    beds: listing.beds ?? 1,
+    baths: listing.bathrooms ?? 1,
+    hostName: listing.vendor.business_name,
+    isSuperhost: listing.is_superhost,
+    yearsHosting: listing.years_hosting,
+    hostSpeaks: listing.vendor.languages?.length ? listing.vendor.languages.join(', ') : null,
+    cohostName: listing.cohost?.name ?? null,
+    responseRate: listing.response_rate,
+    responseTime: listing.avg_response_minutes !== null ? formatDuration(listing.avg_response_minutes) : null,
+    description: listing.description ?? 'No description provided yet.',
+    images: listing.images.length > 0 ? listing.images.map(i => i.url) : [FALLBACK_IMAGE],
+    amenities: listing.amenities ?? [],
+    reviews: listing.reviews.map(r => ({
+      name: r.traveller.name,
+      date: formatRelative(r.created_at),
+      rating: r.rating,
+      avatar: r.traveller.name[0]?.toUpperCase() ?? '?',
+      text: r.comment,
+    })),
+    lat: listing.lat != null && isFinite(Number(listing.lat)) ? Number(listing.lat) : -1.2864,
+    lng: listing.lng != null && isFinite(Number(listing.lng)) ? Number(listing.lng) : 36.8172,
+  }
+
+  const cancellationPolicy = CANCELLATION_POLICIES[listing.cancellation_policy] ?? CANCELLATION_POLICIES.moderate
+  const cancellationDescription = listing.cancellation_policy === 'custom'
+    ? (listing.custom_cancellation_text || cancellationPolicy.description)
+    : cancellationPolicy.description
+
+  const wishlisted = isWishlisted(id)
+  const images = detail.images
+  const calNights = (checkIn && checkOut) ? Math.max(1, Math.round((checkOut.getTime() - checkIn.getTime()) / 86400000)) : nights
+  const total = priceNum * calNights
+  const fee = Math.round(total * 0.12)
+
+  const totalGuests = adults + children
+  const guestLabel = `${totalGuests} guest${totalGuests !== 1 ? 's' : ''}${infants > 0 ? `, ${infants} infant${infants !== 1 ? 's' : ''}` : ''}`
+
   function fmtDate(d: Date | null) {
     if (!d) return null
     return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
@@ -462,7 +475,6 @@ export default function StayDetailPage({ params }: Props) {
     else if (date <= checkIn) { setCheckIn(date); setCheckOut(null) }
     else setCheckOut(date)
   }
-  {/* Side calendar for the scrollable panel */ }
   function handleSidebarCalSelect(date: Date) {
     if (sidebarActiveField === 'checkin' || !checkIn || (checkIn && checkOut)) {
       setCheckIn(date); setCheckOut(null); setSidebarActiveField('checkout')
@@ -475,8 +487,8 @@ export default function StayDetailPage({ params }: Props) {
   function handleWishlist(e: React.MouseEvent) {
     e.stopPropagation()
     if (!isLoggedIn) { router.push('/login'); return }
-    const listing = { id, location, title, price, rating, image: images[0], badge: base?.badge }
-    if (wishlisted) removeFromWishlist(id); else addToWishlist(listing)
+    const wishlistItem = { id, location, title, price, rating, image: images[0] }
+    if (wishlisted) removeFromWishlist(id); else addToWishlist(wishlistItem)
   }
 
   if (showGallery) {
@@ -573,7 +585,7 @@ export default function StayDetailPage({ params }: Props) {
       <div ref={scrollRef} className="flex-1 overflow-y-auto overflow-x-hidden "
         style={{ WebkitOverflowScrolling: 'touch', paddingBottom: 0, background: '#FEFDFC' }}>
 
-        {/* ══ MOBILE photo carousel — completely unchanged ══ */}
+        {/* ══ MOBILE photo carousel ══ */}
         <div className="sm:hidden relative" style={{ aspectRatio: '4/3', width: '100%' }}>
           <Image src={images[activeImg]} alt={title} fill sizes="100vw"
             className="object-cover" onClick={() => setShowGallery(true)} />
@@ -613,7 +625,7 @@ export default function StayDetailPage({ params }: Props) {
             style={{ background: 'transparent', border: 'none', WebkitTapHighlightColor: 'transparent' }} />
         </div>
 
-        {/* ══ DESKTOP photo section — unchanged ══ */}
+        {/* ══ DESKTOP photo section ══ */}
         <div className="hidden sm:block" ref={photoGridRef}>
           <div className="max-w-7xl mx-auto px-6 lg:px-8 xl:px-20">
             <div className="flex items-center justify-between pt-4 pb-3">
@@ -635,7 +647,6 @@ export default function StayDetailPage({ params }: Props) {
               </div>
             </div>
 
-            {/* Desktop (lg+): 1 large left + 2×2 right */}
             <div className="hidden md:block relative rounded-2xl overflow-hidden" style={{ height: 480 }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 3, height: '100%' }}>
                 <div className="relative overflow-hidden group cursor-pointer"
@@ -661,7 +672,6 @@ export default function StayDetailPage({ params }: Props) {
               </button>
             </div>
 
-            {/* Tablet (sm–lg) */}
             <div className="md:hidden relative rounded-2xl overflow-hidden" style={{ height: 320 }}>
               <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 3, height: '100%' }}>
                 {images.slice(0, 3).map((img: string, i: number) => (
@@ -692,16 +702,12 @@ export default function StayDetailPage({ params }: Props) {
 
               {/* ── Title + meta ── */}
               <div className="pt-5 pb-1 sm:pt-6 sm:px-0" style={{ ...MOB_PAD }}>
-                {/* Mobile: centered; Desktop: left-aligned */}
                 <h1 className="text-2xl sm:text-[28px] font-semibold text-[#304333] leading-tight mb-1 text-center sm:text-left">{title}</h1>
-                {/* Desktop: type · location on one line */}
-                <p className="hidden sm:block text-base text-[#304333] mb-1">{detail.type} · {location}</p>
-                {/* Desktop: guests · bedrooms · beds · baths */}
+                <p className="hidden sm:block text-base text-[#304333] mb-1">{location}</p>
                 <p className="hidden sm:block text-sm text-[#304333] mb-2">
                   {detail.guests} guests · {detail.bedrooms} bedroom{detail.bedrooms !== 1 ? 's' : ''} · {detail.beds} bed{detail.beds !== 1 ? 's' : ''} · {detail.baths} bath{detail.baths !== 1 ? 's' : ''}
                 </p>
-                {/* Mobile: all on one line */}
-                <p className="sm:hidden text-base text-[#78716c] mb-2 text-center">{detail.type} · {location}</p>
+                <p className="sm:hidden text-base text-[#78716c] mb-2 text-center">{location}</p>
                 <p className="sm:hidden text-sm text-[#78716c] mb-2 text-center">
                   {detail.guests} guests · {detail.bedrooms} bedroom{detail.bedrooms !== 1 ? 's' : ''} · {detail.beds} bed{detail.beds !== 1 ? 's' : ''} · {detail.baths} bath{detail.baths !== 1 ? 's' : ''}
                 </p>
@@ -736,30 +742,16 @@ export default function StayDetailPage({ params }: Props) {
                 </div>
                 <div>
                   <p className="text-base font-semibold text-[#304333]">Hosted by {detail.hostName}</p>
-                  <p className="text-sm text-[#78716c]">{detail.yearsHosting} year{detail.yearsHosting !== 1 ? 's' : ''} hosting</p>
+                  <p className="text-sm text-[#78716c]">
+                    {detail.yearsHosting > 0 ? `${detail.yearsHosting} year${detail.yearsHosting !== 1 ? 's' : ''} hosting` : 'New host'}
+                  </p>
                 </div>
-              </div>
-
-              <Divider />
-
-              {/* ── Highlights ── */}
-              <div className="flex flex-col gap-5 pb-1 sm:px-0" style={{ ...MOB_PAD }}>
-                {detail.highlights.map(({ icon, title: ht, desc }: any) => (
-                  <div key={ht} className="flex items-start gap-4">
-                    <span className="text-2xl flex-shrink-0 mt-0.5">{icon}</span>
-                    <div>
-                      <p className="text-sm font-semibold text-[#304333]">{ht}</p>
-                      <p className="text-sm text-[#78716c] mt-0.5">{desc}</p>
-                    </div>
-                  </div>
-                ))}
               </div>
 
               <Divider />
 
               {/* ── Description ── */}
               <div className="pb-1 sm:px-0" style={{ ...MOB_PAD }}>
-                {/* Desktop: inline expand with Show more button styled */}
                 <div className="hidden sm:block">
                   <p className="text-base text-[#304333] leading-relaxed whitespace-pre-line"
                     style={!showFullDesc ? { display: '-webkit-box', WebkitLineClamp: 5, WebkitBoxOrient: 'vertical' as any, overflow: 'hidden' } : {}}>
@@ -770,10 +762,7 @@ export default function StayDetailPage({ params }: Props) {
                     style={{ background: '#F1F5E4', cursor: 'pointer', WebkitTapHighlightColor: 'transparent', border: 'none', color: '#304333', fontFamily: 'inherit' }}>
                     {showFullDesc ? 'Show less' : 'Show more'}
                   </button>
-
-
                 </div>
-                {/* Mobile: clamped + full-screen modal */}
                 <div className="sm:hidden">
                   <p className="text-base text-[#304333] leading-relaxed whitespace-pre-line"
                     style={{ display: '-webkit-box', WebkitLineClamp: 5, WebkitBoxOrient: 'vertical' as any, overflow: 'hidden' }}>
@@ -789,13 +778,10 @@ export default function StayDetailPage({ params }: Props) {
 
               <Divider />
 
-              {/* ── Amenities ──
-                  Desktop: 2-column grid (like Airbnb)
-                  Mobile: single column (unchanged)              */}
+              {/* ── Amenities ── */}
               <div className="pb-1 sm:px-0" style={{ ...MOB_PAD }}>
                 <h2 className="text-xl font-semibold text-[#304333] mb-5">What this place offers</h2>
 
-                {/* Desktop 2-col grid */}
                 <div className="hidden sm:grid grid-cols-2 gap-x-8 gap-y-4">
                   {(showAllAmen ? detail.amenities : detail.amenities.slice(0, 8)).map((label: string) => (
                     <div key={label} className="flex items-center gap-3">
@@ -804,7 +790,6 @@ export default function StayDetailPage({ params }: Props) {
                     </div>
                   ))}
                 </div>
-                {/* Mobile single col */}
                 <div className="sm:hidden flex flex-col gap-4">
                   {(showAllAmen ? detail.amenities : detail.amenities.slice(0, 6)).map((label: string) => (
                     <div key={label} className="flex items-center gap-4">
@@ -820,23 +805,15 @@ export default function StayDetailPage({ params }: Props) {
                     style={{ background: '#F1F5E4', cursor: 'pointer', WebkitTapHighlightColor: 'transparent', border: 'none', color: '#304333', fontFamily: 'inherit' }}>
                     {showAllAmen ? 'Show less' : `Show all ${detail.amenities.length} amenities`}
                   </button>
-
-
-
                 )}
               </div>
-
-              {/* Divider /> */}
             </div>
 
-            {/* ══ DESKTOP BOOKING SIDEBAR ══
-                Airbnb style: shows total for X nights when dates selected,
-                otherwise per-night price. No nights stepper on desktop.   */}
+            {/* ══ DESKTOP BOOKING SIDEBAR ══ */}
             <div className="hidden md:block">
               <div className="sticky top-24 mt-6">
                 <div className="rounded-2xl shadow-xl p-6 bg-white" style={{ border: '1px solid #e8e0d0' }}>
 
-                  {/* Price header — total for nights when dates set, else per night */}
                   {checkIn && checkOut ? (
                     <div className="mb-4">
                       <div className="flex items-baseline gap-2">
@@ -863,7 +840,6 @@ export default function StayDetailPage({ params }: Props) {
                     </div>
                   )}
 
-                  {/* Date + guests picker */}
                   <div className="relative mb-4">
                     <div className="rounded-xl overflow-hidden" style={{ border: '1px solid #b0a898' }}>
                       <div className="grid grid-cols-2" style={{ borderBottom: '1px solid #b0a898' }}>
@@ -895,7 +871,6 @@ export default function StayDetailPage({ params }: Props) {
 
                     </div>
 
-                    {/* Popover */}
                     {showSidebarCal && (
                       <div className="absolute bg-white rounded-xl shadow-xl z-50 p-4"
                         style={{ top: 60, marginTop: 0, border: '1px solid #e8e0d0', right: 0, width: 660 }}>
@@ -965,23 +940,19 @@ export default function StayDetailPage({ params }: Props) {
 
                   </div>
 
-
-                  {/* Reserve button */}
                   <button onClick={() => {
                     const params = new URLSearchParams()
                     if (checkIn) params.set('checkIn', checkIn.toISOString())
                     if (checkOut) params.set('checkOut', checkOut.toISOString())
                     router.push(`/listings/stays/${id}/book?${params.toString()}`)
                   }}
-
                     className="w-full py-3.5 rounded-xl font-semibold text-sm text-white mb-3 transition-opacity hover:opacity-90"
                     style={{ background: 'linear-gradient(to right, #e8612a, #d44d1a)', border: 'none', cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}>
                     Reserve
                   </button>
                   <p className="text-xs text-center text-[#78716c] mb-4">You won't be charged yet</p>
 
-                  {/* Price breakdown — only when dates are selected */}
-                  {checkIn && checkOut && (
+                  {checkIn && checkOut ? (
                     <div className="flex flex-col gap-2.5">
                       <div className="flex justify-between text-sm">
                         <span className="text-[#304333] underline cursor-pointer">{price} × {calNights} night{calNights !== 1 ? 's' : ''}</span>
@@ -996,10 +967,7 @@ export default function StayDetailPage({ params }: Props) {
                         <span className="text-sm font-semibold text-[#304333]">Ksh {(total + fee).toLocaleString()}</span>
                       </div>
                     </div>
-                  )}
-
-                  {/* No dates: show static placeholder breakdown */}
-                  {!checkIn && (
+                  ) : (
                     <div className="flex flex-col gap-2.5">
                       <div className="flex justify-between text-sm">
                         <span className="text-[#78716c] underline cursor-pointer">{price} × {nights} nights</span>
@@ -1027,11 +995,7 @@ export default function StayDetailPage({ params }: Props) {
 
         <div className="sm:px-6 md:px-8 xl:px-20 max-w-7xl mx-auto">
 
-
-          {/* Zone 2 */}
-          {/* ── Calendar ──
-                  Desktop: 2-month side-by-side 
-                  Mobile: single month (unchanged)               */}
+          {/* ── Calendar ── */}
           <div className="pb-1 sm:px-0" style={{ ...MOB_PAD }}>
             <h2 className="text-xl font-semibold text-[#304333] mb-1">
               {checkIn && checkOut
@@ -1047,11 +1011,9 @@ export default function StayDetailPage({ params }: Props) {
               <p className="text-sm text-[#78716c] mb-4">Add your travel dates for exact pricing</p>
             )}
 
-            {/* Desktop: 2-month calendar */}
             <div className="hidden sm:block mt-4">
               <DesktopCalendar checkIn={checkIn} checkOut={checkOut} onSelect={handleSidebarCalSelect} />
             </div>
-            {/* Mobile: single month */}
             <div className="sm:hidden mt-4">
               <MiniCalendar checkIn={checkIn} checkOut={checkOut} onSelect={handleSidebarCalSelect} />
             </div>
@@ -1079,10 +1041,7 @@ export default function StayDetailPage({ params }: Props) {
 
           <Divider />
 
-
-          {/* ── Reviews ──
-                  Desktop: 2-column grid
-                  Mobile: horizontal scroll (unchanged)          */}
+          {/* ── Reviews ── */}
           {detail.reviews.length > 0 && (
             <div className="pb-1">
               <div className="flex items-center gap-2 mb-5 sm:px-0" style={{ ...MOB_PAD }}>
@@ -1092,9 +1051,8 @@ export default function StayDetailPage({ params }: Props) {
                 <span className="text-xl font-semibold text-[#304333]">{reviewCount} reviews</span>
               </div>
 
-              {/* Desktop: 2-col grid */}
               <div className="hidden sm:grid grid-cols-2 gap-6">
-                {detail.reviews.map((rev: any, i: number) => (
+                {detail.reviews.map((rev, i: number) => (
                   <div key={i} className="flex flex-col gap-3">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-full bg-[#2c4a1e] flex items-center justify-center text-white text-sm font-semibold flex-shrink-0">
@@ -1102,7 +1060,6 @@ export default function StayDetailPage({ params }: Props) {
                       </div>
                       <div>
                         <p className="text-sm font-semibold text-[#304333]">{rev.name}</p>
-                        <p className="text-xs text-[#78716c]">{rev.years}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
@@ -1117,18 +1074,13 @@ export default function StayDetailPage({ params }: Props) {
                       style={{ display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                       {rev.text}
                     </p>
-                    <button className="text-sm font-semibold text-[#304333] underline text-left"
-                      style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
-                      Show more
-                    </button>
                   </div>
                 ))}
               </div>
 
-              {/* Mobile: horizontal scroll */}
               <div className="sm:hidden overflow-x-auto -mx-4 px-4" style={{ scrollbarWidth: 'none' }}>
                 <div className="flex gap-4" style={{ width: 'max-content' }}>
-                  {detail.reviews.map((rev: any, i: number) => (
+                  {detail.reviews.map((rev, i: number) => (
                     <div key={i} className="flex-shrink-0 p-4 rounded-2xl bg-white"
                       style={{ width: 300, border: '1px solid #e8e0d0' }}>
                       <div className="flex items-center gap-3 mb-3">
@@ -1137,7 +1089,6 @@ export default function StayDetailPage({ params }: Props) {
                         </div>
                         <div>
                           <p className="text-sm font-semibold text-[#304333]">{rev.name}</p>
-                          <p className="text-xs text-[#78716c]">{rev.years}</p>
                         </div>
                       </div>
                       <div className="flex items-center gap-2 mb-2">
@@ -1152,8 +1103,6 @@ export default function StayDetailPage({ params }: Props) {
                         style={{ display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                         {rev.text}
                       </p>
-                      <button className="text-xs font-semibold mt-2 underline text-[#304333]"
-                        style={{ background: 'none', border: 'none', cursor: 'pointer' }}>Show more</button>
                     </div>
                   ))}
                 </div>
@@ -1163,19 +1112,15 @@ export default function StayDetailPage({ params }: Props) {
 
           <Divider />
 
-          {/* ── Meet your host ──
-                  Desktop: host card (left) + co-hosts/details (right */}
+          {/* ── Meet your host ── */}
           <div className="pb-1 sm:px-0" style={{ ...MOB_PAD }}>
             <h2 className="text-xl font-semibold text-[#304333] mb-5">Meet your host</h2>
 
-            {/* Desktop layout: 2-col */}
             <div className='hidden sm:flex gap-10 items-start'>
-              {/* Left column: host card */}
               <div className="flex-shrink-0" style={{ width: 450 }}>
                 <div className="rounded-2xl p-5" style={{ border: '1px solid #e8e0d0', background: 'white' }}>
                   <div className="flex items-center">
 
-                    {/* Left half: avatar + name */}
                     <div className="w-1/2 flex flex-col items-center">
                       <div className="relative mb-3">
                         <div className="w-24 h-24 rounded-full bg-[#2c4a1e] flex items-center justify-center text-white text-4xl font-bold">
@@ -1191,7 +1136,6 @@ export default function StayDetailPage({ params }: Props) {
                       <p className="text-sm text-[#78716c]">Host</p>
                     </div>
 
-                    {/* Right half: stats */}
                     <div className="w-1/2 pl-4">
                       <div className="py-2.5" style={{ borderBottom: '1px solid #e8e0d0' }}>
                         <p className="text-xl font-bold text-[#304333]">{reviewCount}</p>
@@ -1215,15 +1159,8 @@ export default function StayDetailPage({ params }: Props) {
                     <p className="text-sm text-[#304333]">Speaks {detail.hostSpeaks}</p>
                   </div>
                 )}
-                {detail.hostObsessed && (
-                  <div className="flex items-center gap-2.5 mt-3">
-                    <Heart size={18} strokeWidth={1.5} color="#304333" />
-                    <p className="text-sm text-[#304333]">I&apos;m obsessed with: {detail.hostObsessed}</p>
-                  </div>
-                )}
               </div>
 
-              {/* Right column: co-hosts + host details + message button */}
               <div className="flex-1">
                 {detail.cohostName && (
                   <div className="mb-6">
@@ -1238,8 +1175,14 @@ export default function StayDetailPage({ params }: Props) {
                 )}
                 <div className="mb-6">
                   <p className="text-base font-semibold text-[#304333] mb-2">Host details</p>
-                  <p className="text-sm text-[#304333]">Response rate: {detail.responseRate}%</p>
-                  <p className="text-sm text-[#304333]">Responds {detail.responseTime}</p>
+                  {detail.responseRate !== null ? (
+                    <>
+                      <p className="text-sm text-[#304333]">Response rate: {detail.responseRate}%</p>
+                      <p className="text-sm text-[#304333]">Responds {detail.responseTime}</p>
+                    </>
+                  ) : (
+                    <p className="text-sm text-[#78716c]">No message history yet.</p>
+                  )}
                 </div>
                 <button className="px-8 py-3.5 rounded-xl text-sm font-semibold transition-colors hover:bg-[#ede8df]"
                   style={{ background: '#F1F5E4', border: 'none', cursor: 'pointer', fontFamily: 'inherit', color: '#304333' }}>
@@ -1253,15 +1196,10 @@ export default function StayDetailPage({ params }: Props) {
 
             </div>
 
-
-
-
-            {/* Mobile layout: stacked (unchanged) */}
             <div className="sm:hidden">
               <div className="bg-white rounded-2xl p-4 mb-4" style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.12)', maxWidth: 380 }}>
                 <div className="flex items-center">
 
-                  {/* Left half: avatar + name */}
                   <div className="w-1/2 flex flex-col items-center">
                     <div className="relative mb-1.5">
                       <div className="w-24 h-24 rounded-full bg-[#2c4a1e] flex items-center justify-center text-white text-3xl font-bold">
@@ -1277,7 +1215,6 @@ export default function StayDetailPage({ params }: Props) {
                     <p className="text-xs text-[#78716c]">Host</p>
                   </div>
 
-                  {/* Right half: stats */}
                   <div className="w-1/2 pl-3">
                     <div className="py-2" style={{ borderBottom: '1px solid #e8e0d0' }}>
                       <p className="text-base font-bold text-[#304333]">{reviewCount}</p>
@@ -1296,24 +1233,15 @@ export default function StayDetailPage({ params }: Props) {
                 </div>
               </div>
 
-
-              {/* What the host likes/obsession 8*/}
               {detail.hostSpeaks && (
                 <div className="flex items-center gap-2.5 mt-4 mb-2">
                   <Globe size={18} strokeWidth={1.5} color="#304333" />
                   <p className="text-sm text-[#304333]">Speaks {detail.hostSpeaks}</p>
                 </div>
               )}
-              {detail.hostObsessed && (
-                <div className="flex items-center gap-2.5 mb-5">
-                  <Heart size={18} strokeWidth={1.5} color="#304333" />
-                  <p className="text-sm text-[#304333]">I&apos;m obsessed with: {detail.hostObsessed}</p>
-                </div>
-              )}
 
               <Divider />
 
-              {/*Co host details */}
               {detail.cohostName && (
                 <div className="mb-5">
                   <p className="text-base font-semibold text-[#304333] mb-3">Co-hosts</p>
@@ -1327,8 +1255,14 @@ export default function StayDetailPage({ params }: Props) {
               )}
               <div className="mb-5">
                 <p className="text-base font-semibold text-[#304333] mb-2">Host details</p>
-                <p className="text-sm text-[#304333]">Response rate: {detail.responseRate}%</p>
-                <p className="text-sm text-[#304333]">Responds {detail.responseTime}</p>
+                {detail.responseRate !== null ? (
+                  <>
+                    <p className="text-sm text-[#304333]">Response rate: {detail.responseRate}%</p>
+                    <p className="text-sm text-[#304333]">Responds {detail.responseTime}</p>
+                  </>
+                ) : (
+                  <p className="text-sm text-[#78716c]">No message history yet.</p>
+                )}
               </div>
               <button className="w-full py-3.5 rounded-xl text-sm font-semibold transition-colors hover:bg-[#ede8df] mb-5"
                 style={{ background: '#F1F5E4', border: 'none', cursor: 'pointer', fontFamily: 'inherit', color: '#304333' }}>
@@ -1344,16 +1278,13 @@ export default function StayDetailPage({ params }: Props) {
 
           <Divider />
 
-          {/* ── Things to know ──
-                  Desktop: 3-column with icon above title (Airbnb style)
-                  Mobile: stacked rows with icon + chevron (unchanged)    */}
+          {/* ── Things to know ── */}
           <div className="pb-1 sm:px-0" style={{ ...MOB_PAD }}>
             <h2 className="text-xl font-semibold text-[#304333] mb-6">Things to know</h2>
 
-            {/* Desktop 3-col */}
             <div className="hidden sm:grid grid-cols-3 gap-8">
               {[
-                { icon: <CalendarX2 size={32} strokeWidth={1.5} />, title: 'Cancellation policy', items: ['Cancel before check-in for a partial refund.', 'After that, this reservation is non-refundable.', "Review this host's full policy for details."] },
+                { icon: <CalendarX2 size={32} strokeWidth={1.5} />, title: 'Cancellation policy', items: [`${cancellationPolicy.label}: ${cancellationDescription}`] },
                 { icon: <Key size={32} strokeWidth={1.5} />, title: 'House rules', items: ['Check-in after 2:00 PM', 'Checkout before 11:00 AM', `${detail.guests} guests maximum`] },
                 { icon: <ShieldHalf size={32} strokeWidth={1.5} />, title: 'Safety & property', items: ['Smoke alarm not reported', 'Exterior security cameras on property', 'Carbon monoxide alarm'] },
               ].map(({ icon, title: st, items }) => (
@@ -1361,22 +1292,17 @@ export default function StayDetailPage({ params }: Props) {
                   <div className="mb-4 text-[#222]">{icon}</div>
                   <p className="text-base font-semibold text-[#222] mb-3">{st}</p>
                   {items.map(item => <p key={item} className="text-sm text-[#78716c] mb-0.5">{item}</p>)}
-                  <button className="text-sm font-semibold text-[#222] underline mt-3"
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Learn more</button>
                 </div>
               ))}
             </div>
 
-
-            {/* Mobile stacked rows */}
             <div className="sm:hidden">
               {[
-                { icon: <Calendar size={22} strokeWidth={1.5} />, title: 'Cancellation policy', items: ['Cancel before check-in for a partial refund.', 'After that, this reservation is non-refundable.', "Review this host's full policy for details."] },
+                { icon: <Calendar size={22} strokeWidth={1.5} />, title: 'Cancellation policy', items: [`${cancellationPolicy.label}: ${cancellationDescription}`] },
                 { icon: <Home size={22} strokeWidth={1.5} />, title: 'House rules', items: ['Check-in after 2:00 PM', 'Checkout before 11:00 AM', `${detail.guests} guests maximum`] },
                 { icon: <Shield size={22} strokeWidth={1.5} />, title: 'Safety & property', items: ['Smoke alarm not reported', 'Exterior security cameras on property', 'Carbon monoxide alarm'] },
               ].map(({ icon, title: st, items }, idx, arr) => (
                 <div key={st} className="flex items-start gap-4 py-4" style={idx < arr.length - 1 ? { borderBottom: '1px solid #e8e0d0' } : {}}>
-
                   <span className="text-[#304333] flex-shrink-0 mt-0.5">{icon}</span>
                   <div className="flex-1">
                     <p className="text-sm font-semibold text-[#304333] mb-1">{st}</p>
@@ -1403,19 +1329,15 @@ export default function StayDetailPage({ params }: Props) {
                   <p className="text-xs text-[#78716c]">Vacation rentals</p>
                 </button>
               ))}
-
             </div>
           </div>
 
         </div>
 
-        {/* Footer Section */}
         <FooterSection />
       </div>
 
-
-
-      {/* ══ MOBILE STICKY BOTTOM BAR — completely unchanged ══ */}
+      {/* ══ MOBILE STICKY BOTTOM BAR ══ */}
       <div className="md:hidden flex-shrink-0 bg-white flex items-center justify-between px-5"
         style={{ borderTop: '1px solid #e8e0d0', paddingTop: 14, paddingBottom: 'calc(14px + env(safe-area-inset-bottom, 0px))', zIndex: 50 }}>
         <div>

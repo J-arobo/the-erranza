@@ -1,13 +1,18 @@
 'use client'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus, X } from 'lucide-react'
-import { ArrowLeft } from 'lucide-react'
-import { VENDOR_LISTINGS, VendorListing } from '@/data/vendor'
+import { Plus, X, ArrowLeft } from 'lucide-react'
+import { apiFetch, apiErrorMessage } from '@/lib/api'
 import PhotoManager from '@/components/vendor/PhotoManager'
 
 const CATEGORIES = ['Safari', 'Stays', 'Experiences', 'Packages']
-const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1547471080-7cc2caa01a7e?w=400&q=80'
+
+function parseMoney(v: string): number | null {
+  const cleaned = v.replace(/[^0-9.]/g, '')
+  if (!cleaned) return null
+  const num = Number(cleaned)
+  return Number.isFinite(num) ? num : null
+}
 
 export default function NewListingPage() {
   const router = useRouter()
@@ -20,6 +25,8 @@ export default function NewListingPage() {
   const [description, setDescription] = useState('')
   const [amenities, setAmenities] = useState<string[]>([])
   const [amenityInput, setAmenityInput] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
 
   // ── Itinerary ──
   const [itinerary, setItinerary] = useState<{ day: number; title: string; description: string }[]>([])
@@ -33,13 +40,13 @@ export default function NewListingPage() {
   // ── Group size & duration ──
   const [minGuests, setMinGuests] = useState('')
   const [maxGuests, setMaxGuests] = useState('')
-  const [durationOptions, setDurationOptions] = useState<{ id: string; label: string; price?: string }[]>([])
+  const [durationOptions, setDurationOptions] = useState<{ id: string; label: string; price: string }[]>([])
   const [durationLabel, setDurationLabel] = useState('')
   const [durationPrice, setDurationPrice] = useState('')
 
   // ── Tiered pricing ──
   const [childPrice, setChildPrice] = useState('')
-  const [groupDiscounts, setGroupDiscounts] = useState<{ id: string; minGuests: number; discountPercent: number }[]>([])
+  const [groupDiscounts, setGroupDiscounts] = useState<{ id: string; min_guests: number; discount_percent: number }[]>([])
   const [discountMinGuests, setDiscountMinGuests] = useState('')
   const [discountPercent, setDiscountPercent] = useState('')
 
@@ -75,7 +82,7 @@ export default function NewListingPage() {
   function addDurationOption() {
     if (!durationLabel.trim()) return
     setDurationOptions(d => [...d, {
-      id: `do_${Date.now()}`, label: durationLabel.trim(), price: durationPrice.trim() || undefined,
+      id: `do_${Date.now()}`, label: durationLabel.trim(), price: durationPrice.trim(),
     }])
     setDurationLabel(''); setDurationPrice('')
   }
@@ -86,7 +93,7 @@ export default function NewListingPage() {
   function addGroupDiscount() {
     if (!discountMinGuests.trim() || !discountPercent.trim()) return
     setGroupDiscounts(g => [...g, {
-      id: `gd_${Date.now()}`, minGuests: Number(discountMinGuests), discountPercent: Number(discountPercent),
+      id: `gd_${Date.now()}`, min_guests: Number(discountMinGuests), discount_percent: Number(discountPercent),
     }])
     setDiscountMinGuests(''); setDiscountPercent('')
   }
@@ -94,34 +101,40 @@ export default function NewListingPage() {
     setGroupDiscounts(g => g.filter(x => x.id !== id))
   }
 
-  function handleSubmit(status: 'draft' | 'active') {
+  async function handleSubmit(status: 'draft' | 'active') {
     if (!canSubmit) return
-    const finalImages = images.length ? images : [FALLBACK_IMAGE]
-    const newListing: VendorListing = {
-      id: `vl${VENDOR_LISTINGS.length + 1}_${Date.now()}`,
-      title: title.trim(),
-      location: location.trim(),
-      price: price.trim(),
-      image: finalImages[0],
-      images: finalImages,
-      status,
-      bookings: 0,
-      rating: 0,
-      earnings: 'Ksh 0',
-      category,
-      description: description.trim(),
-      amenities,
-      excluded,
-      itinerary,
-      minGuests: minGuests ? Number(minGuests) : undefined,
-      maxGuests: maxGuests ? Number(maxGuests) : undefined,
-      durationOptions,
-      childPrice: childPrice.trim() || undefined,
-      groupDiscounts,
+
+    setSaving(true)
+    setError('')
+    try {
+      const { listing } = await apiFetch<{ listing: { id: number } }>('/vendor/listings', {
+        method: 'POST',
+        body: JSON.stringify({
+          title: title.trim(),
+          category,
+          location: location.trim(),
+          price: parseMoney(price),
+          description: description.trim() || null,
+          amenities,
+          excluded,
+          status,
+          min_guests: minGuests ? Number(minGuests) : null,
+          max_guests: maxGuests ? Number(maxGuests) : null,
+          child_price: childPrice.trim() ? parseMoney(childPrice) : null,
+          images: images.map(url => ({ url })),
+          itinerary,
+          duration_options: durationOptions.map(d => ({
+            label: d.label, price: d.price.trim() ? parseMoney(d.price) : null,
+          })),
+          group_discounts: groupDiscounts.map(({ min_guests, discount_percent }) => ({ min_guests, discount_percent })),
+        }),
+      })
+
+      router.push(`/vendor/listings/${listing.id}`)
+    } catch (err) {
+      setError(apiErrorMessage(err))
+      setSaving(false)
     }
-    // No backend yet — mutate the shared in-memory list so it shows up immediately.
-    VENDOR_LISTINGS.push(newListing)
-    router.push('/vendor/listings')
   }
 
   return (
@@ -133,6 +146,12 @@ export default function NewListingPage() {
 
       <h1 className="text-2xl font-bold text-[#1a1a1a] mb-1">New listing</h1>
       <p className="text-sm text-gray-500 mb-6">Fill in the details below to create a new listing.</p>
+
+      {error && (
+        <div className="mb-4 px-4 py-3 rounded-xl bg-red-50 text-red-600 text-sm">
+          {error}
+        </div>
+      )}
 
       <div className="flex flex-col gap-5">
         <div>
@@ -342,7 +361,7 @@ export default function NewListingPage() {
         <div>
           <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">Base price (per adult)</label>
           <input value={price} onChange={(e) => setPrice(e.target.value)}
-            placeholder="e.g. Ksh 45,000"
+            placeholder="e.g. 45000"
             className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm
                        outline-none focus:border-[#2c4a1e] transition-colors" />
         </div>
@@ -350,7 +369,7 @@ export default function NewListingPage() {
         <div>
           <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">Child price</label>
           <input value={childPrice} onChange={(e) => setChildPrice(e.target.value)}
-            placeholder="e.g. Ksh 22,500 (optional)"
+            placeholder="e.g. 22500 (optional)"
             className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm
                        outline-none focus:border-[#2c4a1e] transition-colors" />
           <p className="text-xs text-gray-400 mt-1.5">Leave blank to charge the adult price for children too.</p>
@@ -376,9 +395,9 @@ export default function NewListingPage() {
             <div className="flex flex-col gap-2">
               {groupDiscounts.map((g) => (
                 <div key={g.id} className="flex items-center justify-between gap-3 p-3 rounded-xl border border-gray-200">
-                  <span className="text-sm text-[#1a1a1a]">{g.minGuests}+ guests</span>
+                  <span className="text-sm text-[#1a1a1a]">{g.min_guests}+ guests</span>
                   <div className="flex items-center gap-3 flex-shrink-0">
-                    <span className="text-sm font-semibold text-[#1a1a1a]">{g.discountPercent}% off</span>
+                    <span className="text-sm font-semibold text-[#1a1a1a]">{g.discount_percent}% off</span>
                     <button onClick={() => removeGroupDiscount(g.id)}>
                       <X size={14} color="#888" />
                     </button>
@@ -392,21 +411,21 @@ export default function NewListingPage() {
         <div className="flex gap-3 pt-2">
           <button
             onClick={() => handleSubmit('draft')}
-            disabled={!canSubmit}
+            disabled={!canSubmit || saving}
             className="flex-1 border border-[#1a1a1a] text-[#1a1a1a] py-3 rounded-xl
                        font-semibold text-sm hover:bg-gray-50 transition-colors
                        disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            Save as draft
+            {saving ? 'Saving…' : 'Save as draft'}
           </button>
           <button
             onClick={() => handleSubmit('active')}
-            disabled={!canSubmit}
+            disabled={!canSubmit || saving}
             className="flex-1 bg-[#2c4a1e] text-white py-3 rounded-xl
                        font-semibold text-sm hover:bg-[#3d6b28] transition-colors
                        disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            Publish listing
+            {saving ? 'Saving…' : 'Publish listing'}
           </button>
         </div>
       </div>

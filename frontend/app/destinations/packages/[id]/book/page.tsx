@@ -1,9 +1,9 @@
 'use client'
-import { use, useState } from 'react'
+import { use, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Image from 'next/image'
 import { ArrowLeft, X, ChevronRight, Shield, Star } from 'lucide-react'
-import { packages } from '@/data/packages'
+import { apiFetch, apiErrorMessage } from '@/lib/api'
 
 type Props = {
   params: Promise<{ id: string }>
@@ -11,15 +11,31 @@ type Props = {
 
 // 2 steps: review → confirm & pay (no "message the guide" — packages have no single operator)
 type Step = 'review' | 'confirm'
-
 const STEPS: Step[] = ['review', 'confirm']
+const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1547471080-7cc2caa01a7e?w=400&q=80'
+
+type ApiListingDetail = {
+  id: number
+  title: string
+  price: string
+  images: { url: string }[]
+  reviews_count: number
+  departures: { id: number; date: string; capacity: number; booked: number }[]
+}
+
+function formatDate(iso: string) {
+  return new Date(iso).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })
+}
 
 export default function PackageBookingPage({ params }: Props) {
   const { id } = use(params)
   const router = useRouter()
   const searchParams = useSearchParams()
 
-  const pkg = packages.find(p => p.id === id)
+  const [pkg, setPkg] = useState<ApiListingDetail | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [notFound, setNotFound] = useState(false)
+  const [selectedDeparture, setSelectedDeparture] = useState<string | null>(null)
 
   const [step, setStep] = useState<Step>('review')
   const [payMode, setPayMode] = useState<'full' | 'instalments'>('full')
@@ -29,9 +45,31 @@ export default function PackageBookingPage({ params }: Props) {
   const [children, setChildren] = useState(() => Number(searchParams.get('children')) || 0)
   const [infants, setInfants] = useState(() => Number(searchParams.get('infants')) || 0)
   const [pets, setPets] = useState(() => Number(searchParams.get('pets')) || 0)
+  const [submitting, setSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState('')
   const guests = adults + children
 
-  if (!pkg) {
+  useEffect(() => {
+    apiFetch<{ listing: ApiListingDetail }>(`/listings/${id}`)
+      .then(({ listing }) => {
+        setPkg(listing)
+        const today = new Date().toISOString().slice(0, 10)
+        const upcoming = listing.departures.filter(d => d.date >= today).sort((a, b) => a.date.localeCompare(b.date))
+        if (upcoming[0]) setSelectedDeparture(upcoming[0].date)
+      })
+      .catch(() => setNotFound(true))
+      .finally(() => setLoading(false))
+  }, [id])
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center h-screen gap-4 bg-white">
+        <div className="w-8 h-8 rounded-full border-2 border-[#2c4a1e] border-t-transparent animate-spin" />
+      </div>
+    )
+  }
+
+  if (notFound || !pkg) {
     return (
       <div className="flex flex-col items-center justify-center h-screen gap-4 bg-white">
         <span className="text-5xl">🔍</span>
@@ -44,16 +82,41 @@ export default function PackageBookingPage({ params }: Props) {
     )
   }
 
+  const today = new Date().toISOString().slice(0, 10)
+  const upcomingDepartures = pkg.departures.filter(d => d.date >= today).sort((a, b) => a.date.localeCompare(b.date))
+
   const stepIndex = STEPS.indexOf(step)
-  const basePrice = parseFloat(pkg.price.replace(/[^0-9.]/g, '')) || 100
+  const basePrice = Math.round(Number(pkg.price))
   const totalPrice = basePrice * guests
   const insurancePrice = totalPrice * 0.12
   const finalTotal = insurance ? totalPrice + insurancePrice : totalPrice
+  const packageImage = pkg.images[0]?.url ?? FALLBACK_IMAGE
 
-  function goNext() {
-    if (step === 'review') setStep('confirm')
+  async function goNext() {
+    if (step === 'review') { setStep('confirm'); return }
     if (step === 'confirm') {
-      router.push(`/destinations/packages/${id}/book/success`)
+      if (!selectedDeparture) {
+        setSubmitError('Please select a departure date first.')
+        return
+      }
+
+      setSubmitting(true)
+      setSubmitError('')
+      try {
+        await apiFetch('/bookings', {
+          method: 'POST',
+          body: JSON.stringify({
+            listing_id: pkg!.id,
+            guests,
+            check_in: selectedDeparture,
+          }),
+        })
+        router.push(`/destinations/packages/${id}/book/success`)
+      } catch (err) {
+        setSubmitError(apiErrorMessage(err))
+      } finally {
+        setSubmitting(false)
+      }
     }
   }
 
@@ -62,19 +125,18 @@ export default function PackageBookingPage({ params }: Props) {
     if (step === 'confirm') setStep('review')
   }
 
-  // ── Summary card — image/title/rating, fixed dates, guests w/ Change, price, cancellation ──
+  // ── Summary card — image/title/rating, departure picker, guests w/ Change, price ──
   const SummaryCard = ({ highlighted = false }: { highlighted?: boolean }) => (
     <div className={`rounded-2xl border p-4 mb-4 ${highlighted ? 'border-2 border-[#304333]' : 'border-gray-200'}`}>
       <div className="flex items-center gap-3 mb-3">
         <div className="relative w-20 h-20 rounded-xl overflow-hidden bg-[#e0d9cc] flex-shrink-0">
-          <Image src={pkg.image} alt={pkg.title} fill sizes="80px" className="object-cover" />
+          <Image src={packageImage} alt={pkg.title} fill sizes="80px" className="object-cover" />
         </div>
         <div>
           <p className="text-sm font-bold text-[#1a1a1a] leading-snug">{pkg.title}</p>
           <div className="flex items-center gap-1 mt-0.5">
             <Star size={11} fill="#1a1a1a" color="#1a1a1a" />
-            <span className="text-xs font-semibold text-[#1a1a1a]">{pkg.rating}</span>
-            <span className="text-xs text-gray-400">({pkg.operatorReviews ?? 0} reviews)</span>
+            <span className="text-xs text-gray-400">({pkg.reviews_count} reviews)</span>
           </div>
         </div>
       </div>
@@ -91,11 +153,34 @@ export default function PackageBookingPage({ params }: Props) {
       </div>
 
       <div>
-
-        {/* Dates — fixed, not editable */}
+        {/* Departure date picker */}
         <div className="py-3" style={{ borderBottom: '1px solid #f0ede8' }}>
-          <p className="text-sm font-semibold text-[#1a1a1a]">Dates</p>
-          <p className="text-sm text-gray-500">{pkg.dates ?? 'To be confirmed'}</p>
+          <p className="text-sm font-semibold text-[#1a1a1a] mb-2">Departure date</p>
+          {upcomingDepartures.length === 0 ? (
+            <p className="text-sm text-red-500">No upcoming departures available.</p>
+          ) : (
+            <div className="flex flex-col gap-2">
+              {upcomingDepartures.map((dep) => {
+                const full = dep.booked >= dep.capacity
+                return (
+                  <label key={dep.id}
+                    className={`flex items-center justify-between p-2.5 rounded-xl border cursor-pointer
+                      ${selectedDeparture === dep.date ? 'border-[#304333] bg-[#F1F5E4]' : 'border-gray-200'}
+                      ${full ? 'opacity-50 pointer-events-none' : ''}`}>
+                    <div className="flex items-center gap-2">
+                      <input type="radio" name="departure" checked={selectedDeparture === dep.date}
+                        onChange={() => setSelectedDeparture(dep.date)} disabled={full}
+                        className="w-4 h-4 accent-[#304333]" />
+                      <span className="text-sm text-[#1a1a1a]">{formatDate(dep.date)}</span>
+                    </div>
+                    <span className="text-xs text-gray-400">
+                      {full ? 'Fully booked' : `${dep.capacity - dep.booked} spots left`}
+                    </span>
+                  </label>
+                )
+              })}
+            </div>
+          )}
         </div>
 
         {/* Guests */}
@@ -121,12 +206,12 @@ export default function PackageBookingPage({ params }: Props) {
           <p className="text-sm font-bold text-[#1a1a1a] mb-2">Price details</p>
           <div className="flex flex-col gap-1.5">
             <div className="flex justify-between text-sm">
-              <span className="text-gray-500">{pkg.price} × {guests} guest{guests !== 1 ? 's' : ''}</span>
-              <span className="text-[#1a1a1a]">{pkg.price.replace(/[\d,]+/, String(totalPrice))}</span>
+              <span className="text-gray-500">Ksh {basePrice.toLocaleString()} × {guests} guest{guests !== 1 ? 's' : ''}</span>
+              <span className="text-[#1a1a1a]">Ksh {totalPrice.toLocaleString()}</span>
             </div>
             <div className="flex justify-between text-sm pt-2 mt-1" style={{ borderTop: '1px solid #f0ede8' }}>
               <span className="font-bold text-[#1a1a1a]">Total</span>
-              <span className="font-bold text-[#1a1a1a]">{pkg.price.replace(/[\d,]+/, String(totalPrice))}</span>
+              <span className="font-bold text-[#1a1a1a]">Ksh {totalPrice.toLocaleString()}</span>
             </div>
           </div>
         </div>
@@ -134,7 +219,6 @@ export default function PackageBookingPage({ params }: Props) {
       </div>
     </div>
   )
-
 
   return (
     <div className="flex flex-col min-h-screen bg-white max-w-lg mx-auto">
@@ -170,7 +254,7 @@ export default function PackageBookingPage({ params }: Props) {
               <h2 className="text-base font-bold text-[#1a1a1a] mb-3">Choose how to pay</h2>
               <div className="border border-gray-200 rounded-2xl overflow-hidden">
                 <label className="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50 transition-colors">
-                  <p className="text-sm font-semibold text-[#1a1a1a]">Pay {pkg.price.replace(/[\d,]+/, String(totalPrice))} now</p>
+                  <p className="text-sm font-semibold text-[#1a1a1a]">Pay Ksh {totalPrice.toLocaleString()} now</p>
                   <input type="radio" name="pay" checked={payMode === 'full'} onChange={() => setPayMode('full')}
                     className="w-5 h-5 accent-[#1a1a1a]" />
                 </label>
@@ -179,7 +263,7 @@ export default function PackageBookingPage({ params }: Props) {
                   <div>
                     <p className="text-sm font-semibold text-[#1a1a1a]">Pay in 3 instalments</p>
                     <p className="text-xs text-gray-400">
-                      3 payments of {pkg.price.replace(/[\d,]+/, String(Math.round(totalPrice / 3)))} each
+                      3 payments of Ksh {Math.round(totalPrice / 3).toLocaleString()} each
                     </p>
                   </div>
                   <input type="radio" name="pay" checked={payMode === 'instalments'} onChange={() => setPayMode('instalments')}
@@ -194,14 +278,20 @@ export default function PackageBookingPage({ params }: Props) {
         {step === 'confirm' && (
           <>
             <SummaryCard />
-            
+
+            {submitError && (
+              <div className="mb-4 px-4 py-3 rounded-xl bg-red-50 text-red-600 text-sm">
+                {submitError}
+              </div>
+            )}
+
             <button className="w-full flex items-center justify-between p-4 border border-gray-200 rounded-2xl mb-3 hover:bg-gray-50 transition-colors">
               <div className="text-left">
                 <p className="text-sm font-semibold text-[#1a1a1a]">How you&apos;ll pay</p>
                 <p className="text-sm text-gray-400">
                   {payMode === 'full'
-                    ? `${pkg.price} now`
-                    : `3 instalments of ${pkg.price.replace(/[\d,]+/, String(Math.round(totalPrice / 3)))}`}
+                    ? `Ksh ${totalPrice.toLocaleString()} now`
+                    : `3 instalments of Ksh ${Math.round(totalPrice / 3).toLocaleString()}`}
                 </p>
               </div>
               <ChevronRight size={16} color="#aaa" />
@@ -221,7 +311,7 @@ export default function PackageBookingPage({ params }: Props) {
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1">
                     <p className="text-sm font-bold text-[#1a1a1a]">
-                      Yes, add for {pkg.price.replace(/[\d,]+/, String(Math.round(insurancePrice)))}
+                      Yes, add for Ksh {Math.round(insurancePrice).toLocaleString()}
                     </p>
                     <p className="text-xs text-gray-400 mb-2">Only available when booking.</p>
                     <p className="text-xs text-gray-500 leading-relaxed">
@@ -242,18 +332,18 @@ export default function PackageBookingPage({ params }: Props) {
               <h2 className="text-sm font-bold text-[#1a1a1a] mb-3">Price details</h2>
               <div className="flex flex-col gap-2">
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-500">{guests} guest{guests !== 1 ? 's' : ''} × {pkg.price}</span>
-                  <span className="text-sm text-[#1a1a1a]">{pkg.price.replace(/[\d,]+/, String(totalPrice))}</span>
+                  <span className="text-sm text-gray-500">{guests} guest{guests !== 1 ? 's' : ''} × Ksh {basePrice.toLocaleString()}</span>
+                  <span className="text-sm text-[#1a1a1a]">Ksh {totalPrice.toLocaleString()}</span>
                 </div>
                 {insurance && (
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-gray-500">Travel insurance</span>
-                    <span className="text-sm text-[#1a1a1a]">+{pkg.price.replace(/[\d,]+/, String(Math.round(insurancePrice)))}</span>
+                    <span className="text-sm text-[#1a1a1a]">+Ksh {Math.round(insurancePrice).toLocaleString()}</span>
                   </div>
                 )}
                 <div className="border-t border-gray-100 pt-2 flex justify-between items-center">
                   <span className="text-sm font-bold text-[#1a1a1a]">Total</span>
-                  <span className="text-sm font-bold text-[#1a1a1a]">{pkg.price.replace(/[\d,]+/, String(Math.round(finalTotal)))}</span>
+                  <span className="text-sm font-bold text-[#1a1a1a]">Ksh {Math.round(finalTotal).toLocaleString()}</span>
                 </div>
               </div>
             </div>
@@ -277,10 +367,10 @@ export default function PackageBookingPage({ params }: Props) {
         <div className="px-5 py-4 pb-8">
           {step === 'confirm' ? (
             <>
-              <button onClick={goNext}
-                className="w-full bg-[#2c4a1e] text-white py-4 rounded-2xl font-bold text-sm hover:bg-[#3d6b28] transition-colors"
+              <button onClick={goNext} disabled={submitting || !selectedDeparture}
+                className="w-full bg-[#2c4a1e] text-white py-4 rounded-2xl font-bold text-sm hover:bg-[#3d6b28] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                 style={{ WebkitTapHighlightColor: 'transparent' }}>
-                Confirm and pay · {pkg.price.replace(/[\d,]+/, String(Math.round(finalTotal)))}
+                {submitting ? 'Booking…' : `Confirm and pay · Ksh ${Math.round(finalTotal).toLocaleString()}`}
               </button>
               <p className="text-xs text-gray-400 text-center mt-3 leading-relaxed">
                 By tapping, I agree to the{' '}
@@ -290,8 +380,8 @@ export default function PackageBookingPage({ params }: Props) {
               </p>
             </>
           ) : (
-            <button onClick={goNext}
-              className="w-full bg-[#2c4a1e] text-white py-4 rounded-2xl font-bold text-sm hover:bg-[#3d6b28] transition-colors"
+            <button onClick={goNext} disabled={upcomingDepartures.length === 0}
+              className="w-full bg-[#2c4a1e] text-white py-4 rounded-2xl font-bold text-sm hover:bg-[#3d6b28] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               style={{ WebkitTapHighlightColor: 'transparent' }}>
               Next
             </button>

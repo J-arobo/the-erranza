@@ -12,6 +12,7 @@ class Listing extends Model
         'vendor_id', 'title', 'category', 'location', 'description',
         'price', 'child_price', 'extra_guest_price', 'status',
         'min_guests', 'max_guests', 'min_lead_time_days',
+        'bedrooms', 'beds', 'bathrooms', 'lat', 'lng',
         'cancellation_policy', 'custom_cancellation_text',
         'amenities', 'excluded', 'flagged', 'flag_reason', 'views',
     ];
@@ -25,6 +26,8 @@ class Listing extends Model
             'price' => 'decimal:2',
             'child_price' => 'decimal:2',
             'extra_guest_price' => 'decimal:2',
+            'lat' => 'decimal:7',
+            'lng' => 'decimal:7',
         ];
     }
 
@@ -67,16 +70,19 @@ class Listing extends Model
     {
         return $this->hasMany(ListingBlockedDate::class);
     }
-    //Booking relationship
+
+    public function extras(): HasMany
+    {
+        return $this->hasMany(ListingExtra::class);
+    }
+
     public function bookings(): HasMany
     {
         return $this->hasMany(Booking::class);
     }
-    // Reviews relationship
+
     public function reviews(): HasMany
     {
         return $this->hasMany(Review::class);
     }
-
-
 }

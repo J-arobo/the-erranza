@@ -1,8 +1,10 @@
 'use client'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
-import { Calendar, ChevronRight, Users } from 'lucide-react'
+import { Calendar, Users } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
+import { apiFetch, apiErrorMessage } from '@/lib/api'
 import BottomNav from '@/components/BottomNav'
 
 const STATUS_STYLES = {
@@ -11,9 +13,81 @@ const STATUS_STYLES = {
   cancelled: { bg: 'bg-red-50', text: 'text-red-500', label: 'Cancelled' },
 }
 
+const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1547471080-7cc2caa01a7e?w=400&q=80'
+
+type ApiBooking = {
+  id: number
+  status: 'pending' | 'confirmed' | 'completed' | 'cancelled' | 'alternative_proposed'
+  guests: number
+  total: string
+  check_in: string | null
+  check_out: string | null
+  listing: {
+    id: number
+    title: string
+    images: { url: string }[]
+    vendor: { id: number; business_name: string }
+  }
+}
+
+type Trip = {
+  id: number
+  listingTitle: string
+  vendorName: string
+  image: string
+  dates: string
+  guests: number
+  price: string
+  status: 'upcoming' | 'completed' | 'cancelled'
+}
+
+function mapStatus(status: ApiBooking['status']): Trip['status'] {
+  if (status === 'completed') return 'completed'
+  if (status === 'cancelled') return 'cancelled'
+  return 'upcoming'
+}
+
+function formatDate(v: string | null) {
+  return v ? new Date(v).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'
+}
+function formatDateRange(start: string | null, end: string | null) {
+  if (!start) return '—'
+  if (!end || end === start) return formatDate(start)
+  return `${formatDate(start)} – ${formatDate(end)}`
+}
+function formatKsh(v: string | number) {
+  return `Ksh ${Math.round(Number(v)).toLocaleString()}`
+}
+
+function mapBooking(b: ApiBooking): Trip {
+  return {
+    id: b.id,
+    listingTitle: b.listing.title,
+    vendorName: b.listing.vendor.business_name,
+    image: b.listing.images[0]?.url ?? FALLBACK_IMAGE,
+    dates: formatDateRange(b.check_in, b.check_out),
+    guests: b.guests,
+    price: formatKsh(b.total),
+    status: mapStatus(b.status),
+  }
+}
+
 export default function TripsPage() {
-  const { isLoggedIn, trips } = useAuth()
+  const { isLoggedIn } = useAuth()
   const router = useRouter()
+
+  const [trips, setTrips] = useState<Trip[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    if (!isLoggedIn) { setLoading(false); return }
+
+    apiFetch<{ bookings: ApiBooking[] }>('/bookings')
+      .then(({ bookings }) => setTrips(bookings.map(mapBooking)))
+      .catch((err) => setError(apiErrorMessage(err)))
+      .finally(() => setLoading(false))
+  }, [isLoggedIn])
 
   return (
     <div className="min-h-screen bg-white">
@@ -36,6 +110,14 @@ export default function TripsPage() {
             >
               Log in
             </button>
+          </div>
+        ) : loading ? (
+          <div className="flex items-center justify-center py-20">
+            <div className="w-8 h-8 rounded-full border-2 border-[#2c4a1e] border-t-transparent animate-spin" />
+          </div>
+        ) : error ? (
+          <div className="px-4 py-3 rounded-xl bg-red-50 text-red-600 text-sm">
+            {error}
           </div>
         ) : trips.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 gap-4 text-center">
@@ -65,7 +147,7 @@ export default function TripsPage() {
                   {trips
                     .filter(t => t.status === 'upcoming')
                     .map(trip => (
-                      <TripCard key={trip.id} trip={trip} router={router} />
+                      <TripCard key={trip.id} trip={trip} />
                     ))}
                 </div>
               </div>
@@ -79,7 +161,7 @@ export default function TripsPage() {
                   {trips
                     .filter(t => t.status !== 'upcoming')
                     .map(trip => (
-                      <TripCard key={trip.id} trip={trip} router={router} />
+                      <TripCard key={trip.id} trip={trip} />
                     ))}
                 </div>
               </div>
@@ -93,14 +175,12 @@ export default function TripsPage() {
   )
 }
 
-function TripCard({ trip, router }: { trip: any; router: any }) {
-  const style = STATUS_STYLES[trip.status as keyof typeof STATUS_STYLES]
+function TripCard({ trip }: { trip: Trip }) {
+  const style = STATUS_STYLES[trip.status]
 
   return (
     <div
-      onClick={() => router.push(`/listings/${trip.listingId}/vendor/${trip.vendorId}`)}
-      className="bg-white rounded-2xl overflow-hidden w-full
-                 transition-shadow cursor-pointer active:scale-[0.99]"
+      className="bg-white rounded-2xl overflow-hidden w-full"
       style={{ boxShadow: '0 2px 16px rgba(0,0,0,0.08)' }}
     >
       <div className="flex gap-4 p-4">
@@ -133,7 +213,6 @@ function TripCard({ trip, router }: { trip: any; router: any }) {
           </div>
           <p className="text-[12px] font-semibold text-[#2c4a1e] mt-0.5">{trip.price}</p>
         </div>
-        <ChevronRight size={16} color="#aaa" className="self-center flex-shrink-0" />
       </div>
 
       {/* Actions for upcoming trips */}

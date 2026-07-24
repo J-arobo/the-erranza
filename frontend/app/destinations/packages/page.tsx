@@ -1,15 +1,49 @@
 'use client'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { Plus, Star, Check, ArrowRight } from 'lucide-react'
 import AppShell from '@/components/AppShell'
 import FooterSection from '@/components/FooterSection'
 import HeartButton from '@/components/HeartButton'
-import { packages } from '@/data/packages'
 import { safari } from '@/data/safari'
+import { apiFetch, apiErrorMessage } from '@/lib/api'
 
-const FILTERS = ['All', 'Beach', 'Safari', 'Cultural', 'Honeymoon', 'Family']
+const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1547471080-7cc2caa01a7e?w=400&q=80'
+
+type ApiListing = {
+  id: number
+  title: string
+  location: string
+  price: string
+  images: { url: string }[]
+  itinerary: { day: number; title: string }[]
+  reviews_avg_rating: string | null
+}
+
+type PaginatedListings = { data: ApiListing[] }
+
+type PackageItem = {
+  id: string
+  location: string
+  title: string
+  price: string
+  rating: number
+  image: string
+  itinerary: string[]
+}
+
+function mapPackage(l: ApiListing): PackageItem {
+  return {
+    id: String(l.id),
+    location: l.location,
+    title: l.title,
+    price: `Ksh ${Math.round(Number(l.price)).toLocaleString()}`,
+    rating: l.reviews_avg_rating ? Number(l.reviews_avg_rating) : 4.5,
+    image: l.images[0]?.url ?? FALLBACK_IMAGE,
+    itinerary: l.itinerary.map(d => d.title),
+  }
+}
 
 // Every vendor "package" built off a safari destination — dates are fixed
 // per booking there (no date picker), so these are ready-to-book as-is.
@@ -87,9 +121,9 @@ function SafariPackageCard({ pkg }: { pkg: SafariPackage }) {
 }
 
 // ── Curated package card 
-function PackageCard({ pkg }: { pkg: typeof packages[number] }) {
+function PackageCard({ pkg }: { pkg: PackageItem }) {
   const router = useRouter()
-  const highlights = (pkg.itinerary ?? []).slice(0, 2)
+  const highlights = pkg.itinerary.slice(0, 2)
 
   return (
     <div
@@ -99,19 +133,11 @@ function PackageCard({ pkg }: { pkg: typeof packages[number] }) {
       transition-shadow duration-200 active:scale-[0.98]"
     >
       <div className="relative w-full aspect-[4/3] rounded-b-2xl overflow-hidden bg-[#e0d9cc]">
-
-
         <Image
           src={pkg.image} alt={pkg.title} fill
           sizes="(max-width: 640px) 90vw, 30vw"
           className="object-cover"
         />
-        {pkg.badge && (
-          <span className="absolute top-3 left-3 bg-white text-[#1a1a1a] text-[10px]
-                           font-bold uppercase tracking-wide px-2.5 py-1 rounded-full shadow-sm z-10">
-            {pkg.badge}
-          </span>
-        )}
         <HeartButton listing={pkg} size={22} className="absolute top-3 right-3 z-10" />
         <span className="absolute bottom-3 left-3 bg-black/55 text-white text-[11px]
                          font-semibold px-2.5 py-1 rounded-full z-10">
@@ -121,7 +147,6 @@ function PackageCard({ pkg }: { pkg: typeof packages[number] }) {
 
       <div className="pt-3 px-1 pb-1">
         <p className="text-[13px] text-[#222] font-semibold leading-snug line-clamp-2 mb-2">{pkg.title}</p>
-
 
         {highlights.length > 0 && (
           <div className="flex flex-col gap-1.5 mb-2">
@@ -155,11 +180,19 @@ function SectionHeading({ title }: { title: string }) {
   )
 }
 
-
 export default function PackagesPage() {
   const router = useRouter()
-  const [activeFilter, setFilter] = useState('All')
   const [search, setSearch] = useState('')
+  const [packages, setPackages] = useState<PackageItem[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    apiFetch<PaginatedListings>('/listings?category=Packages&per_page=100')
+      .then(({ data }) => setPackages(data.map(mapPackage)))
+      .catch((err) => setError(apiErrorMessage(err)))
+      .finally(() => setLoading(false))
+  }, [])
 
   const filtered = packages.filter(p =>
     p.title.toLowerCase().includes(search.toLowerCase()) ||
@@ -170,30 +203,32 @@ export default function PackagesPage() {
     <AppShell showCollapse={false}>
       <div className="pt-4 bg-[#ffffff] min-h-full overflow-x-hidden w-full">
 
-        {/*
-        <div className="px-4 sm:px-8 md:px-12 lg:px-52 pb-3">
-          <h1 className="text-2xl font-bold text-[#1a1a1a]">Travel Packages</h1>
-          <p className="text-sm text-gray-500">Curated multi-day itineraries</p>
-        </div>
-        */}
-
         {/* ── Curated packages */}
         <div className="mb-2">
           <SectionHeading title="Curated packages" />
 
-          <div className="sm:px-4 md:px-12 lg:px-52 pb-4">
-            <div className="overflow-x-auto scrollbar-hide">
-              <div className="flex gap-3 px-4">
-                {filtered.map((item) => (
-                  <div key={item.id} className={CARD_WIDTH_CLASSES}>
-                    <PackageCard pkg={item} />
-                  </div>
-                ))}
+          {loading ? (
+            <div className="flex items-center justify-center py-10">
+              <div className="w-8 h-8 rounded-full border-2 border-[#2c4a1e] border-t-transparent animate-spin" />
+            </div>
+          ) : error ? (
+            <p className="text-sm text-red-600 px-4 sm:px-8 md:px-12 lg:px-52">{error}</p>
+          ) : filtered.length === 0 ? (
+            <p className="text-sm text-gray-400 px-4 sm:px-8 md:px-12 lg:px-52">No packages available yet.</p>
+          ) : (
+            <div className="sm:px-4 md:px-12 lg:px-52 pb-4">
+              <div className="overflow-x-auto scrollbar-hide">
+                <div className="flex gap-3 px-4">
+                  {filtered.map((item) => (
+                    <div key={item.id} className={CARD_WIDTH_CLASSES}>
+                      <PackageCard pkg={item} />
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </div>
-
 
         {/* ── Safari tour packages (existing destinations, fixed-date booking) ── */}
         {safariPackages.length > 0 && (
@@ -214,22 +249,6 @@ export default function PackagesPage() {
           </div>
         )}
 
-        {/*
-        <div className="flex gap-2 px-4 sm:px-8 md:px-12 lg:px-52 pb-4 overflow-x-auto scrollbar-hide">
-          {FILTERS.map((f) => (
-            <button key={f} onClick={() => setFilter(f)}
-              className={`flex-shrink-0 px-4 py-1.5 rounded-full text-xs font-semibold
-                          border transition-all
-                ${activeFilter === f
-                  ? 'bg-[#2c4a1e] text-white border-[#2c4a1e]'
-                  : 'bg-white text-[#1a1a1a] border-gray-200'}`}>
-              {f}
-            </button>
-          ))}
-        </div>
-        */}
-
-
         {/* ── Build your own package CTA ── */}
         <div className="px-4 sm:px-8 md:px-12 lg:px-52 py-8 flex justify-center">
           <button
@@ -240,8 +259,6 @@ export default function PackagesPage() {
             <Plus size={16} />
             Build package
           </button>
-
-
         </div>
 
         <FooterSection />

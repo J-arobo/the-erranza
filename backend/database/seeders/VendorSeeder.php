@@ -24,7 +24,7 @@ class VendorSeeder extends Seeder
         $partnerRole = Role::where('name', 'partner')->first();
         $owner->roles()->syncWithoutDetaching($partnerRole);
 
-        Vendor::firstOrCreate(
+        $vendor = Vendor::firstOrCreate(
             ['user_id' => $owner->id],
             [
                 'business_name' => 'Mara Expeditions',
@@ -33,7 +33,14 @@ class VendorSeeder extends Seeder
                 'bio' => 'Local tour operator sharing the best of Kenya with every guest.',
                 'verification_status' => 'approved',
                 'suspended' => false,
+                'onboarding_complete' => true,
+                'categories' => ['Safari', 'Experiences'],
+                'plan' => 'standard',
+                'default_cancellation_policy' => 'moderate',
             ]
         );
+
+        $vendor->forceFill(['created_at' => now()->subYears(3)])->save();
+
     }
 }

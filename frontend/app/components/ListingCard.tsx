@@ -1,7 +1,7 @@
 'use client'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
-import { useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Listing } from '@/data/stays'
 import HeartButton from './HeartButton'
 
@@ -15,10 +15,44 @@ export default function ListingCard(listing: Props) {
   const touchStartY = useRef<number>(0)
   const touchStartX = useRef<number>(0)
 
+  const containerRef = useRef<HTMLDivElement>(null)
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const [inView, setInView] = useState(false)
+  const [videoFailed, setVideoFailed] = useState(false)
+
+  // Only start loading/playing the video once the card is actually near the
+  // viewport — with 20-30+ safari cards on one page, autoplaying every video
+  // at once is what makes them slow to load and fail to play on mobile.
+  useEffect(() => {
+    if (!video) return
+    const el = containerRef.current
+    if (!el) return
+    const observer = new IntersectionObserver(
+      ([entry]) => setInView(entry.isIntersecting),
+      { rootMargin: '200px' }
+    )
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [video])
+
+  useEffect(() => {
+    const el = videoRef.current
+    if (!el || !video) return
+    if (inView) {
+      el.muted = true
+      el.load()
+      el.play().catch(() => setVideoFailed(true))
+    } else {
+      el.pause()
+    }
+  }, [inView, video])
+
   function getRoute() {
     if (listingCategory === 'stays') return `/listings/stays/${id}`
+    if (listingCategory === 'safari') return `/listings/${id}/vendor/${id}`
     return `/listings/${id}`
   }
+
 
   function handleTap() { router.push(getRoute()) }
 
@@ -35,6 +69,7 @@ export default function ListingCard(listing: Props) {
 
   return (
     <div
+      ref={containerRef}
       onClick={handleTap}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
@@ -44,10 +79,16 @@ export default function ListingCard(listing: Props) {
       style={{ WebkitTapHighlightColor: 'transparent' }}
     >
       <div className="relative w-full aspect-[5/4] rounded-xl bg-[#e0d9cc] overflow-hidden">
-        {video ? (
+        {video && !videoFailed ? (
           <video
-            src={video}
-            autoPlay muted loop playsInline
+            ref={videoRef}
+            src={inView ? video : undefined}
+            poster={image}
+            muted
+            loop
+            playsInline
+            preload="none"
+            onError={() => setVideoFailed(true)}
             className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
           />
         ) : (

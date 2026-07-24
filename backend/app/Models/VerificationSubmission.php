@@ -8,12 +8,13 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class VerificationSubmission extends Model
 {
     protected $fillable = [
-        'vendor_id', 'doc_type', 'file_url', 'status', 'reviewed_by', 'reviewed_at',
+        'vendor_id', 'doc_type', 'file_url', 'expiry_date', 'status', 'reviewed_by', 'reviewed_at',
     ];
 
     protected function casts(): array
     {
         return [
+            'expiry_date' => 'date',
             'reviewed_at' => 'datetime',
         ];
     }

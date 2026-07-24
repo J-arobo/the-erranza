@@ -1,34 +1,53 @@
 'use client'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import AppShell from '@/components/AppShell'
 import ListingCard from '@/components/ListingCard'
 import FooterSection from '@/components/FooterSection'
-import { stays } from '@/data/stays'
+import { type Listing } from '@/data/stays'
+import { apiFetch, apiErrorMessage } from '@/lib/api'
 import { ArrowRight } from 'lucide-react'
 import { ChevronRight } from 'lucide-react'
 
+const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=400&q=80'
 
+type ApiListing = {
+  id: number
+  title: string
+  location: string
+  price: string
+  images: { url: string }[]
+  reviews_avg_rating: string | null
+}
 
+type PaginatedListings = { data: ApiListing[] }
 
-
-const filterTabs = ['All', 'Budget', 'Premium', 'Family', 'Solo']
+function mapListing(l: ApiListing): Listing {
+  return {
+    id: String(l.id),
+    location: l.location,
+    title: l.title,
+    price: `Ksh ${Math.round(Number(l.price)).toLocaleString()}`,
+    rating: l.reviews_avg_rating ? Number(l.reviews_avg_rating) : 4.5,
+    image: l.images[0]?.url ?? FALLBACK_IMAGE,
+  }
+}
 
 // Group stays into themed sections
 const SECTIONS = [
   {
     title: 'Popular stays in Nairobi',
-    filter: (l: typeof stays[0]) => l.location.toLowerCase().includes('nairobi'),
+    filter: (l: Listing) => l.location.toLowerCase().includes('nairobi'),
   },
   {
     title: 'Beachfront villas in Kenya',
-    filter: (l: typeof stays[0]) =>
+    filter: (l: Listing) =>
       l.location.toLowerCase().includes('diani') ||
       l.location.toLowerCase().includes('mombasa') ||
       l.location.toLowerCase().includes('malindi'),
   },
   {
     title: 'Lakeside & nature retreats',
-    filter: (l: typeof stays[0]) =>
+    filter: (l: Listing) =>
       l.location.toLowerCase().includes('naivasha') ||
       l.location.toLowerCase().includes('kisumu') ||
       l.location.toLowerCase().includes('karen'),
@@ -40,8 +59,17 @@ const SECTIONS = [
 ]
 
 export default function StaysPage() {
-  const [activeFilter, setFilter] = useState('All')
   const [search, setSearch] = useState('')
+  const [stays, setStays] = useState<Listing[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    apiFetch<PaginatedListings>('/listings?category=Stays&per_page=100')
+      .then(({ data }) => setStays(data.map(mapListing)))
+      .catch((err) => setError(apiErrorMessage(err)))
+      .finally(() => setLoading(false))
+  }, [])
 
   const filtered = stays.filter(item =>
     item.title.toLowerCase().includes(search.toLowerCase()) ||
@@ -52,27 +80,19 @@ export default function StaysPage() {
     <AppShell showCollapse={false}>
       <div className="pt-4 bg-[#ffffff] min-h-full overflow-x-hidden w-full">
 
-        {/* Filter tabs */}
-        {/* 
-        <div className="flex gap-2 overflow-x-auto scrollbar-hide mb-5 px-4 sm:px-6">
-          {filterTabs.map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setFilter(tab)}
-              className={`flex-shrink-0 px-4 py-1.5 rounded-full text-xs font-semibold
-                          border transition-all
-                          ${activeFilter === tab
-                  ? 'bg-[#D4DAAD] text-[#304333] border-[#304333]'
-                  : 'bg-white text-[#304333] border-gray-200 hover:border-[#5a3e10]'}`}
-            >
-              {tab}
-            </button>
-          ))}
-        </div>
-        
-        */}
-
-        {search ? (
+        {loading ? (
+          <div className="flex items-center justify-center py-20">
+            <div className="w-8 h-8 rounded-full border-2 border-[#2c4a1e] border-t-transparent animate-spin" />
+          </div>
+        ) : error ? (
+          <div className="px-4 sm:px-6 py-6">
+            <p className="text-sm text-red-600">{error}</p>
+          </div>
+        ) : stays.length === 0 ? (
+          <div className="px-4 sm:px-6 py-20 text-center">
+            <p className="text-sm text-gray-400">No stays available yet.</p>
+          </div>
+        ) : search ? (
           <div className="px-4 sm:px-6 pb-6">
             <p className="text-sm text-gray-400 mb-4">{filtered.length} results</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -146,85 +166,5 @@ export default function StaysPage() {
         <FooterSection />
       </div>
     </AppShell>
-  )
-}
-
-// ──card for mobile ──────────────────────────────────────────
-function AirbnbCard({ id, location, title, price, rating, image, badge }: typeof stays[0]) {
-  const { isWishlisted, addToWishlist, removeFromWishlist, isLoggedIn } =
-    require('@/context/AuthContext').useAuth()
-  const router = require('next/navigation').useRouter()
-  const wishlisted = isWishlisted(id)
-
-  const touchStartY = require('react').useRef(0)
-  const touchStartX = require('react').useRef(0)
-
-  return (
-    <div
-      onClick={() => router.push(`/listings/stays/${id}`)}
-      onTouchStart={(e: any) => {
-        touchStartY.current = e.touches[0].clientY
-        touchStartX.current = e.touches[0].clientX
-      }}
-      onTouchEnd={(e: any) => {
-        const dy = Math.abs(e.changedTouches[0].clientY - touchStartY.current)
-        const dx = Math.abs(e.changedTouches[0].clientX - touchStartX.current)
-        if (dy < 8 && dx < 8) router.push(`/listings/stays/${id}`)
-      }}
-      className="flex-shrink-0 bg-white rounded-2xl overflow-hidden
-                 cursor-pointer active:scale-[0.98] transition-all
-                 shadow-sm hover:shadow-md"
-      style={{ width: '148px' }}   // ← matches homepage card size
-    >
-      {/* Image — 4:3 ratio like homepage */}
-      <div className="relative bg-[#e0d9cc] overflow-hidden"
-        style={{ width: '148px', height: '111px' }}>
-        <img src={image} alt={title} className="w-full h-full object-cover" />
-        {badge && (
-          <span className="absolute top-2 left-2 bg-white text-[#1a1a1a] text-[9px]
-                           font-semibold px-1.5 py-0.5 rounded-full shadow-sm">
-            {badge}
-          </span>
-        )}
-        <button
-          onClick={(e) => {
-            e.stopPropagation()
-            if (!isLoggedIn) { router.push('/login'); return }
-            wishlisted
-              ? removeFromWishlist(id)
-              : addToWishlist({ id, location, title, price, rating, image, badge })
-          }}
-          className="absolute top-2 right-2 w-7 h-7 flex items-center justify-center"
-          style={{ WebkitTapHighlightColor: 'transparent' }}
-        >
-          <svg viewBox="0 0 32 32" style={{ width: 24, height: 24 }}>
-            <path
-              d="M16 28C16 28 3 20.5 3 11.5C3 7.91 5.91 5 9.5 5C11.24 5 12.91 5.68 14.17 6.83L16 8.5L17.83 6.83C19.09 5.68 20.76 5 22.5 5C26.09 5 29 7.91 29 11.5C29 20.5 16 28 16 28Z"
-              fill={wishlisted ? '#e63946' : 'rgba(0,0,0,0.5)'}
-              stroke="white"
-              strokeWidth="2.5"
-            />
-          </svg>
-        </button>
-      </div>
-
-      <div className="p-2">
-        <p className="text-[10px] text-gray-400 truncate">{location}</p>
-        <p className="text-[12px] font-semibold text-[#1a1a1a] leading-snug line-clamp-2">
-          {title}
-        </p>
-        <div className="flex justify-between items-center mt-1">
-          <p className="text-[11px] text-[#1a1a1a]">
-            <span className="font-semibold">{price}</span>
-          </p>
-          <div className="flex items-center gap-0.5">
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="#1a1a1a">
-              <path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 21 12 17.77 5.82 21 7 14.14 2 9.27l6.91-1.01L12 2z" />
-            </svg>
-            <span className="text-[11px] font-semibold text-[#1a1a1a]">{rating}</span>
-          </div>
-        </div>
-      </div>
-    </div>
   )
 }

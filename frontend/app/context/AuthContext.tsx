@@ -42,7 +42,7 @@ type Trip = {
   status: 'upcoming' | 'completed' | 'cancelled'
 }
 
-type Message = {
+export type Message = {
   id: string
   vendorName: string
   vendorImage: string
@@ -152,6 +152,7 @@ type ApiUser = {
   avatarUrl: string | null
   roles: string[]
   activeRole: string
+  onboardingComplete: boolean
 }
 
 function mapUser(apiUser: ApiUser): User {
@@ -163,6 +164,7 @@ function mapUser(apiUser: ApiUser): User {
     avatar: apiUser.avatarUrl ?? undefined,
     roles: apiUser.roles as Role[],
     activeRole: apiUser.activeRole as Role,
+    onboardingComplete: apiUser.onboardingComplete,
   }
 }
 

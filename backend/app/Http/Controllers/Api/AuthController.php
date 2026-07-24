@@ -85,7 +85,7 @@ class AuthController extends Controller
 
     private function formatUser(User $user): array
     {
-        $user->loadMissing('roles');
+        $user->loadMissing('roles', 'vendor');
 
         return [
             'id' => $user->id,
@@ -95,6 +95,7 @@ class AuthController extends Controller
             'avatarUrl' => $user->avatar_url,
             'roles' => $user->roles->pluck('name')->values(),
             'activeRole' => $user->active_role,
+            'onboardingComplete' => $user->vendor?->onboarding_complete ?? false,
         ];
     }
 }

@@ -1,12 +1,12 @@
 'use client'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import {
   LayoutDashboard, List, Calendar, MessageCircle,
-  TrendingUp, Star, User, LogOut, Menu, X, ChevronRight, Bell, Info, LifeBuoy
+  TrendingUp, Star, User, LogOut, Menu, X, Bell, Info, LifeBuoy
 } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
-import { VENDOR_BOOKINGS, VENDOR_NOTIFICATIONS, type VendorNotification } from '@/data/vendor'
+import { apiFetch } from '@/lib/api'
 
 const NAV_ITEMS = [
   { label: 'Dashboard', Icon: LayoutDashboard, path: '/vendor' },
@@ -26,16 +26,46 @@ const NOTIF_ICON: Record<string, typeof Calendar> = {
   system: Info,
 }
 
+type ApiNotification = {
+  id: number
+  type: 'booking' | 'review' | 'message' | 'system'
+  title: string
+  message: string
+  link: string | null
+  read: boolean
+  created_at: string
+}
+
+function timeAgo(iso: string): string {
+  const minutes = Math.floor((Date.now() - new Date(iso).getTime()) / 60000)
+  if (minutes < 1) return 'Just now'
+  if (minutes < 60) return `${minutes}m ago`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours}h ago`
+  return `${Math.floor(hours / 24)}d ago`
+}
+
 export default function VendorShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
   const { user, logout, setActiveRole } = useAuth()
   const [mobileOpen, setMobileOpen] = useState(false)
   const [notifOpen, setNotifOpen] = useState(false)
-  const [, forceUpdate] = useState(0)
 
-  const pendingCount = VENDOR_BOOKINGS.filter(b => b.status === 'pending').length
-  const unreadCount = VENDOR_NOTIFICATIONS.filter(n => !n.read).length
+  const [pendingCount, setPendingCount] = useState(0)
+  const [notifications, setNotifications] = useState<ApiNotification[]>([])
+
+  useEffect(() => {
+    apiFetch<{ bookings: { status: string }[] }>('/vendor/bookings')
+      .then(({ bookings }) => setPendingCount(bookings.filter(b => b.status === 'pending').length))
+      .catch(() => {})
+
+    apiFetch<{ notifications: ApiNotification[] }>('/vendor/notifications')
+      .then(({ notifications }) => setNotifications(notifications))
+      .catch(() => {})
+  }, [])
+
+  const unreadCount = notifications.filter(n => !n.read).length
   const activeRole = user?.activeRole ?? 'partner'
 
   function isActive(path: string) {
@@ -59,15 +89,24 @@ export default function VendorShell({ children }: { children: React.ReactNode })
     router.push('/')
   }
 
-  function markAllRead() {
-    VENDOR_NOTIFICATIONS.forEach(n => { n.read = true })
-    forceUpdate(n => n + 1)
+  async function markAllRead() {
+    setNotifications(ns => ns.map(n => ({ ...n, read: true })))
+    try {
+      await apiFetch('/vendor/notifications/read-all', { method: 'POST' })
+    } catch {
+      // optimistic update already applied — a refresh will resync if this failed
+    }
   }
 
-  function handleNotifClick(n: VendorNotification) {
-    n.read = true
+  async function handleNotifClick(n: ApiNotification) {
+    setNotifications(ns => ns.map(x => x.id === n.id ? { ...x, read: true } : x))
     setNotifOpen(false)
-    navigate(n.link)
+    if (n.link) navigate(n.link)
+    try {
+      await apiFetch(`/vendor/notifications/${n.id}/read`, { method: 'POST' })
+    } catch {
+      // optimistic update already applied
+    }
   }
 
   const currentLabel = NAV_ITEMS.find(i => isActive(i.path))?.label ?? 'Dashboard'
@@ -100,10 +139,10 @@ export default function VendorShell({ children }: { children: React.ReactNode })
           )}
         </div>
         <div className="max-h-80 overflow-y-auto">
-          {VENDOR_NOTIFICATIONS.length === 0 ? (
+          {notifications.length === 0 ? (
             <p className="text-sm text-gray-400 text-center py-8">No notifications</p>
           ) : (
-            VENDOR_NOTIFICATIONS.map((n) => {
+            notifications.map((n) => {
               const Icon = NOTIF_ICON[n.type] ?? Info
               return (
                 <button key={n.id} onClick={() => handleNotifClick(n)}
@@ -117,7 +156,7 @@ export default function VendorShell({ children }: { children: React.ReactNode })
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-semibold text-[#1a1a1a]">{n.title}</p>
                     <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{n.message}</p>
-                    <p className="text-[10px] text-gray-400 mt-1">{n.date}</p>
+                    <p className="text-[10px] text-gray-400 mt-1">{timeAgo(n.created_at)}</p>
                   </div>
                   {!n.read && <span className="w-2 h-2 rounded-full bg-[#2c4a1e] flex-shrink-0 mt-1.5" />}
                 </button>

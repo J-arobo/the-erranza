@@ -1,8 +1,8 @@
 'use client'
-import { use, useState } from 'react'
+import { use, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, Plus, X, Trash2 } from 'lucide-react'
-import { VENDOR_LISTINGS } from '@/data/vendor'
+import { apiFetch, apiErrorMessage } from '@/lib/api'
 import PhotoManager from '@/components/vendor/PhotoManager'
 
 type Props = {
@@ -21,79 +21,184 @@ const POLICIES: { id: PolicyId; label: string; description: string }[] = [
   { id: 'custom', label: 'Custom', description: 'Write your own cancellation terms.' },
 ]
 
+type LocalId = number | string
+
+type ItineraryDay = { day: number; title: string; description: string }
+type DurationOption = { id: LocalId; label: string; price: string }
+type SeasonalRate = { id: LocalId; label: string; start_date: string; end_date: string; price: string }
+type GroupDiscount = { id: LocalId; min_guests: number; discount_percent: number }
+type Departure = { id: LocalId; date: string; capacity: number; booked: number }
+type BlockedDate = { id: LocalId; start_date: string; end_date: string; reason: string }
+type Extra = { id: LocalId; label: string; price: number; default_selected: boolean }
+
+type ApiListingDetail = {
+  id: number
+  title: string
+  category: string
+  location: string
+  description: string | null
+  price: string
+  child_price: string | null
+  extra_guest_price: string | null
+  status: 'active' | 'paused' | 'draft' | 'suspended'
+  min_guests: number | null
+  max_guests: number | null
+  min_lead_time_days: number | null
+  cancellation_policy: PolicyId
+  custom_cancellation_text: string | null
+  amenities: string[] | null
+  excluded: string[] | null
+  bookings_count?: number
+  earnings?: string | null
+  images: { id: number; url: string }[]
+  itinerary: { day: number; title: string; description: string | null }[]
+  duration_options: { id: number; label: string; price: string | null }[]
+  seasonal_rates: { id: number; label: string; start_date: string; end_date: string; price: string }[]
+  group_discounts: { id: number; min_guests: number; discount_percent: number }[]
+  departures: { id: number; date: string; capacity: number; booked: number }[]
+  blocked_dates: { id: number; start_date: string; end_date: string; reason: string | null }[]
+  extras: { id: number; label: string; price: string; default_selected: boolean }[]
+}
+
+function toDateInput(v: string | null | undefined): string {
+  return v ? v.slice(0, 10) : ''
+}
+function numToStr(v: string | number | null | undefined): string {
+  return v === null || v === undefined || v === '' ? '' : String(Number(v))
+}
+function parseMoney(v: string): number | null {
+  const cleaned = v.replace(/[^0-9.]/g, '')
+  if (!cleaned) return null
+  const num = Number(cleaned)
+  return Number.isFinite(num) ? num : null
+}
+
 export default function EditListingPage({ params }: Props) {
   const { listingId } = use(params)
   const router = useRouter()
 
-  const listing = VENDOR_LISTINGS.find(l => l.id === listingId)
-
-  const [title, setTitle] = useState(listing?.title ?? '')
-  const [category, setCategory] = useState(listing?.category ?? CATEGORIES[0])
-  const [location, setLocation] = useState(listing?.location ?? '')
-  const [price, setPrice] = useState(listing?.price ?? '')
-  const [images, setImages] = useState<string[]>(listing?.images ?? (listing?.image ? [listing.image] : []))
-  const [description, setDescription] = useState(listing?.description ?? '')
-  const [amenities, setAmenities] = useState<string[]>(listing?.amenities ?? [])
-  const [amenityInput, setAmenityInput] = useState('')
-  const [status, setStatus] = useState<'active' | 'paused' | 'draft'>(listing?.status ?? 'draft')
+  const [loading, setLoading] = useState(true)
+  const [notFound, setNotFound] = useState(false)
+  const [loadError, setLoadError] = useState('')
+  const [saveError, setSaveError] = useState('')
+  const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
 
+  const [bookingsCount, setBookingsCount] = useState(0)
+  const [earnings, setEarnings] = useState('0')
+
+  const [title, setTitle] = useState('')
+  const [category, setCategory] = useState(CATEGORIES[0])
+  const [location, setLocation] = useState('')
+  const [price, setPrice] = useState('')
+  const [images, setImages] = useState<string[]>([])
+  const [description, setDescription] = useState('')
+  const [amenities, setAmenities] = useState<string[]>([])
+  const [amenityInput, setAmenityInput] = useState('')
+  const [status, setStatus] = useState<'active' | 'paused' | 'draft'>('draft')
+
   // ── Itinerary ──
-  const [itinerary, setItinerary] = useState(listing?.itinerary ?? [])
+  const [itinerary, setItinerary] = useState<ItineraryDay[]>([])
   const [itineraryTitle, setItineraryTitle] = useState('')
   const [itineraryDesc, setItineraryDesc] = useState('')
 
   // ── Excluded ──
-  const [excluded, setExcluded] = useState<string[]>(listing?.excluded ?? [])
+  const [excluded, setExcluded] = useState<string[]>([])
   const [excludedInput, setExcludedInput] = useState('')
 
   // ── Group size & duration ──
-  const [minGuests, setMinGuests] = useState(listing?.minGuests?.toString() ?? '')
-  const [maxGuests, setMaxGuests] = useState(listing?.maxGuests?.toString() ?? '')
-  const [durationOptions, setDurationOptions] = useState(listing?.durationOptions ?? [])
+  const [minGuests, setMinGuests] = useState('')
+  const [maxGuests, setMaxGuests] = useState('')
+  const [durationOptions, setDurationOptions] = useState<DurationOption[]>([])
   const [durationLabel, setDurationLabel] = useState('')
   const [durationPrice, setDurationPrice] = useState('')
 
   // ── Pricing rules ──
-  const [extras, setExtras] = useState(listing?.extras ?? [])
+  const [extras, setExtras] = useState<Extra[]>([])
   const [extraLabel, setExtraLabel] = useState('')
   const [extraPrice, setExtraPrice] = useState('')
-  const [extraGuestPrice, setExtraGuestPrice] = useState(listing?.extraGuestPrice ?? '')
-  const [childPrice, setChildPrice] = useState(listing?.childPrice ?? '')
-  const [groupDiscounts, setGroupDiscounts] = useState(listing?.groupDiscounts ?? [])
+  const [extraGuestPrice, setExtraGuestPrice] = useState('')
+  const [childPrice, setChildPrice] = useState('')
+  const [groupDiscounts, setGroupDiscounts] = useState<GroupDiscount[]>([])
   const [discountMinGuests, setDiscountMinGuests] = useState('')
   const [discountPercent, setDiscountPercent] = useState('')
-  const [seasonalRates, setSeasonalRates] = useState(listing?.seasonalRates ?? [])
+  const [seasonalRates, setSeasonalRates] = useState<SeasonalRate[]>([])
   const [seasonLabel, setSeasonLabel] = useState('')
   const [seasonStart, setSeasonStart] = useState('')
   const [seasonEnd, setSeasonEnd] = useState('')
   const [seasonPrice, setSeasonPrice] = useState('')
 
   // ── Availability ──
-  const [minLeadTimeDays, setMinLeadTimeDays] = useState(listing?.minLeadTimeDays?.toString() ?? '')
-  const [departures, setDepartures] = useState(listing?.departures ?? [])
+  const [minLeadTimeDays, setMinLeadTimeDays] = useState('')
+  const [departures, setDepartures] = useState<Departure[]>([])
   const [departureDate, setDepartureDate] = useState('')
   const [departureCapacity, setDepartureCapacity] = useState('')
-  const [blockedDates, setBlockedDates] = useState(listing?.blockedDates ?? [])
+  const [blockedDates, setBlockedDates] = useState<BlockedDate[]>([])
   const [blockStart, setBlockStart] = useState('')
   const [blockEnd, setBlockEnd] = useState('')
   const [blockReason, setBlockReason] = useState(BLOCK_REASONS[0])
 
   // ── Cancellation policy ──
-  const [cancellationPolicy, setCancellationPolicy] = useState<PolicyId>(listing?.cancellationPolicy ?? 'moderate')
-  const [customCancellationPolicy, setCustomCancellationPolicy] = useState(listing?.customCancellationPolicy ?? '')
+  const [cancellationPolicy, setCancellationPolicy] = useState<PolicyId>('moderate')
+  const [customCancellationPolicy, setCustomCancellationPolicy] = useState('')
 
-  if (!listing) {
-    return (
-      <div className="p-5 lg:p-8 max-w-2xl mx-auto text-center pt-20">
-        <p className="text-sm text-gray-500 mb-4">Listing not found.</p>
-        <button onClick={() => router.push('/vendor/listings')}
-          className="text-sm font-semibold text-[#2c4a1e] underline">
-          Back to listings
-        </button>
-      </div>
-    )
-  }
+  useEffect(() => {
+    apiFetch<{ listing: ApiListingDetail }>(`/vendor/listings/${listingId}`)
+      .then(({ listing }) => {
+        setTitle(listing.title)
+        setCategory(listing.category)
+        setLocation(listing.location)
+        setPrice(numToStr(listing.price))
+        setImages(listing.images.map(img => img.url))
+        setDescription(listing.description ?? '')
+        setAmenities(listing.amenities ?? [])
+        setStatus(listing.status === 'suspended' ? 'draft' : listing.status)
+        setBookingsCount(listing.bookings_count ?? 0)
+        setEarnings(listing.earnings ?? '0')
+
+        setItinerary(listing.itinerary.map(d => ({
+          day: d.day, title: d.title, description: d.description ?? '',
+        })))
+
+        setExcluded(listing.excluded ?? [])
+
+        setMinGuests(numToStr(listing.min_guests))
+        setMaxGuests(numToStr(listing.max_guests))
+        setDurationOptions(listing.duration_options.map(d => ({
+          id: d.id, label: d.label, price: numToStr(d.price),
+        })))
+
+        setExtras(listing.extras.map(e => ({
+          id: e.id, label: e.label, price: Number(e.price), default_selected: e.default_selected,
+        })))
+        setExtraGuestPrice(numToStr(listing.extra_guest_price))
+        setChildPrice(numToStr(listing.child_price))
+        setGroupDiscounts(listing.group_discounts.map(g => ({
+          id: g.id, min_guests: g.min_guests, discount_percent: g.discount_percent,
+        })))
+        setSeasonalRates(listing.seasonal_rates.map(r => ({
+          id: r.id, label: r.label, start_date: toDateInput(r.start_date),
+          end_date: toDateInput(r.end_date), price: numToStr(r.price),
+        })))
+
+        setMinLeadTimeDays(numToStr(listing.min_lead_time_days))
+        setDepartures(listing.departures.map(d => ({
+          id: d.id, date: toDateInput(d.date), capacity: d.capacity, booked: d.booked,
+        })))
+        setBlockedDates(listing.blocked_dates.map(b => ({
+          id: b.id, start_date: toDateInput(b.start_date), end_date: toDateInput(b.end_date),
+          reason: b.reason ?? '',
+        })))
+
+        setCancellationPolicy(listing.cancellation_policy)
+        setCustomCancellationPolicy(listing.custom_cancellation_text ?? '')
+      })
+      .catch((err) => {
+        setNotFound(true)
+        setLoadError(apiErrorMessage(err))
+      })
+      .finally(() => setLoading(false))
+  }, [listingId])
 
   const canSave = title.trim() && location.trim() && price.trim()
 
@@ -127,22 +232,22 @@ export default function EditListingPage({ params }: Props) {
   function addDurationOption() {
     if (!durationLabel.trim()) return
     setDurationOptions(d => [...d, {
-      id: `do_${Date.now()}`, label: durationLabel.trim(), price: durationPrice.trim() || undefined,
+      id: `do_${Date.now()}`, label: durationLabel.trim(), price: durationPrice.trim(),
     }])
     setDurationLabel(''); setDurationPrice('')
   }
-  function removeDurationOption(id: string) {
+  function removeDurationOption(id: LocalId) {
     setDurationOptions(d => d.filter(x => x.id !== id))
   }
 
   function addGroupDiscount() {
     if (!discountMinGuests.trim() || !discountPercent.trim()) return
     setGroupDiscounts(g => [...g, {
-      id: `gd_${Date.now()}`, minGuests: Number(discountMinGuests), discountPercent: Number(discountPercent),
+      id: `gd_${Date.now()}`, min_guests: Number(discountMinGuests), discount_percent: Number(discountPercent),
     }])
     setDiscountMinGuests(''); setDiscountPercent('')
   }
-  function removeGroupDiscount(id: string) {
+  function removeGroupDiscount(id: LocalId) {
     setGroupDiscounts(g => g.filter(x => x.id !== id))
   }
 
@@ -150,26 +255,26 @@ export default function EditListingPage({ params }: Props) {
     if (!extraLabel.trim() || !extraPrice.trim()) return
     setExtras(e => [...e, {
       id: `ex_${Date.now()}`, label: extraLabel.trim(),
-      price: Number(extraPrice) || 0, defaultSelected: false,
+      price: Number(extraPrice) || 0, default_selected: false,
     }])
     setExtraLabel(''); setExtraPrice('')
   }
-  function removeExtra(id: string) {
+  function removeExtra(id: LocalId) {
     setExtras(e => e.filter(x => x.id !== id))
   }
-  function toggleExtraDefault(id: string) {
-    setExtras(e => e.map(x => x.id === id ? { ...x, defaultSelected: !x.defaultSelected } : x))
+  function toggleExtraDefault(id: LocalId) {
+    setExtras(e => e.map(x => x.id === id ? { ...x, default_selected: !x.default_selected } : x))
   }
 
   function addSeasonalRate() {
     if (!seasonLabel.trim() || !seasonStart || !seasonEnd || !seasonPrice.trim()) return
     setSeasonalRates(s => [...s, {
       id: `sr_${Date.now()}`, label: seasonLabel.trim(),
-      start: seasonStart, end: seasonEnd, price: seasonPrice.trim(),
+      start_date: seasonStart, end_date: seasonEnd, price: seasonPrice.trim(),
     }])
     setSeasonLabel(''); setSeasonStart(''); setSeasonEnd(''); setSeasonPrice('')
   }
-  function removeSeasonalRate(id: string) {
+  function removeSeasonalRate(id: LocalId) {
     setSeasonalRates(s => s.filter(x => x.id !== id))
   }
 
@@ -181,56 +286,106 @@ export default function EditListingPage({ params }: Props) {
     }].sort((a, b) => a.date.localeCompare(b.date)))
     setDepartureDate(''); setDepartureCapacity('')
   }
-  function removeDeparture(id: string) {
+  function removeDeparture(id: LocalId) {
     setDepartures(d => d.filter(x => x.id !== id))
   }
 
   function addBlockedDates() {
     if (!blockStart || !blockEnd) return
-    setBlockedDates(b => [...b, { id: `bd_${Date.now()}`, start: blockStart, end: blockEnd, reason: blockReason }])
+    setBlockedDates(b => [...b, { id: `bd_${Date.now()}`, start_date: blockStart, end_date: blockEnd, reason: blockReason }])
     setBlockStart(''); setBlockEnd('')
   }
-  function removeBlockedDates(id: string) {
+  function removeBlockedDates(id: LocalId) {
     setBlockedDates(b => b.filter(x => x.id !== id))
   }
 
-  function handleSave() {
-    if (!canSave || !listing) return
-    const finalImages = images.length ? images : [listing.image]
-    Object.assign(listing, {
-      title: title.trim(),
-      category,
-      location: location.trim(),
-      price: price.trim(),
-      image: finalImages[0],
-      images: finalImages,
-      description: description.trim(),
-      amenities,
-      excluded,
-      itinerary,
-      status,
-      minGuests: minGuests ? Number(minGuests) : undefined,
-      maxGuests: maxGuests ? Number(maxGuests) : undefined,
-      durationOptions,
-      childPrice: childPrice.trim() || undefined,
-      groupDiscounts,
-      extras,
-      extraGuestPrice: extraGuestPrice.trim() || undefined,
-      seasonalRates,
-      minLeadTimeDays: minLeadTimeDays ? Number(minLeadTimeDays) : undefined,
-      departures,
-      blockedDates,
-      cancellationPolicy,
-      customCancellationPolicy: cancellationPolicy === 'custom' ? customCancellationPolicy.trim() || undefined : undefined,
-    })
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2000)
+  async function handleSave() {
+    if (!canSave) return
+
+    setSaving(true)
+    setSaveError('')
+    try {
+      const { listing } = await apiFetch<{ listing: ApiListingDetail }>(`/vendor/listings/${listingId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          title: title.trim(),
+          category,
+          location: location.trim(),
+          price: parseMoney(price),
+          description: description.trim() || null,
+          amenities,
+          excluded,
+          status,
+          min_guests: minGuests ? Number(minGuests) : null,
+          max_guests: maxGuests ? Number(maxGuests) : null,
+          child_price: childPrice.trim() ? parseMoney(childPrice) : null,
+          extra_guest_price: extraGuestPrice.trim() ? parseMoney(extraGuestPrice) : null,
+          min_lead_time_days: minLeadTimeDays ? Number(minLeadTimeDays) : null,
+          cancellation_policy: cancellationPolicy,
+          custom_cancellation_text: cancellationPolicy === 'custom' ? customCancellationPolicy.trim() || null : null,
+          images: images.map(url => ({ url })),
+          itinerary,
+          duration_options: durationOptions.map(d => ({
+            label: d.label, price: d.price.trim() ? parseMoney(d.price) : null,
+          })),
+          group_discounts: groupDiscounts.map(({ min_guests, discount_percent }) => ({ min_guests, discount_percent })),
+          seasonal_rates: seasonalRates.map(r => ({
+            label: r.label, start_date: r.start_date, end_date: r.end_date, price: parseMoney(r.price),
+          })),
+          departures: departures.map(({ date, capacity, booked }) => ({ date, capacity, booked })),
+          blocked_dates: blockedDates.map(({ start_date, end_date, reason }) => ({ start_date, end_date, reason: reason || null })),
+          extras: extras.map(({ label, price: p, default_selected }) => ({ label, price: p, default_selected })),
+        }),
+      })
+
+      // Re-sync local IDs with the freshly recreated rows from the backend.
+      setDurationOptions(listing.duration_options.map(d => ({ id: d.id, label: d.label, price: numToStr(d.price) })))
+      setGroupDiscounts(listing.group_discounts.map(g => ({ id: g.id, min_guests: g.min_guests, discount_percent: g.discount_percent })))
+      setSeasonalRates(listing.seasonal_rates.map(r => ({
+        id: r.id, label: r.label, start_date: toDateInput(r.start_date), end_date: toDateInput(r.end_date), price: numToStr(r.price),
+      })))
+      setDepartures(listing.departures.map(d => ({ id: d.id, date: toDateInput(d.date), capacity: d.capacity, booked: d.booked })))
+      setBlockedDates(listing.blocked_dates.map(b => ({
+        id: b.id, start_date: toDateInput(b.start_date), end_date: toDateInput(b.end_date), reason: b.reason ?? '',
+      })))
+      setExtras(listing.extras.map(e => ({ id: e.id, label: e.label, price: Number(e.price), default_selected: e.default_selected })))
+
+      setSaved(true)
+      setTimeout(() => setSaved(false), 2000)
+    } catch (err) {
+      setSaveError(apiErrorMessage(err))
+    } finally {
+      setSaving(false)
+    }
   }
 
-  function handleDelete() {
-    const idx = VENDOR_LISTINGS.findIndex(l => l.id === listingId)
-    if (idx > -1) VENDOR_LISTINGS.splice(idx, 1)
-    router.push('/vendor/listings')
+  async function handleDelete() {
+    try {
+      await apiFetch(`/vendor/listings/${listingId}`, { method: 'DELETE' })
+      router.push('/vendor/listings')
+    } catch (err) {
+      setSaveError(apiErrorMessage(err))
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="p-5 lg:p-8 max-w-2xl mx-auto flex items-center justify-center py-20">
+        <div className="w-8 h-8 rounded-full border-2 border-[#2c4a1e] border-t-transparent animate-spin" />
+      </div>
+    )
+  }
+
+  if (notFound) {
+    return (
+      <div className="p-5 lg:p-8 max-w-2xl mx-auto text-center pt-20">
+        <p className="text-sm text-gray-500 mb-4">{loadError || 'Listing not found.'}</p>
+        <button onClick={() => router.push('/vendor/listings')}
+          className="text-sm font-semibold text-[#2c4a1e] underline">
+          Back to listings
+        </button>
+      </div>
+    )
   }
 
   return (
@@ -248,7 +403,15 @@ export default function EditListingPage({ params }: Props) {
           </span>
         )}
       </div>
-      <p className="text-sm text-gray-500 mb-6">{listing.bookings} bookings · Earned {listing.earnings}</p>
+      <p className="text-sm text-gray-500 mb-6">
+        {bookingsCount} bookings · Earned Ksh {Math.round(Number(earnings)).toLocaleString()}
+      </p>
+
+      {saveError && (
+        <div className="mb-4 px-4 py-3 rounded-xl bg-red-50 text-red-600 text-sm">
+          {saveError}
+        </div>
+      )}
 
       <div className="flex flex-col gap-5">
         <div>
@@ -478,7 +641,7 @@ export default function EditListingPage({ params }: Props) {
         <div>
           <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">Child price</label>
           <input value={childPrice} onChange={(e) => setChildPrice(e.target.value)}
-            placeholder="e.g. Ksh 22,500 (optional)"
+            placeholder="e.g. 22500 (optional)"
             className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm
                        outline-none focus:border-[#2c4a1e] transition-colors" />
           <p className="text-xs text-gray-400 mt-1.5">Leave blank to charge the adult price for children too.</p>
@@ -504,9 +667,9 @@ export default function EditListingPage({ params }: Props) {
             <div className="flex flex-col gap-2">
               {groupDiscounts.map((g) => (
                 <div key={g.id} className="flex items-center justify-between gap-3 p-3 rounded-xl border border-gray-200">
-                  <span className="text-sm text-[#1a1a1a]">{g.minGuests}+ guests</span>
+                  <span className="text-sm text-[#1a1a1a]">{g.min_guests}+ guests</span>
                   <div className="flex items-center gap-3 flex-shrink-0">
-                    <span className="text-sm font-semibold text-[#1a1a1a]">{g.discountPercent}% off</span>
+                    <span className="text-sm font-semibold text-[#1a1a1a]">{g.discount_percent}% off</span>
                     <button onClick={() => removeGroupDiscount(g.id)}>
                       <X size={14} color="#888" />
                     </button>
@@ -539,7 +702,7 @@ export default function EditListingPage({ params }: Props) {
                 <div key={item.id}
                   className="flex items-center justify-between gap-3 p-3 rounded-xl border border-gray-200">
                   <label className="flex items-center gap-2.5 flex-1 min-w-0 cursor-pointer">
-                    <input type="checkbox" checked={!!item.defaultSelected}
+                    <input type="checkbox" checked={item.default_selected}
                       onChange={() => toggleExtraDefault(item.id)}
                       className="w-4 h-4 accent-[#2c4a1e]" />
                     <span className="text-sm text-[#1a1a1a] truncate">{item.label}</span>
@@ -562,7 +725,7 @@ export default function EditListingPage({ params }: Props) {
             Price per additional guest
           </label>
           <input value={extraGuestPrice} onChange={(e) => setExtraGuestPrice(e.target.value)}
-            placeholder="e.g. Ksh 10,000 (optional)"
+            placeholder="e.g. 10000 (optional)"
             className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm
                        outline-none focus:border-[#2c4a1e] transition-colors" />
           <p className="text-xs text-gray-400 mt-1.5">Leave blank if your price already covers all guests.</p>
@@ -603,7 +766,7 @@ export default function EditListingPage({ params }: Props) {
                   className="flex items-center justify-between gap-3 p-3 rounded-xl border border-gray-200">
                   <div className="min-w-0">
                     <p className="text-sm font-semibold text-[#1a1a1a] truncate">{rate.label}</p>
-                    <p className="text-xs text-gray-400">{rate.start} → {rate.end}</p>
+                    <p className="text-xs text-gray-400">{rate.start_date} → {rate.end_date}</p>
                   </div>
                   <span className="text-sm font-semibold text-[#1a1a1a] flex-shrink-0">{rate.price}</span>
                   <button onClick={() => removeSeasonalRate(rate.id)} className="flex-shrink-0">
@@ -707,7 +870,7 @@ export default function EditListingPage({ params }: Props) {
               {blockedDates.map((b) => (
                 <span key={b.id}
                   className="flex items-center gap-1.5 bg-red-50 text-red-600 text-xs font-semibold px-3 py-1.5 rounded-full">
-                  {b.start} → {b.end}{b.reason ? ` · ${b.reason}` : ''}
+                  {b.start_date} → {b.end_date}{b.reason ? ` · ${b.reason}` : ''}
                   <button onClick={() => removeBlockedDates(b.id)}>
                     <X size={12} />
                   </button>
@@ -757,12 +920,12 @@ export default function EditListingPage({ params }: Props) {
           </button>
           <button
             onClick={handleSave}
-            disabled={!canSave}
+            disabled={!canSave || saving}
             className="flex-1 bg-[#2c4a1e] text-white py-3 rounded-xl
                        font-semibold text-sm hover:bg-[#3d6b28] transition-colors
                        disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            Save changes
+            {saving ? 'Saving…' : 'Save changes'}
           </button>
         </div>
       </div>
