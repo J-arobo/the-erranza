@@ -32,7 +32,7 @@ export default function Home() {
     // showCollapse=true so homepage collapses bar on scroll
     <AppShell showCollapse={true}>
 
-      {/* Continue searching card */}
+      {/* Continue searching card
       <div className="mx-4 sm:mx-6 mt-3 bg-white rounded-2xl border border-[#e0d9cc] shadow-sm p-4 flex items-center gap-3">
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold text-[#1a1a1a] leading-tight">
@@ -42,6 +42,7 @@ export default function Home() {
         </div>
         <div className="w-14 h-14 rounded-xl bg-[#1a5c7a] flex-shrink-0" />
       </div>
+      */}
 
       {/* Six destination snippets */}
       {sections.map(({ title, slug, data, color, category }) => (
@@ -63,10 +64,10 @@ export default function Home() {
           </div>
 
           {/* Scroll wrapper - NO padding here, clips cards at margin */}
-          <div className="overflow-hidden pb-2">
+          <div className="sm:px-12 md:px-16 lg:px-20 pb-2">
             <div className="overflow-x-auto scrollbar-hide">
-              {/* Flex row - padding here aligns first card with header */}
-              <div className="flex gap-3 px-6 sm:px-12 md:px-16 lg:px-20"> {/* xl:px-24 pb-4 overflow-x-auto scrollbar-hide */}
+              {/* Flex row - flat padding aligns first card, cards scroll underneath the wrapper padding above */}
+              <div className="flex gap-3 px-6">
                 {data.slice(0, 10).map((item) => (
                   <div key={item.id} className="flex-shrink-0
                   w-[calc((100vw-60px)/2)]
@@ -99,6 +100,7 @@ export default function Home() {
               </div>
             </div>
           </div>
+          
         </div>
       ))}
 

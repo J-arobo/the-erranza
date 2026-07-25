@@ -36,8 +36,8 @@ function toDateStr(d: Date): string {
   return `${y}-${m}-${day}`
 }
 
-function BookMonthGrid({ year, month, checkIn, checkOut, onSelect }: {
-  year: number; month: number; checkIn: Date | null; checkOut: Date | null; onSelect: (d: Date) => void
+function BookMonthGrid({ year, month, checkIn, checkOut, onSelect, hideLabel }: {
+  year: number; month: number; checkIn: Date | null; checkOut: Date | null; onSelect: (d: Date) => void; hideLabel?: boolean
 }) {
   const today = new Date()
   const firstDay = new Date(year, month, 1).getDay()
@@ -51,7 +51,9 @@ function BookMonthGrid({ year, month, checkIn, checkOut, onSelect }: {
   const stripBg = '#e8f0d4'
   return (
     <div>
-      <p className="text-center font-bold text-[#1a1a1a] mb-3" style={{ fontSize: 15 }}>{MONTHS[month]} {year}</p>
+      {!hideLabel && (
+        <p className="text-center font-bold text-[#1a1a1a] mb-3" style={{ fontSize: 15 }}>{MONTHS[month]} {year}</p>
+      )}
       <div className="grid grid-cols-7 mb-1">
         {WDAYS.map((d, i) => <div key={i} className="text-center py-1" style={{ fontSize: 11, fontWeight: 600, color: '#9ca3af' }}>{d}</div>)}
       </div>
@@ -118,7 +120,7 @@ function BookCalendar({ checkIn, checkOut, onSelect }: {
             <ChevronRight size={16} color="#1a1a1a" />
           </button>
         </div>
-        <BookMonthGrid year={year} month={month} checkIn={checkIn} checkOut={checkOut} onSelect={onSelect} />
+        <BookMonthGrid year={year} month={month} checkIn={checkIn} checkOut={checkOut} onSelect={onSelect} hideLabel />
       </div>
 
       {/* Desktop/tablet: two months side by side */}

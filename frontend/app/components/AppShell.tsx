@@ -18,7 +18,6 @@ const slugMap: Record<string, string> = {
 }
 
 const pathToTab: Record<string, string> = {
-  '/': 'Stays',
   '/destinations/stays': 'Stays',
   '/destinations/flights': 'Flights',
   '/destinations/safari': 'Safari',
@@ -28,6 +27,7 @@ const pathToTab: Record<string, string> = {
   '/destinations/packages': 'Packages',
   '/destinations/car-rentals': 'Car Rentals',
 }
+
 
 const pathToNav: Record<string, string> = {
   '/': 'Explore',
@@ -57,7 +57,7 @@ export default function AppShell({ children, showCollapse = false }: Props) {
   const lastDir = useRef<'up' | 'down' | null>(null)
   // ───────────────────────────────────────────────────────────────────────
 
-  const activeTab = pathToTab[pathname] ?? 'Stays'
+  const activeTab = pathToTab[pathname] ?? ''
   const scrolled = scrollY > 10
 
   const handleScroll = useCallback(() => {

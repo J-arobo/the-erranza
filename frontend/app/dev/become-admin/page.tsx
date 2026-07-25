@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/context/AuthContext'
 
 export default function DevBecomeAdminPage() {
-  const { isLoggedIn, addAdminRole } = useAuth()
+  const { isLoggedIn, user, addAdminRole } = useAuth()
   const router = useRouter()
 
   useEffect(() => {
@@ -12,10 +12,12 @@ export default function DevBecomeAdminPage() {
       router.push('/login?redirect=/dev/become-admin')
       return
     }
-    addAdminRole()
+    if (!user?.roles?.includes('admin')) {
+      addAdminRole()
+      return
+    }
     router.push('/admin')
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLoggedIn])
+  }, [isLoggedIn, user, addAdminRole, router])
 
   return null
 }

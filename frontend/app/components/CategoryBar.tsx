@@ -6,12 +6,12 @@ import {
 
 const tabs = [
   { name: 'Stays', Icon: Home },
-  { name: 'Flights', Icon: Plane },
   { name: 'Safari', Icon: Binoculars },
+  { name: 'Packages', Icon: Package },
+  { name: 'Flights', Icon: Plane },
   { name: 'Market', Icon: ShoppingBag },
   { name: 'Experiences', Icon: Star },
   { name: 'Directory', Icon: BookOpen },
-  { name: 'Packages', Icon: Package },
   { name: 'Car Rentals', Icon: Car },
 ]
 

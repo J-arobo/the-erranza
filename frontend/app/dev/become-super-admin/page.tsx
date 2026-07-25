@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/context/AuthContext'
 
 export default function DevBecomeSuperAdminPage() {
-  const { isLoggedIn, addSuperAdminRole } = useAuth()
+  const { isLoggedIn, user, addSuperAdminRole } = useAuth()
   const router = useRouter()
 
   useEffect(() => {
@@ -12,10 +12,12 @@ export default function DevBecomeSuperAdminPage() {
       router.push('/login?redirect=/dev/become-super-admin')
       return
     }
-    addSuperAdminRole()
+    if (!user?.roles?.includes('super_admin')) {
+      addSuperAdminRole()
+      return
+    }
     router.push('/super-admin')
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLoggedIn])
+  }, [isLoggedIn, user, addSuperAdminRole, router])
 
   return null
 }

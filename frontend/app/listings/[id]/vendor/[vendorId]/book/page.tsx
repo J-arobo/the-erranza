@@ -52,32 +52,22 @@ function DateMonthGrid({ year, month, selected, minDate, onSelect }: {
 
   return (
     <div>
-      <p className="text-center font-bold text-[#1a1a1a] mb-3" style={{ fontSize: 15 }}>{MONTHS[month]} {year}</p>
       <div className="grid grid-cols-7 mb-1">
-        {WDAYS.map((d, i) => (
-          <div key={i} className="text-center py-1" style={{ fontSize: 11, fontWeight: 600, color: '#9ca3af' }}>{d}</div>
-        ))}
+        {WDAYS.map((d, i) => <div key={i} className="text-center py-1" style={{ fontSize: 11, fontWeight: 600, color: '#9ca3af' }}>{d}</div>)}
       </div>
       <div className="grid grid-cols-7" style={{ rowGap: 2 }}>
         {cells.map((d, i) => {
           if (!d) return <div key={i} />
-          const disabled = isDisabled(d)
-          const selectedDay = isSelected(d)
+          const disabled = isDisabled(d), selectedDay = isSelected(d)
           return (
             <div key={i} style={{ height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <button
-                disabled={disabled}
-                onClick={() => !disabled && onSelect(new Date(year, month, d))}
+              <button disabled={disabled} onClick={() => !disabled && onSelect(new Date(year, month, d))}
                 style={{
-                  width: 44, height: 44, borderRadius: '50%', border: 'none', display: 'flex',
-                  alignItems: 'center', justifyContent: 'center', fontSize: 14,
-                  fontWeight: selectedDay ? 700 : 400,
-                  background: selectedDay ? '#1a1a1a' : 'transparent',
-                  color: selectedDay ? '#fff' : disabled ? '#d1d5db' : '#1a1a1a',
-                  cursor: disabled ? 'not-allowed' : 'pointer',
+                  width: 44, height: 44, borderRadius: '50%', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 14, fontWeight: selectedDay ? 700 : 400, background: selectedDay ? '#1a1a1a' : 'transparent',
+                  color: selectedDay ? '#fff' : disabled ? '#d1d5db' : '#1a1a1a', cursor: disabled ? 'not-allowed' : 'pointer',
                   WebkitTapHighlightColor: 'transparent',
-                }}
-              >
+                }}>
                 {d}
               </button>
             </div>
@@ -340,7 +330,7 @@ export default function BookingPage({ params }: Props) {
         </button>
 
         <h1 className="text-[15px] font-semibold text-[#1a1a1a]">
-          {step === 'review'  && 'Review and continue'}
+          {step === 'review' && 'Review and continue'}
           {step === 'message' && 'Message the guide'}
           {step === 'confirm' && 'Confirm and pay'}
         </h1>
