@@ -1,6 +1,7 @@
 'use client'
+// ─── Original implementation — commented out until Directory launches ───
+/*
 import { useState } from 'react'
-import AppShell from '@/components/AppShell'
 import ListingRow from '@/components/ListingRow'
 import FooterSection from '@/components/FooterSection'
 import { directory } from '@/data/directory'
@@ -39,6 +40,21 @@ export default function DirectoryPage() {
         
       </div>
       <FooterSection />
+    </AppShell>
+  )
+}
+*/
+
+import AppShell from '@/components/AppShell'
+import ComingSoonPage from '@/components/ComingSoonPage'
+
+export default function DirectoryPage() {
+  return (
+    <AppShell showCollapse={false}>
+      <ComingSoonPage
+        title="Directory"
+        description="The Erranza Directory is coming soon. Check back later!"
+      />
     </AppShell>
   )
 }

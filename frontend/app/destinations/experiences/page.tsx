@@ -1,6 +1,7 @@
 'use client'
+// ─── Original implementation — commented out until Experiences browsing launches ───
+/*
 import { useState } from 'react'
-import AppShell from '@/components/AppShell'
 import ListingRow from '@/components/ListingRow'
 import FooterSection from '@/components/FooterSection'
 import { experiences } from '@/data/experiences'
@@ -39,6 +40,21 @@ export default function ExperiencesPage() {
         <FooterSection />
       </div>
       <FooterSection />
+    </AppShell>
+  )
+}
+*/
+
+import AppShell from '@/components/AppShell'
+import ComingSoonPage from '@/components/ComingSoonPage'
+
+export default function ExperiencesPage() {
+  return (
+    <AppShell showCollapse={false}>
+      <ComingSoonPage
+        title="Experiences"
+        description="Browsable experiences are coming soon. Check back later!"
+      />
     </AppShell>
   )
 }

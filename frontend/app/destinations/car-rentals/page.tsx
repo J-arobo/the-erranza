@@ -1,7 +1,8 @@
 'use client'
+// ─── Original implementation — commented out until Car Rentals launches ───
+/*
 import { useState } from 'react'
 import { Search } from 'lucide-react'
-import AppShell from '@/components/AppShell'
 import ListingRow from '@/components/ListingRow'
 import FooterSection from '@/components/FooterSection'
 import { carRentals } from '@/data/carRentals'
@@ -49,6 +50,21 @@ export default function CarRentalsPage() {
 
         <FooterSection />
       </div>
+    </AppShell>
+  )
+}
+*/
+
+import AppShell from '@/components/AppShell'
+import ComingSoonPage from '@/components/ComingSoonPage'
+
+export default function CarRentalsPage() {
+  return (
+    <AppShell showCollapse={false}>
+      <ComingSoonPage
+        title="Car Rentals"
+        description="Self-drive and chauffeured vehicle bookings are coming soon. Check back later!"
+      />
     </AppShell>
   )
 }

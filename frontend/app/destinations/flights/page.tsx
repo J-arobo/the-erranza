@@ -1,9 +1,10 @@
 'use client'
+// ─── Original implementation — commented out until Flights launches ───
+/*
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { Search, Plane, Clock, ArrowRight } from 'lucide-react'
-import AppShell from '@/components/AppShell'
 import FooterSection from '@/components/FooterSection'
 import HeartButton from '@/components/HeartButton'
 import { flights } from '@/data/flights'
@@ -67,7 +68,7 @@ export default function FlightsPage() {
           ))}
         </div>
 
-        {/* Flight cards */}
+         Flight cards  ********** To comment out until flights launch **********
         <div className="px-4 sm:px-6 pb-6 flex flex-col gap-4">
           {filtered.map((flight) => {
             const vendors = getVendors(flight.id)
@@ -78,7 +79,7 @@ export default function FlightsPage() {
                 className="bg-white rounded-2xl border border-[#e0d9cc] shadow-sm overflow-hidden
                            shadow-sm">
 
-                {/* Flight header */}
+                Flight header ********** To comment out until flights launch **********
                 <div className="flex gap-4 p-4">
                   <div className="relative w-[90px] h-[90px] rounded-xl overflow-hidden
                                   bg-[#e0d9cc] flex-shrink-0">
@@ -94,7 +95,7 @@ export default function FlightsPage() {
                       <HeartButton listing={flight} size={22} />
                     </div>
 
-                    {/* Route visual */}
+                    Route visual ********** To comment out until flights launch **********
                     <div className="flex items-center gap-2 my-2">
                       <div className="flex items-center gap-1">
                         <Plane size={12} color="#0d3550" />
@@ -126,7 +127,7 @@ export default function FlightsPage() {
                   </div>
                 </div>
 
-                {/* Vendor options — expandable */}
+                Vendor options — expandable ********** To comment out until flights launch **********
                 {isExpanded && (
                   <div className="border-t border-gray-100">
                     {vendors.map((v, i) => (
@@ -170,6 +171,24 @@ export default function FlightsPage() {
 
         <FooterSection />
       </div>
+    </AppShell>
+  )
+}
+*/
+
+{/*  ********** The ones with stars above should be commented out like the below line. ********** */}
+{/* Vendor thumbnail + name */}
+
+import AppShell from '@/components/AppShell'
+import ComingSoonPage from '@/components/ComingSoonPage'
+
+export default function FlightsPage() {
+  return (
+    <AppShell showCollapse={false}>
+      <ComingSoonPage
+        title="Flights"
+        description="Domestic flight bookings are coming soon. Check back later!"
+      />
     </AppShell>
   )
 }

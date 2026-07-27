@@ -1,6 +1,7 @@
 'use client'
+// ─── Original implementation — commented out until Marketplace launches ───
+/*
 import { useState } from 'react'
-import AppShell from '@/components/AppShell'
 import ListingRow from '@/components/ListingRow'
 import FooterSection from '@/components/FooterSection'
 import { market } from '@/data/market'
@@ -39,6 +40,21 @@ export default function MarketPage() {
         
       </div>
       <FooterSection />
+    </AppShell>
+  )
+}
+*/
+
+import AppShell from '@/components/AppShell'
+import ComingSoonPage from '@/components/ComingSoonPage'
+
+export default function MarketPage() {
+  return (
+    <AppShell showCollapse={false}>
+      <ComingSoonPage
+        title="Marketplace"
+        description="The Erranza Marketplace is coming soon. Check back later!"
+      />
     </AppShell>
   )
 }
