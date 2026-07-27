@@ -1,142 +1,101 @@
 'use client'
-import { useState } from 'react'
-import { Shield, UserPlus, X } from 'lucide-react'
-import { useAuth } from '@/context/AuthContext'
-import { PLATFORM_ADMINS, logAction } from '@/data/admin'
+import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { apiFetch, apiErrorMessage } from '@/lib/api'
 
-export default function SuperAdminAdminsPage() {
-  const { user } = useAuth()
-  const [, forceUpdate] = useState(0)
-  const [adding, setAdding] = useState(false)
-  const [name, setName] = useState('')
-  const [email, setEmail] = useState('')
-  const [role, setRole] = useState<'admin' | 'super_admin'>('admin')
+type Admin = { id: number }
+type Dispute = { id: number; status: string }
+type Vendor = { id: number; suspended: boolean }
+type Financials = { gross_platform_revenue: number; total_commission: number }
+type Config = { maintenance_mode: boolean; maintenance_message: string | null }
 
-  function adminId() { return user?.email ?? 'unknown-super-admin' }
+export default function SuperAdminDashboardPage() {
+  const router = useRouter()
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
 
-  function addAdmin() {
-    if (!name.trim() || !email.trim()) return
-    PLATFORM_ADMINS.push({
-      id: `pa_${Date.now()}`,
-      name: name.trim(),
-      email: email.trim(),
-      role,
-      addedDate: new Date().toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }),
-      revoked: false,
-    })
-    logAction(adminId(), `Created ${role === 'admin' ? 'Admin' : 'Super Admin'} account`, email.trim())
-    setName(''); setEmail(''); setRole('admin'); setAdding(false)
-    forceUpdate(n => n + 1)
+  const [activeAdmins, setActiveAdmins] = useState(0)
+  const [escalatedDisputes, setEscalatedDisputes] = useState(0)
+  const [suspendedVendors, setSuspendedVendors] = useState(0)
+  const [financials, setFinancials] = useState<Financials | null>(null)
+  const [config, setConfig] = useState<Config | null>(null)
+
+  useEffect(() => {
+    Promise.all([
+      apiFetch<{ admins: Admin[] }>('/super-admin/admins'),
+      apiFetch<{ disputes: Dispute[] }>('/super-admin/disputes'),
+      apiFetch<{ vendors: Vendor[] }>('/admin/vendors'),
+      apiFetch<Financials>('/super-admin/financials'),
+      apiFetch<{ config: Config }>('/super-admin/config'),
+    ])
+      .then(([admins, disputes, vendors, fin, cfg]) => {
+        setActiveAdmins(admins.admins.length)
+        setEscalatedDisputes(disputes.disputes.filter(d => d.status === 'escalated').length)
+        setSuspendedVendors(vendors.vendors.filter(v => v.suspended).length)
+        setFinancials(fin)
+        setConfig(cfg.config)
+      })
+      .catch((err) => setError(apiErrorMessage(err)))
+      .finally(() => setLoading(false))
+  }, [])
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-full py-20">
+        <div className="w-8 h-8 rounded-full border-2 border-[#161616] border-t-transparent animate-spin" />
+      </div>
+    )
   }
 
-  function promote(id: string) {
-    const admin = PLATFORM_ADMINS.find(a => a.id === id)
-    if (!admin) return
-    admin.role = 'super_admin'
-    logAction(adminId(), 'Promoted to Super Admin', admin.email)
-    forceUpdate(n => n + 1)
-  }
-
-  function revoke(id: string) {
-    const admin = PLATFORM_ADMINS.find(a => a.id === id)
-    if (!admin) return
-    admin.revoked = true
-    logAction(adminId(), 'Revoked admin access', admin.email)
-    forceUpdate(n => n + 1)
-  }
-
-  function reinstate(id: string) {
-    const admin = PLATFORM_ADMINS.find(a => a.id === id)
-    if (!admin) return
-    admin.revoked = false
-    logAction(adminId(), 'Reinstated admin access', admin.email)
-    forceUpdate(n => n + 1)
-  }
+  const STATS = [
+    { label: 'Platform revenue', value: `Ksh ${((financials?.gross_platform_revenue ?? 0) / 1000000).toFixed(2)}M`, path: '/super-admin/financials' },
+    { label: 'Commission collected', value: `Ksh ${(financials?.total_commission ?? 0).toLocaleString()}`, path: '/super-admin/financials' },
+    { label: 'Active admins', value: activeAdmins, path: '/super-admin/admins' },
+    { label: 'Escalated disputes', value: escalatedDisputes, path: '/super-admin/disputes' },
+    { label: 'Suspended vendors', value: suspendedVendors, path: '/super-admin/moderation' },
+  ]
 
   return (
-    <div className="p-5 lg:p-8 max-w-3xl mx-auto">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-[#1a1a1a]">Admin accounts</h1>
-        <button onClick={() => setAdding(v => !v)}
-          className="flex items-center gap-1.5 text-sm font-semibold text-[#161616]">
-          <UserPlus size={15} />
-          {adding ? 'Cancel' : 'Add admin'}
-        </button>
-      </div>
+    <div className="p-5 lg:p-8 max-w-5xl mx-auto">
+      <h1 className="text-2xl font-bold text-[#1a1a1a] mb-6">Dashboard</h1>
 
-      {adding && (
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 mb-5 flex flex-col gap-3">
-          <input value={name} onChange={(e) => setName(e.target.value)}
-            placeholder="Full name"
-            className="w-full border border-gray-200 shadow-sm rounded-xl px-3.5 py-2.5 text-sm
-                       outline-none focus:border-[#161616] transition-colors" />
-          <input value={email} onChange={(e) => setEmail(e.target.value)}
-            placeholder="Email address" type="email"
-            className="w-full border border-gray-200 shadow-sm rounded-xl px-3.5 py-2.5 text-sm
-                       outline-none focus:border-[#161616] transition-colors" />
-          <div className="flex gap-2">
-            {(['admin', 'super_admin'] as const).map((r) => (
-              <button key={r} onClick={() => setRole(r)}
-                className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all
-                  ${role === r
-                    ? 'bg-[#161616] text-white border-[#161616]'
-                    : 'bg-white text-[#1a1a1a] border-gray-200 shadow-sm hover:border-[#161616]'}`}>
-                {r === 'admin' ? 'Admin' : 'Super Admin'}
-              </button>
-            ))}
-          </div>
-          <button onClick={addAdmin} disabled={!name.trim() || !email.trim()}
-            className="bg-[#161616] text-white py-2.5 rounded-xl font-semibold text-sm
-                       hover:bg-black transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
-            Create account
-          </button>
+      {error && (
+        <div className="mb-4 px-4 py-3 rounded-xl bg-red-50 text-red-600 text-sm">{error}</div>
+      )}
+
+      {config?.maintenance_mode && (
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-5">
+          <p className="text-sm font-semibold text-amber-800">Maintenance mode is currently ON</p>
+          <p className="text-xs text-amber-700 mt-0.5">{config.maintenance_message || 'No message set.'}</p>
         </div>
       )}
 
-      <div className="flex flex-col gap-3">
-        {PLATFORM_ADMINS.map((a) => (
-          <div key={a.id} className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4">
-            <div className="flex items-center justify-between gap-2 mb-1">
-              <div className="flex items-center gap-2">
-                <Shield size={14} color="#161616" />
-                <p className="text-sm font-bold text-[#1a1a1a]">{a.name}</p>
-              </div>
-              <div className="flex items-center gap-1.5">
-                {a.revoked && (
-                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-red-50 text-red-500">
-                    Revoked
-                  </span>
-                )}
-                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">
-                  {a.role === 'admin' ? 'Admin' : 'Super Admin'}
-                </span>
-              </div>
-            </div>
-            <p className="text-xs text-gray-400 mb-3">{a.email} · added {a.addedDate}</p>
-            <div className="flex gap-2">
-              {a.role === 'admin' && !a.revoked && (
-                <button onClick={() => promote(a.id)}
-                  className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-gray-200 shadow-sm
-                             text-[#1a1a1a] hover:bg-gray-50 transition-colors">
-                  Promote to Super Admin
-                </button>
-              )}
-              {a.revoked ? (
-                <button onClick={() => reinstate(a.id)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold
-                             bg-[#161616] text-white hover:bg-black transition-colors">
-                  Reinstate
-                </button>
-              ) : (
-                <button onClick={() => revoke(a.id)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold
-                             border border-red-200 text-red-500 hover:bg-red-50 transition-colors">
-                  <X size={13} /> Revoke access
-                </button>
-              )}
-            </div>
-          </div>
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-6">
+        {STATS.map(({ label, value, path }) => (
+          <button key={label} onClick={() => router.push(path)}
+            className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 text-left
+                       hover:shadow-md transition-all">
+            <p className="text-xl font-bold text-[#1a1a1a]">{value}</p>
+            <p className="text-xs text-gray-500 mt-0.5">{label}</p>
+          </button>
         ))}
+      </div>
+
+      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5">
+        <h2 className="text-base font-bold text-[#1a1a1a] mb-2">Financial summary</h2>
+        <p className="text-xs text-gray-400 mb-4">
+          All-time totals across every vendor. See the Financials page for the full per-vendor breakdown.
+        </p>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <p className="text-2xl font-bold text-[#1a1a1a]">Ksh {(financials?.gross_platform_revenue ?? 0).toLocaleString()}</p>
+            <p className="text-xs text-gray-500">Gross platform revenue</p>
+          </div>
+          <div>
+            <p className="text-2xl font-bold text-[#1a1a1a]">Ksh {(financials?.total_commission ?? 0).toLocaleString()}</p>
+            <p className="text-xs text-gray-500">Total commission</p>
+          </div>
+        </div>
       </div>
     </div>
   )

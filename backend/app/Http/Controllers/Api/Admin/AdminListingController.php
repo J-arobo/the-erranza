@@ -36,6 +36,8 @@ class AdminListingController extends Controller
             'flag_reason' => $validated['reason'],
         ]);
 
+        $listing->load('vendor:id,business_name');
+
         $this->logAdminAction($request, 'suspended listing', "{$listing->title} — {$validated['reason']}");
 
         return response()->json(['listing' => $listing]);
@@ -49,8 +51,11 @@ class AdminListingController extends Controller
             'flag_reason' => null,
         ]);
 
+        $listing->load('vendor:id,business_name');
+
         $this->logAdminAction($request, 'reinstated listing', $listing->title);
 
         return response()->json(['listing' => $listing]);
     }
+
 }

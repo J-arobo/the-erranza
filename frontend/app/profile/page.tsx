@@ -1,79 +1,52 @@
 'use client'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Bell, Settings, HelpCircle, User, Shield,
   ChevronRight, LogOut, Gift, FileText, Users,
-  ArrowLeft, Sun, Mountain, Camera, Landmark,
-  MessageSquare, Compass, Waves, Binoculars,
-  Briefcase, PawPrint, Lightbulb, GraduationCap,
-  Globe, Heart, ShieldCheck, Menu, X,
+  Menu, MapPin,
 } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
+import { apiFetch } from '@/lib/api'
 import FooterSection from '@/components/FooterSection'
 import BottomNav from '@/components/BottomNav'
 
+const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1547471080-7cc2caa01a7e?w=400&q=80'
 
-const WHERE_IVE_BEEN = [
-  { name: 'Nairobi', country: 'Kenya', date: 'March 2026', Icon: Sun, color: '#e8612a' },
-  { name: 'Maasai Mara', country: 'Kenya', date: 'January 2026', Icon: Mountain, color: '#2c4a1e' },
-  { name: 'Diani Beach', country: 'Kenya', date: 'November 2025', Icon: Waves, color: '#304333' },
-]
+type ApiBooking = {
+  id: number
+  status: 'pending' | 'confirmed' | 'completed' | 'cancelled' | 'alternative_proposed'
+  check_in: string | null
+  listing: {
+    id: number
+    title: string
+    location: string
+    images: { url: string }[]
+  }
+}
 
-const MY_REVIEWS = [
-  { name: 'Wanjiru', location: 'Nairobi, Kenya', date: 'March 2026', text: 'Great guest — communicated clearly and left everything tidy. Would host again.' },
-  { name: 'Otieno', location: 'Mombasa, Kenya', date: 'January 2026', text: 'Easy booking, respectful of house rules, arrived and left on time.' },
-  { name: 'Achieng', location: 'Naivasha, Kenya', date: 'November 2025', text: 'Lovely to host — friendly and low-maintenance. Highly recommend.' },
-]
+type Stat = { value: number | string; label: string }
 
-const MY_INTERESTS = [
-  { label: 'Wildlife safaris', Icon: Binoculars },
-  { label: 'Beaches', Icon: Waves },
-  { label: 'Photography', Icon: Camera },
-  { label: 'Culture & heritage', Icon: Landmark },
-  { label: 'Adventure', Icon: Compass },
-]
+function formatMonthYear(v: string | null) {
+  return v ? new Date(v).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : ''
+}
 
-const BIO_BULLETS = [
-  { Icon: Briefcase, label: 'My work: Travel enthusiast' },
-  { Icon: Compass, label: 'Dream destination: Zanzibar' },
-  { Icon: PawPrint, label: 'Pets: No' },
-  { Icon: Lightbulb, label: 'Fun fact: Always chasing sunsets' },
-  { Icon: GraduationCap, label: 'Where I studied: University of Nairobi' },
-  { Icon: Globe, label: 'Speaks: English and Swahili' },
-  { Icon: Heart, label: 'Obsessed with: Wildlife photography' },
-]
-
-export default function ProfilePage() {
-  const { isLoggedIn, user, logout, trips } = useAuth()
-  const router = useRouter()
-  const [showReviewsModal, setShowReviewsModal] = useState(false)
-
-  const STATS = [
-    { value: trips.length, label: 'Trips' },
-    { value: MY_REVIEWS.length, label: 'Reviews' },
-    { value: '1', label: 'Yr on Erranza' },
-  ]
-
-  // ── Square profile card — same pattern as "Meet your host"/"Meet your tour operator" ──
-  const ProfileCard = () => (
+// ── Square profile card — same pattern as "Meet your host"/"Meet your tour operator" ──
+function ProfileCard({ name, stats }: { name?: string; stats: Stat[] }) {
+  return (
     <>
       <div className="sm:hidden bg-white rounded-2xl p-4 mb-5" style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.12)', maxWidth: 380 }}>
         <div className="flex items-center">
           <div className="w-1/2 flex flex-col items-center">
             <div className="relative mb-1.5">
               <div className="w-20 h-20 rounded-full bg-[#2c4a1e] flex items-center justify-center text-white text-2xl font-bold">
-                {user?.name?.[0]?.toUpperCase() ?? 'E'}
-              </div>
-              <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-red-500 border-2 border-white flex items-center justify-center">
-                <Shield size={10} color="white" />
+                {name?.[0]?.toUpperCase() ?? 'E'}
               </div>
             </div>
-            <p className="text-base font-bold text-[#1a1a1a] text-center">{user?.name}</p>
-            <p className="text-xs text-gray-400 text-center">Nairobi, Kenya</p>
+            <p className="text-base font-bold text-[#1a1a1a] text-center">{name}</p>
           </div>
           <div className="w-1/2 pl-3">
-            {STATS.map(({ value, label }, i, arr) => (
+            {stats.map(({ value, label }, i, arr) => (
               <div key={label} className="py-2" style={{ borderBottom: i < arr.length - 1 ? '1px solid #e8e0d0' : 'none' }}>
                 <p className="text-base font-bold text-[#1a1a1a]">{value}</p>
                 <p className="text-xs text-gray-400">{label}</p>
@@ -88,17 +61,13 @@ export default function ProfilePage() {
           <div className="w-1/2 flex flex-col items-center">
             <div className="relative mb-3">
               <div className="w-24 h-24 rounded-full bg-[#2c4a1e] flex items-center justify-center text-white text-4xl font-bold">
-                {user?.name?.[0]?.toUpperCase() ?? 'E'}
-              </div>
-              <div className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-red-500 border-2 border-white flex items-center justify-center">
-                <Shield size={12} color="white" />
+                {name?.[0]?.toUpperCase() ?? 'E'}
               </div>
             </div>
-            <p className="text-xl font-bold text-[#1a1a1a] text-center">{user?.name}</p>
-            <p className="text-sm text-gray-400 text-center">Nairobi, Kenya</p>
+            <p className="text-xl font-bold text-[#1a1a1a] text-center">{name}</p>
           </div>
           <div className="w-1/2 pl-4">
-            {STATS.map(({ value, label }, i, arr) => (
+            {stats.map(({ value, label }, i, arr) => (
               <div key={label} className="py-2.5" style={{ borderBottom: i < arr.length - 1 ? '1px solid #e8e0d0' : 'none' }}>
                 <p className="text-xl font-bold text-[#1a1a1a]">{value}</p>
                 <p className="text-xs text-gray-400">{label}</p>
@@ -109,92 +78,73 @@ export default function ProfilePage() {
       </div>
     </>
   )
+}
 
-  const BioBullets = () => (
-    <div className="hidden md:flex flex-col gap-4 mb-6">
-      {BIO_BULLETS.map(({ Icon, label }) => (
-        <div key={label} className="flex items-center gap-3">
-          <Icon size={20} color="#1a1a1a" strokeWidth={1.5} />
-          <span className="text-sm text-[#1a1a1a]">{label}</span>
-        </div>
-      ))}
-      <div className="flex items-center gap-3">
-        <ShieldCheck size={20} color="#1a1a1a" strokeWidth={1.5} />
-        <span className="text-sm text-[#1a1a1a] underline font-semibold">Identity verified</span>
-      </div>
-    </div>
-  )
-
-  const ExtraSections = () => (
+function VisitedPlaces({ loading, places }: { loading: boolean; places: ApiBooking[] }) {
+  return (
     <div className="hidden md:block">
       <div className="h-px bg-gray-100 my-6" />
 
-      <h2 className="text-xl font-bold text-[#1a1a1a] mb-4">Where I've been</h2>
-      <div className="flex gap-8 mb-8">
-        {WHERE_IVE_BEEN.map(({ name, country, date, Icon, color }) => (
-          <div key={name} className="text-center">
-            <div className="w-20 h-20 rounded-full border-2 flex items-center justify-center mb-2 mx-auto"
-              style={{ borderColor: color }}>
-              <Icon size={28} color={color} strokeWidth={1.5} />
-            </div>
-            <p className="text-sm font-semibold text-[#1a1a1a]">{name}, {country}</p>
-            <p className="text-xs text-gray-400">{date}</p>
-          </div>
-        ))}
-      </div>
-
-      <div className="h-px bg-gray-100 my-6" />
-
-      <h2 className="text-xl font-bold text-[#1a1a1a] mb-4">My reviews</h2>
-      <div className="grid grid-cols-3 gap-6 mb-4">
-        {MY_REVIEWS.map((review) => (
-          <div key={review.name}>
-            <div className="flex items-center gap-2.5 mb-1">
-              <div className="w-9 h-9 rounded-full bg-[#2c4a1e] flex items-center justify-center
-                              text-white text-sm font-bold flex-shrink-0">
-                {review.name[0]}
+      <h2 className="text-xl font-bold text-[#1a1a1a] mb-4">Where I&apos;ve been</h2>
+      {loading ? (
+        <p className="text-sm text-gray-400 mb-8">Loading…</p>
+      ) : places.length === 0 ? (
+        <p className="text-sm text-gray-400 mb-8">Your completed trips will show up here.</p>
+      ) : (
+        <div className="flex gap-8 mb-8 flex-wrap">
+          {places.map((b) => (
+            <div key={b.listing.location} className="text-center">
+              <div className="relative w-20 h-20 rounded-full overflow-hidden mb-2 mx-auto bg-[#e0d9cc]">
+                {b.listing.images[0] ? (
+                  <img src={b.listing.images[0].url} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <MapPin size={24} color="#78716c" />
+                  </div>
+                )}
               </div>
-              <div>
-                <p className="text-sm font-semibold text-[#1a1a1a]">{review.name}</p>
-                <p className="text-xs text-gray-400">{review.location}</p>
-              </div>
+              <p className="text-sm font-semibold text-[#1a1a1a] max-w-[100px] truncate">{b.listing.location}</p>
+              <p className="text-xs text-gray-400">{formatMonthYear(b.check_in)}</p>
             </div>
-            <p className="text-xs text-gray-400 mb-1.5">{review.date}</p>
-            <p className="text-sm text-[#1a1a1a] leading-relaxed">{review.text}</p>
-          </div>
-        ))}
-      </div>
-      <button
-        onClick={() => setShowReviewsModal(true)}
-        className="transition-colors text-sm font-semibold text-[#304333] px-5 py-2.5 rounded-xl mb-8"
-        style={{ background: '#F1F5E4' }}
-        onMouseEnter={(e) => (e.currentTarget.style.background = '#ede8df')}
-        onMouseLeave={(e) => (e.currentTarget.style.background = '#F1F5E4')}
-      >
-        Show all reviews
-      </button>
-
-      <div className="h-px bg-gray-100 my-6" />
-
-      <h2 className="text-xl font-bold text-[#1a1a1a] mb-4">My interests</h2>
-      <div className="grid grid-cols-3 gap-4 mb-8">
-        {MY_INTERESTS.map(({ label, Icon }) => (
-          <div key={label} className="flex items-center gap-2.5">
-            <Icon size={20} color="#1a1a1a" strokeWidth={1.5} />
-            <span className="text-sm text-[#1a1a1a]">{label}</span>
-          </div>
-        ))}
-      </div>
-
-      <div className="h-px bg-gray-100 my-6" />
-
-      <button className="w-full flex items-center gap-4 py-2">
-        <MessageSquare size={20} color="#1a1a1a" />
-        <span className="text-sm font-medium text-[#1a1a1a]">Show reviews I&apos;ve written</span>
-      </button>
+          ))}
+        </div>
+      )}
 
       <div className="h-px bg-gray-100 my-6" />
     </div>
+  )
+}
+
+export default function ProfilePage() {
+  const { isLoggedIn, user, logout, wishlists } = useAuth()
+  const router = useRouter()
+
+  const [bookings, setBookings] = useState<ApiBooking[]>([])
+  const [loadingBookings, setLoadingBookings] = useState(true)
+
+  useEffect(() => {
+    if (!isLoggedIn) { setLoadingBookings(false); return }
+    apiFetch<{ bookings: ApiBooking[] }>('/bookings')
+      .then(({ bookings }) => setBookings(bookings))
+      .catch(() => {})
+      .finally(() => setLoadingBookings(false))
+  }, [isLoggedIn])
+
+  const memberSinceYear = user?.createdAt ? new Date(user.createdAt).getFullYear() : null
+
+  const stats: Stat[] = [
+    { value: bookings.length, label: 'Trips' },
+    { value: wishlists.length, label: 'Saved' },
+    { value: memberSinceYear ?? '—', label: 'Member since' },
+  ]
+
+  // Unique real destinations from completed bookings, keeping the first occurrence's date.
+  const visitedPlaces = Array.from(
+    new Map(
+      bookings
+        .filter(b => b.status === 'completed')
+        .map(b => [b.listing.location, b])
+    ).values()
   )
 
   if (!isLoggedIn) {
@@ -291,16 +241,17 @@ export default function ProfilePage() {
               <button onClick={() => router.push('/trips')}
                 className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-50 transition-colors text-left">
                 <div className="w-9 h-9 rounded-lg overflow-hidden bg-[#e0d9cc] flex-shrink-0">
-                  {trips[0] && <img src={trips[0].image} alt="" className="w-full h-full object-cover" />}
+                  {bookings[0] && <img src={bookings[0].listing.images[0]?.url ?? FALLBACK_IMAGE} alt="" className="w-full h-full object-cover" />}
                 </div>
                 <span className="text-sm text-[#1a1a1a]">Past trips</span>
               </button>
-              <button className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-50 transition-colors text-left">
+              <button onClick={() => router.push('/wishlists')}
+                className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-50 transition-colors text-left">
                 <div className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
                   style={{ background: '#F1F5E4', color: '#2c4a1e' }}>
-                  {user?.name?.[0]?.toUpperCase() ?? 'E'}
+                  {wishlists.length}
                 </div>
-                <span className="text-sm text-[#1a1a1a]">Connections</span>
+                <span className="text-sm text-[#1a1a1a]">Saved</span>
               </button>
             </div>
           </div>
@@ -310,25 +261,19 @@ export default function ProfilePage() {
 
             <div className="hidden lg:flex items-center justify-between mb-6">
               <h2 className="text-2xl font-bold text-[#1a1a1a]">About me</h2>
-              <button className="px-4 py-2 rounded-lg text-sm font-semibold bg-gray-100 hover:bg-gray-200 transition-colors">
-                Edit
-              </button>
             </div>
             <h1 className="text-3xl font-bold text-[#1a1a1a] mb-6 mt-6 lg:hidden">Profile</h1>
 
-            <ProfileCard />
-            <BioBullets />
+            <ProfileCard name={user?.name} stats={stats} />
 
             {/* Quick tiles — mobile/tablet only; desktop uses the sidebar instead */}
             <div className="grid grid-cols-2 gap-4 mb-5 lg:hidden">
               <button onClick={() => router.push('/trips')}
                 className="bg-white rounded-2xl p-5 text-left relative min-h-[180px] transition-shadow"
                 style={{ boxShadow: '0 2px 16px rgba(0,0,0,0.08)' }}>
-                <span className="absolute top-3 right-3 text-[10px] font-bold bg-[#304333]
-                               text-white px-2.5 py-1 rounded-full">NEW</span>
                 <div className="relative h-16 mb-4" style={{ width: 90 }}>
-                  {trips.length > 0 ? trips.slice(0, 2).map((t, i) => (
-                    <div key={i} className="absolute w-14 h-14 rounded-xl overflow-hidden bg-[#e0d9cc]"
+                  {bookings.length > 0 ? bookings.slice(0, 2).map((b, i) => (
+                    <div key={b.id} className="absolute w-14 h-14 rounded-xl overflow-hidden bg-[#e0d9cc]"
                       style={{
                         border: '3px solid white',
                         boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
@@ -336,7 +281,7 @@ export default function ProfilePage() {
                         left: i * 22,
                         zIndex: i,
                       }}>
-                      <img src={t.image} alt={t.listingTitle} className="w-full h-full object-cover" />
+                      <img src={b.listing.images[0]?.url ?? FALLBACK_IMAGE} alt={b.listing.title} className="w-full h-full object-cover" />
                     </div>
                   )) : (
                     <div className="absolute w-14 h-14 rounded-xl bg-gray-100" style={{ border: '3px solid white' }} />
@@ -345,15 +290,14 @@ export default function ProfilePage() {
                 <p className="text-sm font-bold text-[#1a1a1a]">Past trips</p>
               </button>
 
-              <button className="bg-white rounded-2xl p-5 text-left relative min-h-[180px] transition-shadow"
+              <button onClick={() => router.push('/wishlists')}
+                className="bg-white rounded-2xl p-5 text-left relative min-h-[180px] transition-shadow"
                 style={{ boxShadow: '0 2px 16px rgba(0,0,0,0.08)' }}>
-                <span className="absolute top-3 right-3 text-[10px] font-bold bg-[#304333]
-                               text-white px-2.5 py-1 rounded-full">NEW</span>
                 <div className="w-14 h-14 rounded-full flex items-center justify-center
                               text-2xl font-bold mb-4" style={{ background: '#F1F5E4', color: '#2c4a1e' }}>
-                  {user?.name?.[0]?.toUpperCase()}
+                  {wishlists.length}
                 </div>
-                <p className="text-sm font-bold text-[#1a1a1a]">Connections</p>
+                <p className="text-sm font-bold text-[#1a1a1a]">Saved</p>
               </button>
             </div>
 
@@ -390,7 +334,7 @@ export default function ProfilePage() {
               </button>
             </div>
 
-            <ExtraSections />
+            <VisitedPlaces loading={loadingBookings} places={visitedPlaces} />
 
             {/* Menu items — no per-item dividers; one divider between the two groups */}
             <div className="mt-2">
@@ -442,43 +386,6 @@ export default function ProfilePage() {
 
       <BottomNav active="Profile" onSelect={() => { }} scrollingDown={false} scrolled={false} />
       <FooterSection />
-
-
-      {/* ── Reviews modal ── */}
-      {showReviewsModal && (
-        <div className="fixed inset-0 z-[300] flex items-end sm:items-center justify-center"
-          style={{ background: 'rgba(0,0,0,0.5)' }}
-          onClick={(e) => { if (e.target === e.currentTarget) setShowReviewsModal(false) }}>
-          <div className="bg-white w-full sm:max-w-lg rounded-t-3xl sm:rounded-2xl p-6 max-h-[85vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-5">
-              <h2 className="text-xl font-bold text-[#1a1a1a]">{MY_REVIEWS.length} reviews</h2>
-              <button onClick={() => setShowReviewsModal(false)}
-                className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-gray-100">
-                <X size={18} color="#1a1a1a" />
-              </button>
-            </div>
-            <div className="flex flex-col gap-5">
-              {MY_REVIEWS.map((review, i) => (
-                <div key={review.name}
-                  style={{ borderBottom: i < MY_REVIEWS.length - 1 ? '1px solid #f0ede8' : 'none', paddingBottom: 16 }}>
-                  <div className="flex items-center gap-2.5 mb-1">
-                    <div className="w-9 h-9 rounded-full bg-[#2c4a1e] flex items-center justify-center
-                                    text-white text-sm font-bold flex-shrink-0">
-                      {review.name[0]}
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold text-[#1a1a1a]">{review.name}</p>
-                      <p className="text-xs text-gray-400">{review.location}</p>
-                    </div>
-                  </div>
-                  <p className="text-xs text-gray-400 mb-1.5">{review.date}</p>
-                  <p className="text-sm text-[#1a1a1a] leading-relaxed">{review.text}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

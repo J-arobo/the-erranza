@@ -1,45 +1,79 @@
 'use client'
-import { useState } from 'react'
-import { Plus, X } from 'lucide-react'
-import { useAuth } from '@/context/AuthContext'
-import { PLATFORM_CONFIG, logAction } from '@/data/admin'
+import { useEffect, useState } from 'react'
+import { apiFetch, apiErrorMessage } from '@/lib/api'
 
 const POLICIES: ('flexible' | 'moderate' | 'strict')[] = ['flexible', 'moderate', 'strict']
 
+type Config = {
+  commission_standard: number
+  commission_plus: number
+  plus_price_monthly: string
+  default_cancellation_policy: 'flexible' | 'moderate' | 'strict'
+  dispute_ceiling: number
+  maintenance_mode: boolean
+  maintenance_message: string | null
+}
+
 export default function SuperAdminConfigPage() {
-  const { user } = useAuth()
-  const [commissionStandard, setCommissionStandard] = useState(PLATFORM_CONFIG.commissionStandard.toString())
-  const [commissionPlus, setCommissionPlus] = useState(PLATFORM_CONFIG.commissionPlus.toString())
-  const [plusPrice, setPlusPrice] = useState(PLATFORM_CONFIG.plusPriceMonthly.toString())
-  const [categories, setCategories] = useState<string[]>(PLATFORM_CONFIG.categories)
-  const [categoryInput, setCategoryInput] = useState('')
-  const [defaultPolicy, setDefaultPolicy] = useState(PLATFORM_CONFIG.defaultCancellationPolicy)
-  const [disputeCeiling, setDisputeCeiling] = useState(PLATFORM_CONFIG.disputeCeiling.toString())
-  const [maintenanceMode, setMaintenanceMode] = useState(PLATFORM_CONFIG.maintenanceMode)
-  const [maintenanceMessage, setMaintenanceMessage] = useState(PLATFORM_CONFIG.maintenanceMessage)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
 
-  function addCategory() {
-    const val = categoryInput.trim()
-    if (val && !categories.includes(val)) setCategories(c => [...c, val])
-    setCategoryInput('')
-  }
-  function removeCategory(cat: string) {
-    setCategories(c => c.filter(x => x !== cat))
+  const [commissionStandard, setCommissionStandard] = useState('')
+  const [commissionPlus, setCommissionPlus] = useState('')
+  const [plusPrice, setPlusPrice] = useState('')
+  const [defaultPolicy, setDefaultPolicy] = useState<'flexible' | 'moderate' | 'strict'>('moderate')
+  const [disputeCeiling, setDisputeCeiling] = useState('')
+  const [maintenanceMode, setMaintenanceMode] = useState(false)
+  const [maintenanceMessage, setMaintenanceMessage] = useState('')
+
+  useEffect(() => {
+    apiFetch<{ config: Config }>('/super-admin/config')
+      .then(({ config }) => {
+        setCommissionStandard(String(config.commission_standard))
+        setCommissionPlus(String(config.commission_plus))
+        setPlusPrice(String(config.plus_price_monthly))
+        setDefaultPolicy(config.default_cancellation_policy)
+        setDisputeCeiling(String(config.dispute_ceiling))
+        setMaintenanceMode(config.maintenance_mode)
+        setMaintenanceMessage(config.maintenance_message ?? '')
+      })
+      .catch((err) => setError(apiErrorMessage(err)))
+      .finally(() => setLoading(false))
+  }, [])
+
+  async function save() {
+    setSaving(true)
+    setError('')
+    try {
+      await apiFetch('/super-admin/config', {
+        method: 'PUT',
+        body: JSON.stringify({
+          commission_standard: Number(commissionStandard) || 0,
+          commission_plus: Number(commissionPlus) || 0,
+          plus_price_monthly: Number(plusPrice) || 0,
+          default_cancellation_policy: defaultPolicy,
+          dispute_ceiling: Number(disputeCeiling) || 0,
+          maintenance_mode: maintenanceMode,
+          maintenance_message: maintenanceMessage.trim() || null,
+        }),
+      })
+      setSaved(true)
+      setTimeout(() => setSaved(false), 2000)
+    } catch (err) {
+      setError(apiErrorMessage(err))
+    } finally {
+      setSaving(false)
+    }
   }
 
-  function save() {
-    PLATFORM_CONFIG.commissionStandard = Number(commissionStandard) || 0
-    PLATFORM_CONFIG.commissionPlus = Number(commissionPlus) || 0
-    PLATFORM_CONFIG.plusPriceMonthly = Number(plusPrice) || 0
-    PLATFORM_CONFIG.categories = categories
-    PLATFORM_CONFIG.defaultCancellationPolicy = defaultPolicy
-    PLATFORM_CONFIG.disputeCeiling = Number(disputeCeiling) || 0
-    PLATFORM_CONFIG.maintenanceMode = maintenanceMode
-    PLATFORM_CONFIG.maintenanceMessage = maintenanceMessage.trim()
-    logAction(user?.email ?? 'unknown-super-admin', 'Updated platform configuration', 'Platform config')
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2000)
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-full py-20">
+        <div className="w-8 h-8 rounded-full border-2 border-[#161616] border-t-transparent animate-spin" />
+      </div>
+    )
   }
 
   return (
@@ -52,6 +86,10 @@ export default function SuperAdminConfigPage() {
           </span>
         )}
       </div>
+
+      {error && (
+        <div className="mb-4 px-4 py-3 rounded-xl bg-red-50 text-red-600 text-sm">{error}</div>
+      )}
 
       <div className="flex flex-col gap-5">
         <div className="grid grid-cols-2 gap-3">
@@ -77,30 +115,6 @@ export default function SuperAdminConfigPage() {
             type="number"
             className="w-full border border-gray-200 shadow-sm rounded-xl px-4 py-2.5 text-sm
                        outline-none focus:border-[#161616] transition-colors" />
-        </div>
-
-        <div>
-          <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">Categories</label>
-          <div className="flex gap-2 mb-2">
-            <input value={categoryInput} onChange={(e) => setCategoryInput(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCategory() } }}
-              placeholder="e.g. Road Trips"
-              className="flex-1 border border-gray-200 shadow-sm rounded-xl px-4 py-2.5 text-sm
-                         outline-none focus:border-[#161616] transition-colors" />
-            <button onClick={addCategory}
-              className="px-4 rounded-xl bg-[#161616] text-white hover:bg-black transition-colors">
-              <Plus size={16} />
-            </button>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {categories.map((c) => (
-              <span key={c} className="flex items-center gap-1.5 bg-gray-100 text-[#1a1a1a]
-                                       text-xs font-semibold px-3 py-1.5 rounded-full">
-                {c}
-                <button onClick={() => removeCategory(c)}><X size={12} /></button>
-              </span>
-            ))}
-          </div>
         </div>
 
         <div>
@@ -135,7 +149,7 @@ export default function SuperAdminConfigPage() {
           <div className="flex items-center justify-between mt-4 mb-1">
             <label className="text-sm font-semibold text-[#1a1a1a]">Maintenance mode</label>
             <button onClick={() => setMaintenanceMode(m => !m)}
-              className={`w-11 h-6 rounded-full transition-colors relative flex-shrink-0
+              className={`w-11 h-6 rounded-full transition-colors relative flex-shrink-0 overflow-hidden
                 ${maintenanceMode ? 'bg-[#161616]' : 'bg-gray-200'}`}>
               <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full transition-all
                 ${maintenanceMode ? 'left-5' : 'left-0.5'}`} />
@@ -149,10 +163,10 @@ export default function SuperAdminConfigPage() {
           )}
         </div>
 
-        <button onClick={save}
+        <button onClick={save} disabled={saving}
           className="bg-[#161616] text-white py-3 rounded-xl font-semibold text-sm
-                     hover:bg-black transition-colors">
-          Save configuration
+                     hover:bg-black transition-colors disabled:opacity-40">
+          {saving ? 'Saving…' : 'Save configuration'}
         </button>
       </div>
     </div>

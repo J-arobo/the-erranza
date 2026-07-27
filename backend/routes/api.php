@@ -31,6 +31,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\Vendor\VendorStatsController;
 use App\Http\Controllers\Api\Vendor\VendorTeamMemberController;
+use App\Http\Controllers\Api\WishlistController;
+
 
 
 Route::prefix('auth')->group(function () {
@@ -58,6 +60,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/bookings/{booking}/messages', [MessageController::class, 'show']);
     Route::post('/bookings/{booking}/review', [ReviewController::class, 'store']);
     Route::post('/become-partner', [VendorRegistrationController::class, 'store']);
+    // wishlist
+    Route::get('/wishlist', [WishlistController::class, 'index']);
+    Route::post('/wishlist', [WishlistController::class, 'store']);
+    Route::delete('/wishlist/{listing}', [WishlistController::class, 'destroy']);
 });
 
 Route::prefix('vendor')->middleware(['auth:sanctum', 'vendor'])->group(function () {

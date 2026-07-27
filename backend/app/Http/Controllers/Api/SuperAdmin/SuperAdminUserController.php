@@ -31,6 +31,8 @@ class SuperAdminUserController extends Controller
             'suspend_reason' => $validated['reason'],
         ]);
 
+        $user->load('roles:id,name');
+
         $this->logAdminAction($request, 'suspended account', "{$user->name} ({$user->email}) — {$validated['reason']}");
 
         return response()->json(['user' => $user]);
@@ -42,6 +44,8 @@ class SuperAdminUserController extends Controller
             'suspended' => false,
             'suspend_reason' => null,
         ]);
+
+        $user->load('roles:id,name');
 
         $this->logAdminAction($request, 'reinstated account', "{$user->name} ({$user->email})");
 

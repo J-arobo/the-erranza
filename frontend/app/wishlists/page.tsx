@@ -6,7 +6,7 @@ import ListingCard from '@/components/ListingCard'
 import BottomNav from '@/components/BottomNav'
 
 export default function WishlistsPage() {
-  const { isLoggedIn, wishlists } = useAuth()
+  const { isLoggedIn, wishlists, wishlistsReady } = useAuth()
   const router = useRouter()
 
   return (
@@ -36,8 +36,15 @@ export default function WishlistsPage() {
           </div>
         )}
 
+        {/* Logged in — loading */}
+        {isLoggedIn && !wishlistsReady && (
+          <div className="flex items-center justify-center py-20">
+            <div className="w-8 h-8 rounded-full border-2 border-[#2c4a1e] border-t-transparent animate-spin" />
+          </div>
+        )}
+
         {/* Logged in — empty */}
-        {isLoggedIn && wishlists.length === 0 && (
+        {isLoggedIn && wishlistsReady && wishlists.length === 0 && (
           <div className="flex flex-col items-center justify-center py-20 gap-4 text-center">
             <div className="w-16 h-16 rounded-full bg-[#e8f0e0] flex items-center
                             justify-center">
@@ -60,7 +67,7 @@ export default function WishlistsPage() {
         )}
 
         {/* Logged in — has items */}
-        {isLoggedIn && wishlists.length > 0 && (
+        {isLoggedIn && wishlistsReady && wishlists.length > 0 && (
           <>
             <p className="text-sm text-gray-500 mb-5">
               {wishlists.length} saved {wishlists.length === 1 ? 'place' : 'places'}

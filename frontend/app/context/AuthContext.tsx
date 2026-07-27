@@ -16,6 +16,7 @@ type User = {
   onboardingComplete?: boolean
   roles: Role[]
   activeRole: Role
+  createdAt: string
 }
 
 type Listing = {
@@ -67,6 +68,7 @@ type AuthContextType = {
   addSuperAdminRole: () => void
   setActiveRole: (role: Role) => void
   wishlists: Listing[]
+  wishlistsReady: boolean
   addToWishlist: (item: Listing) => void
   removeFromWishlist: (id: string) => void
   isWishlisted: (id: string) => boolean
@@ -78,21 +80,22 @@ type AuthContextType = {
 const AuthContext = createContext<AuthContextType>({
   user: null,
   ready: false,
-  register: async () => {},
-  login: async () => {},
-  logout: () => {},
+  register: async () => { },
+  login: async () => { },
+  logout: () => { },
   isLoggedIn: false,
-  completeOnboarding: () => {},
-  becomePartner: async () => {},
-  addAdminRole: () => {},
-  addSuperAdminRole: () => {},
-  setActiveRole: () => {},
+  completeOnboarding: () => { },
+  becomePartner: async () => { },
+  addAdminRole: () => { },
+  addSuperAdminRole: () => { },
+  setActiveRole: () => { },
   wishlists: [],
-  addToWishlist: () => {},
-  removeFromWishlist: () => {},
+  wishlistsReady: false,
+  addToWishlist: () => { },
+  removeFromWishlist: () => { },
   isWishlisted: () => false,
   trips: [],
-  addTrip: () => {},
+  addTrip: () => { },
   messages: [],
 })
 
@@ -153,6 +156,7 @@ type ApiUser = {
   roles: string[]
   activeRole: string
   onboardingComplete: boolean
+  createdAt: string
 }
 
 function mapUser(apiUser: ApiUser): User {
@@ -165,14 +169,37 @@ function mapUser(apiUser: ApiUser): User {
     roles: apiUser.roles as Role[],
     activeRole: apiUser.activeRole as Role,
     onboardingComplete: apiUser.onboardingComplete,
+    createdAt: apiUser.createdAt,
+  }
+}
+
+// Wishlist
+type ApiWishlistListing = {
+  id: number
+  title: string
+  location: string
+  price: string
+  images: { url: string }[]
+  reviews_avg_rating: string | null
+}
+
+function mapWishlistListing(l: ApiWishlistListing): Listing {
+  return {
+    id: String(l.id),
+    location: l.location,
+    title: l.title,
+    price: `Ksh ${Math.round(Number(l.price)).toLocaleString()}`,
+    rating: l.reviews_avg_rating ? Number(l.reviews_avg_rating) : 4.5,
+    image: l.images[0]?.url ?? 'https://images.unsplash.com/photo-1547471080-7cc2caa01a7e?w=400&q=80',
   }
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser]           = useState<User | null>(null)
+  const [user, setUser] = useState<User | null>(null)
   const [wishlists, setWishlists] = useState<Listing[]>([])
-  const [trips, setTrips]         = useState<Trip[]>(MOCK_TRIPS)
-  const [ready, setReady]         = useState(false)
+  const [wishlistsReady, setWishlistsReady] = useState(false)
+  const [trips, setTrips] = useState<Trip[]>(MOCK_TRIPS)
+  const [ready, setReady] = useState(false)
 
   // Restore session from a stored token on first load.
   useEffect(() => {
@@ -184,6 +211,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .catch(() => setToken(null))
       .finally(() => setReady(true))
   }, [])
+
+  // Fetch the real wishlist whenever the logged-in user changes.
+  useEffect(() => {
+    if (!user) { setWishlists([]); setWishlistsReady(true); return }
+    setWishlistsReady(false)
+    apiFetch<{ listings: ApiWishlistListing[] }>('/wishlist')
+      .then(({ listings }) => setWishlists(listings.map(mapWishlistListing)))
+      .catch(() => { })
+      .finally(() => setWishlistsReady(true))
+  }, [user?.id])
 
   const register = useCallback(async (name: string, email: string, password: string, phone?: string) => {
     const { user, token } = await apiFetch<{ user: ApiUser; token: string }>('/auth/register', {
@@ -208,7 +245,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const logout = useCallback(() => {
-    apiFetch('/auth/logout', { method: 'POST' }).catch(() => {})
+    apiFetch('/auth/logout', { method: 'POST' }).catch(() => { })
     setToken(null)
     setUser(null)
     setWishlists([])
@@ -251,12 +288,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(u => u ? { ...u, activeRole: role } : u)
   }
 
-  function addToWishlist(item: Listing) {
-    setWishlists(w => w.find(i => i.id === item.id) ? w : [...w, item])
+  async function addToWishlist(item: Listing) {
+    if (wishlists.find(i => i.id === item.id)) return
+    setWishlists(w => [...w, item])
+    try {
+      await apiFetch('/wishlist', {
+        method: 'POST',
+        body: JSON.stringify({ listing_id: Number(item.id) }),
+      })
+    } catch {
+      setWishlists(w => w.filter(i => i.id !== item.id))
+    }
   }
-  function removeFromWishlist(id: string) {
+
+  async function removeFromWishlist(id: string) {
+    const removed = wishlists.find(i => i.id === id)
     setWishlists(w => w.filter(i => i.id !== id))
+    try {
+      await apiFetch(`/wishlist/${id}`, { method: 'DELETE' })
+    } catch {
+      if (removed) setWishlists(w => w.find(i => i.id === id) ? w : [...w, removed])
+    }
   }
+
   function isWishlisted(id: string) {
     return wishlists.some(i => i.id === id)
   }
@@ -277,14 +331,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     addSuperAdminRole,
     setActiveRole,
     wishlists,
+    wishlistsReady,
     addToWishlist,
     removeFromWishlist,
     isWishlisted,
     trips,
     addTrip,
     messages: MOCK_MESSAGES,
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [user, ready, wishlists, trips, register, login, logout, becomePartner])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [user, ready, wishlists, wishlistsReady, trips, register, login, logout, becomePartner])
 
   return (
     <AuthContext.Provider value={value}>

@@ -33,6 +33,9 @@ class AdminVendorController extends Controller
             'suspend_reason' => $validated['reason'],
         ]);
 
+        $vendor->load('owner:id,name,email');
+        $vendor->loadCount('listings');
+
         $this->logAdminAction($request, 'suspended vendor', "{$vendor->business_name} — {$validated['reason']}");
 
         return response()->json(['vendor' => $vendor]);
@@ -44,6 +47,9 @@ class AdminVendorController extends Controller
             'suspended' => false,
             'suspend_reason' => null,
         ]);
+
+        $vendor->load('owner:id,name,email');
+        $vendor->loadCount('listings');
 
         $this->logAdminAction($request, 'reinstated vendor', $vendor->business_name);
 

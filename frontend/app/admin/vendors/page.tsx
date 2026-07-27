@@ -1,66 +1,124 @@
 'use client'
-import { useState } from 'react'
-import { Star, MessageCircle, Check, X, Ban } from 'lucide-react'
-import { useAuth } from '@/context/AuthContext'
-import { PLATFORM_VENDORS, VERIFICATION_SUBMISSIONS, logAction } from '@/data/admin'
+import { useEffect, useState } from 'react'
+import { Check, X, Ban } from 'lucide-react'
+import { apiFetch, apiErrorMessage } from '@/lib/api'
 
 const TABS = ['Verification queue', 'All vendors'] as const
 
+type Submission = {
+  id: number
+  vendor_id: number
+  doc_type: string
+  status: string
+  created_at: string
+  vendor: { id: number; business_name: string; email: string }
+}
+
+type Vendor = {
+  id: number
+  business_name: string
+  email: string
+  verification_status: string
+  suspended: boolean
+  suspend_reason: string | null
+  listings_count: number
+  owner: { name: string; email: string }
+}
+
 export default function AdminVendorsPage() {
-  const { user } = useAuth()
   const [tab, setTab] = useState<typeof TABS[number]>('Verification queue')
-  const [, forceUpdate] = useState(0)
-  const [suspendingId, setSuspendingId] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  const [submissions, setSubmissions] = useState<Submission[]>([])
+  const [vendors, setVendors] = useState<Vendor[]>([])
+
+  const [actingId, setActingId] = useState<number | null>(null)
+  const [suspendingId, setSuspendingId] = useState<number | null>(null)
   const [suspendReason, setSuspendReason] = useState('')
 
-  function adminId() { return user?.email ?? 'unknown-admin' }
+  useEffect(() => {
+    Promise.all([
+      apiFetch<{ submissions: Submission[] }>('/admin/verifications'),
+      apiFetch<{ vendors: Vendor[] }>('/admin/vendors'),
+    ])
+      .then(([subs, vends]) => {
+        setSubmissions(subs.submissions)
+        setVendors(vends.vendors)
+      })
+      .catch((err) => setError(apiErrorMessage(err)))
+      .finally(() => setLoading(false))
+  }, [])
 
-  function approveSubmission(id: string) {
-    const sub = VERIFICATION_SUBMISSIONS.find(s => s.id === id)
-    if (!sub) return
-    sub.status = 'approved'
-    const vendor = PLATFORM_VENDORS.find(v => v.id === sub.vendorId)
-    if (vendor) vendor.verificationStatus = 'approved'
-    logAction(adminId(), 'Approved verification', `${sub.vendorName} (${sub.docType})`)
-    forceUpdate(n => n + 1)
+  async function approveSubmission(id: number) {
+    setActingId(id)
+    try {
+      await apiFetch(`/admin/verifications/${id}/approve`, { method: 'POST' })
+      setSubmissions(subs => subs.filter(s => s.id !== id))
+    } catch (err) {
+      setError(apiErrorMessage(err))
+    } finally {
+      setActingId(null)
+    }
   }
 
-  function rejectSubmission(id: string) {
-    const sub = VERIFICATION_SUBMISSIONS.find(s => s.id === id)
-    if (!sub) return
-    sub.status = 'rejected'
-    const vendor = PLATFORM_VENDORS.find(v => v.id === sub.vendorId)
-    if (vendor) vendor.verificationStatus = 'rejected'
-    logAction(adminId(), 'Rejected verification', `${sub.vendorName} (${sub.docType})`)
-    forceUpdate(n => n + 1)
+  async function rejectSubmission(id: number) {
+    setActingId(id)
+    try {
+      await apiFetch(`/admin/verifications/${id}/reject`, { method: 'POST' })
+      setSubmissions(subs => subs.filter(s => s.id !== id))
+    } catch (err) {
+      setError(apiErrorMessage(err))
+    } finally {
+      setActingId(null)
+    }
   }
 
-  function confirmSuspend() {
-    const vendor = PLATFORM_VENDORS.find(v => v.id === suspendingId)
-    if (!vendor || !suspendReason.trim()) return
-    vendor.suspended = true
-    vendor.suspendReason = suspendReason.trim()
-    logAction(adminId(), 'Suspended vendor', vendor.name)
-    setSuspendingId(null)
-    setSuspendReason('')
-    forceUpdate(n => n + 1)
+  async function confirmSuspend() {
+    if (!suspendingId || !suspendReason.trim()) return
+    setActingId(suspendingId)
+    try {
+      const { vendor } = await apiFetch<{ vendor: Vendor }>(`/admin/vendors/${suspendingId}/suspend`, {
+        method: 'POST',
+        body: JSON.stringify({ reason: suspendReason.trim() }),
+      })
+      setVendors(vs => vs.map(v => v.id === vendor.id ? vendor : v))
+      setSuspendingId(null)
+      setSuspendReason('')
+    } catch (err) {
+      setError(apiErrorMessage(err))
+    } finally {
+      setActingId(null)
+    }
   }
 
-  function unsuspendVendor(id: string) {
-    const vendor = PLATFORM_VENDORS.find(v => v.id === id)
-    if (!vendor) return
-    vendor.suspended = false
-    vendor.suspendReason = undefined
-    logAction(adminId(), 'Unsuspended vendor', vendor.name)
-    forceUpdate(n => n + 1)
+  async function reinstateVendor(id: number) {
+    setActingId(id)
+    try {
+      const { vendor } = await apiFetch<{ vendor: Vendor }>(`/admin/vendors/${id}/reinstate`, { method: 'POST' })
+      setVendors(vs => vs.map(v => v.id === vendor.id ? vendor : v))
+    } catch (err) {
+      setError(apiErrorMessage(err))
+    } finally {
+      setActingId(null)
+    }
   }
 
-  const pending = VERIFICATION_SUBMISSIONS.filter(s => s.status === 'pending')
-  const history = VERIFICATION_SUBMISSIONS.filter(s => s.status !== 'pending')
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-full py-20">
+        <div className="w-8 h-8 rounded-full border-2 border-[#2c4a1e] border-t-transparent animate-spin" />
+      </div>
+    )
+  }
 
   return (
     <div className="p-5 lg:p-8 max-w-4xl mx-auto">
       <h1 className="text-2xl font-bold text-[#1a1a1a] mb-6">Vendors</h1>
+
+      {error && (
+        <div className="mb-4 px-4 py-3 rounded-xl bg-red-50 text-red-600 text-sm">{error}</div>
+      )}
 
       <div className="flex gap-2 mb-5">
         {TABS.map((t) => (
@@ -75,69 +133,49 @@ export default function AdminVendorsPage() {
       </div>
 
       {tab === 'Verification queue' && (
-        <div className="flex flex-col gap-5">
-          <div>
-            <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">
-              Pending ({pending.length})
-            </p>
-            <div className="flex flex-col gap-3">
-              {pending.length === 0 && (
-                <p className="text-sm text-gray-400 text-center py-6 bg-white rounded-2xl border border-gray-200 shadow-sm">
-                  Nothing pending review.
-                </p>
-              )}
-              {pending.map((s) => (
-                <div key={s.id} className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4">
-                  <div className="flex items-center justify-between gap-2 mb-1">
-                    <p className="text-sm font-bold text-[#1a1a1a]">{s.vendorName}</p>
-                    <span className="text-xs text-gray-400">{s.submittedDate}</span>
-                  </div>
-                  <p className="text-xs text-gray-500 mb-3">{s.docType}</p>
-                  <div className="flex gap-2">
-                    <button onClick={() => approveSubmission(s.id)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold
-                                 bg-[#2c4a1e] text-white hover:bg-[#3d6b28] transition-colors">
-                      <Check size={13} /> Approve
-                    </button>
-                    <button onClick={() => rejectSubmission(s.id)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold
-                                 border border-gray-200 shadow-sm text-[#1a1a1a] hover:bg-gray-50 transition-colors">
-                      <X size={13} /> Reject
-                    </button>
-                  </div>
+        <div>
+          <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">
+            Pending ({submissions.length})
+          </p>
+          <div className="flex flex-col gap-3">
+            {submissions.length === 0 && (
+              <p className="text-sm text-gray-400 text-center py-6 bg-white rounded-2xl border border-gray-200 shadow-sm">
+                Nothing pending review.
+              </p>
+            )}
+            {submissions.map((s) => (
+              <div key={s.id} className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4">
+                <div className="flex items-center justify-between gap-2 mb-1">
+                  <p className="text-sm font-bold text-[#1a1a1a]">{s.vendor.business_name}</p>
+                  <span className="text-xs text-gray-400">
+                    {new Date(s.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                  </span>
                 </div>
-              ))}
-            </div>
-          </div>
-
-          {history.length > 0 && (
-            <div>
-              <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">History</p>
-              <div className="flex flex-col divide-y divide-gray-100 bg-white rounded-2xl border border-gray-200 shadow-sm px-4">
-                {history.map((s) => (
-                  <div key={s.id} className="flex items-center justify-between gap-2 py-3">
-                    <div>
-                      <p className="text-sm font-semibold text-[#1a1a1a]">{s.vendorName}</p>
-                      <p className="text-xs text-gray-400">{s.docType} · {s.submittedDate}</p>
-                    </div>
-                    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0
-                      ${s.status === 'approved' ? 'bg-[#eaf5e4] text-[#2c4a1e]' : 'bg-red-50 text-red-500'}`}>
-                      {s.status === 'approved' ? 'Approved' : 'Rejected'}
-                    </span>
-                  </div>
-                ))}
+                <p className="text-xs text-gray-500 mb-3">{s.doc_type}</p>
+                <div className="flex gap-2">
+                  <button onClick={() => approveSubmission(s.id)} disabled={actingId === s.id}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold
+                               bg-[#2c4a1e] text-white hover:bg-[#3d6b28] transition-colors disabled:opacity-40">
+                    <Check size={13} /> Approve
+                  </button>
+                  <button onClick={() => rejectSubmission(s.id)} disabled={actingId === s.id}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold
+                               border border-gray-200 shadow-sm text-[#1a1a1a] hover:bg-gray-50 transition-colors disabled:opacity-40">
+                    <X size={13} /> Reject
+                  </button>
+                </div>
               </div>
-            </div>
-          )}
+            ))}
+          </div>
         </div>
       )}
 
       {tab === 'All vendors' && (
         <div className="flex flex-col gap-3">
-          {PLATFORM_VENDORS.map((v) => (
+          {vendors.map((v) => (
             <div key={v.id} className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4">
               <div className="flex items-center justify-between gap-2 mb-1">
-                <p className="text-sm font-bold text-[#1a1a1a]">{v.name}</p>
+                <p className="text-sm font-bold text-[#1a1a1a]">{v.business_name}</p>
                 <div className="flex items-center gap-1.5">
                   {v.suspended && (
                     <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-red-50 text-red-500">
@@ -145,35 +183,27 @@ export default function AdminVendorsPage() {
                     </span>
                   )}
                   <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full capitalize
-                    ${v.verificationStatus === 'approved' ? 'bg-[#eaf5e4] text-[#2c4a1e]'
-                      : v.verificationStatus === 'pending' ? 'bg-amber-50 text-amber-700'
+                    ${v.verification_status === 'approved' ? 'bg-[#eaf5e4] text-[#2c4a1e]'
+                      : v.verification_status === 'pending' ? 'bg-amber-50 text-amber-700'
                       : 'bg-gray-100 text-gray-500'}`}>
-                    {v.verificationStatus}
+                    {v.verification_status}
                   </span>
                 </div>
               </div>
-              <p className="text-xs text-gray-400 mb-3">{v.email}</p>
+              <p className="text-xs text-gray-400 mb-3">{v.email} · owner: {v.owner?.name}</p>
 
               <div className="flex gap-4 mb-3">
-                <div className="flex items-center gap-1.5">
-                  <Star size={12} color="#f5a623" fill="#f5a623" />
-                  <span className="text-xs text-gray-600">{v.rating > 0 ? v.rating : '—'}</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <MessageCircle size={12} color="#888" />
-                  <span className="text-xs text-gray-600">{v.responseRate}% response rate</span>
-                </div>
-                <span className="text-xs text-gray-400">{v.listingCount} listings</span>
+                <span className="text-xs text-gray-400">{v.listings_count} listings</span>
               </div>
 
               {v.suspended ? (
                 <>
                   <div className="bg-red-50 rounded-lg p-2.5 mb-3">
-                    <p className="text-xs text-red-600">{v.suspendReason}</p>
+                    <p className="text-xs text-red-600">{v.suspend_reason}</p>
                   </div>
-                  <button onClick={() => unsuspendVendor(v.id)}
+                  <button onClick={() => reinstateVendor(v.id)} disabled={actingId === v.id}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold
-                               bg-[#2c4a1e] text-white hover:bg-[#3d6b28] transition-colors">
+                               bg-[#2c4a1e] text-white hover:bg-[#3d6b28] transition-colors disabled:opacity-40">
                     <Check size={13} /> Reinstate vendor
                   </button>
                 </>
@@ -189,7 +219,7 @@ export default function AdminVendorsPage() {
                                  text-[#1a1a1a] hover:bg-gray-50 transition-colors">
                       Cancel
                     </button>
-                    <button onClick={confirmSuspend} disabled={!suspendReason.trim()}
+                    <button onClick={confirmSuspend} disabled={!suspendReason.trim() || actingId === v.id}
                       className="flex-1 py-2 rounded-lg bg-red-600 text-white text-xs font-semibold
                                  hover:bg-red-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
                       Confirm suspension

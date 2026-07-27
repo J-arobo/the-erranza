@@ -96,6 +96,8 @@ class AuthController extends Controller
             'roles' => $user->roles->pluck('name')->values(),
             'activeRole' => $user->active_role,
             'onboardingComplete' => $user->vendor?->onboarding_complete ?? false,
+            'createdAt' => $user->created_at,
         ];
     }
+
 }
