@@ -1,9 +1,11 @@
 'use client'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Check } from 'lucide-react'
 
 export default function PackageBookingSuccessPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const bookingId = searchParams.get('booking')
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-white
@@ -18,19 +20,28 @@ export default function PackageBookingSuccessPage() {
           itinerary and confirmation details.
         </p>
       </div>
-      <button
-        onClick={() => router.push('/')}
-        className="bg-[#2c4a1e] text-white px-8 py-3 rounded-full font-semibold text-sm
-                   hover:bg-[#3d6b28] transition-colors"
-      >
-        Back to home
-      </button>
-      <button
-        onClick={() => router.push('/trips')}
-        className="text-sm font-semibold text-[#1a1a1a] underline"
-      >
-        View my trips
-      </button>
+      <div className="flex flex-col gap-3 w-full max-w-sm">
+        <button
+          onClick={() => router.push('/trips')}
+          className="w-full bg-[#2c4a1e] text-white px-8 py-3.5 rounded-xl font-semibold
+                     text-sm hover:bg-[#3d6b28] transition-colors"
+        >
+          View my trips
+        </button>
+        <button
+          onClick={() => router.push(bookingId ? `/messages?booking=${bookingId}` : '/messages')}
+          className="w-full border border-[#1a1a1a] text-[#1a1a1a] px-8 py-3.5 rounded-xl
+                     font-semibold text-sm hover:bg-gray-50 transition-colors"
+        >
+          Message tour operator
+        </button>
+        <button
+          onClick={() => router.push('/')}
+          className="text-sm text-gray-400 underline"
+        >
+          Back to home
+        </button>
+      </div>
     </div>
   )
 }

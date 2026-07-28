@@ -1,5 +1,5 @@
 'use client'
-import { use, useState } from 'react'
+import { use, useState, useEffect, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Image from 'next/image'
 import { ArrowLeft, X, ChevronRight, ChevronLeft, Shield, Star } from 'lucide-react'
@@ -126,6 +126,18 @@ export default function BookingPage({ params }: Props) {
   const [sheetDate, setSheetDate] = useState<Date | null>(selectedDate)
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState('')
+  // client need to reach the bottom to activate the book button
+  const [reachedBottom, setReachedBottom] = useState(false)
+  const contentRef = useRef<HTMLDivElement>(null)
+
+
+  useEffect(() => {
+    if (step !== 'confirm') { setReachedBottom(false); return }
+    const el = contentRef.current
+    setReachedBottom(!!el && el.scrollHeight - el.clientHeight < 60)
+  }, [step])
+
+
 
   useState(() => {
     apiFetch<{ listing: ApiListingDetail }>(`/listings/${vendorId}`)
@@ -213,6 +225,12 @@ export default function BookingPage({ params }: Props) {
     if (step === 'review') router.back()
     if (step === 'message') setStep('review')
     if (step === 'confirm') setStep('message')
+  }
+
+  function handleContentScroll(e: React.UIEvent<HTMLDivElement>) {
+    if (step !== 'confirm' || reachedBottom) return
+    const el = e.currentTarget
+    if (el.scrollHeight - el.scrollTop - el.clientHeight < 60) setReachedBottom(true)
   }
 
   // ── Progress bar ──────────────────────────────────────────────────────
@@ -345,7 +363,7 @@ export default function BookingPage({ params }: Props) {
       </div>
 
       {/* ── CONTENT ── */}
-      <div className="flex-1 overflow-y-auto px-5 py-5 pb-40">
+      <div ref={contentRef} className="flex-1 overflow-y-auto px-5 py-5 pb-40" onScroll={handleContentScroll}>s
 
         {/* ── STEP 1: Review ── */}
         {step === 'review' && (
@@ -548,7 +566,7 @@ export default function BookingPage({ params }: Props) {
             <>
               <button
                 onClick={goNext}
-                disabled={submitting || !dateReady}
+                disabled={submitting || !dateReady || !reachedBottom}
                 className="w-full bg-[#1a1a1a] text-white py-4 rounded-2xl font-bold
                            text-base hover:bg-[#333] transition-colors active:scale-[0.99]
                            disabled:opacity-40 disabled:cursor-not-allowed"

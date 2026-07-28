@@ -1,7 +1,7 @@
 'use client'
 // src/app/listings/stays/[id]/book/page.tsx
 
-import { use, useEffect, useState } from 'react'
+import { use, useEffect, useState, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Image from 'next/image'
 import { ArrowLeft, X, ChevronRight, Shield, Star, ChevronLeft } from 'lucide-react'
@@ -189,6 +189,15 @@ export default function StayBookingPage({ params }: Props) {
   const [insurance, setInsurance] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState('')
+  // client need to reach the bottom to activate the book button
+  const [reachedBottom, setReachedBottom] = useState(false)
+  const contentRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (step !== 'confirm') { setReachedBottom(false); return }
+    const el = contentRef.current
+    setReachedBottom(!!el && el.scrollHeight - el.clientHeight < 60)
+  }, [step])
 
   const dateDiff = (localCheckIn && localCheckOut) ? Math.max(1, Math.round((localCheckOut.getTime() - localCheckIn.getTime()) / 86400000)) : null
   const [nights, setNights] = useState(2)
@@ -276,6 +285,12 @@ export default function StayBookingPage({ params }: Props) {
     if (step === 'message') { setStep('review'); return }
     if (step === 'confirm') { setStep('message'); return }
   }
+  function handleContentScroll(e: React.UIEvent<HTMLDivElement>) {
+    if (step !== 'confirm' || reachedBottom) return
+    const el = e.currentTarget
+    if (el.scrollHeight - el.scrollTop - el.clientHeight < 60) setReachedBottom(true)
+  }
+
 
   function handleSheetCalSelect(date: Date) {
     if (sheetField === 'checkin' || !sheetCI || (sheetCI && sheetCO)) {
@@ -465,7 +480,7 @@ export default function StayBookingPage({ params }: Props) {
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto px-5 py-5 pb-40">
+      <div ref={contentRef} className="flex-1 overflow-y-auto px-5 py-5 pb-40" onScroll={handleContentScroll}>
 
         {/* STEP 1 — Review */}
         {step === 'review' && (
@@ -660,7 +675,7 @@ export default function StayBookingPage({ params }: Props) {
             <>
               <button
                 onClick={goNext}
-                disabled={submitting || !datesReady}
+                disabled={submitting || !datesReady || !reachedBottom}
                 className="w-full bg-[#2c4a1e] text-white py-4 rounded-2xl font-bold
                            text-sm hover:bg-[#3d6b28] transition-colors
                            disabled:opacity-40 disabled:cursor-not-allowed"

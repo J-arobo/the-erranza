@@ -194,7 +194,7 @@ function MiniCalendar({ checkIn, checkOut, onSelect }: {
                 }}>
                 {past && (
                   <span style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
-                    <span style={{ position: 'absolute', width: '130%', height: '1px', background: '#c8c0b4', transform: 'rotate(-45deg)', transformOrigin: 'center' }} />
+                    <span style={{ position: 'absolute', width: '50%', height: '1px', background: '#c8c0b4', transform: 'rotate(-45deg)', transformOrigin: 'center' }} />
                   </span>
                 )}
                 {d}
@@ -311,7 +311,7 @@ function DesktopCalendar({ checkIn, checkOut, onSelect }: {
                   }}>
                   {past && (
                     <span style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
-                      <span style={{ position: 'absolute', width: '130%', height: '1px', background: '#c8c0b4', transform: 'rotate(-45deg)', transformOrigin: 'center' }} />
+                      <span style={{ position: 'absolute', width: '50%', height: '1px', background: '#c8c0b4', transform: 'rotate(-45deg)', transformOrigin: 'center' }} />
                     </span>
                   )}
                   {d}
@@ -367,6 +367,8 @@ export default function StayDetailPage({ params }: Props) {
   const [pets, setPets] = useState(0)
   const scrollRef = useRef<HTMLDivElement>(null)
   const photoGridRef = useRef<HTMLDivElement>(null)
+  const [messaging, setMessaging] = useState(false)
+
 
   useEffect(() => {
     apiFetch<{ listing: ApiListingDetail }>(`/listings/${id}`)
@@ -414,6 +416,20 @@ export default function StayDetailPage({ params }: Props) {
       </div>
     )
   }
+  async function handleMessageHost() {
+    if (!isLoggedIn) { router.push('/login'); return }
+    setMessaging(true)
+    try {
+      const { bookings } = await apiFetch<{ bookings: { id: number; listing: { id: number } }[] }>('/bookings')
+      const existing = bookings.find(b => b.listing.id === listing!.id)
+      router.push(existing ? `/messages?booking=${existing.id}` : `/listings/stays/${id}/book`)
+    } catch {
+      router.push(`/listings/stays/${id}/book`)
+    } finally {
+      setMessaging(false)
+    }
+  }
+
 
   const title = listing.title
   const location = listing.location

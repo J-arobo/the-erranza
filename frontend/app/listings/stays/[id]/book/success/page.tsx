@@ -1,11 +1,13 @@
 'use client'
 // src/app/listings/stays/[id]/book/success/page.tsx
 
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Check, Calendar, MapPin } from 'lucide-react'
 
 export default function StayBookingSuccess() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const bookingId = searchParams.get('booking')
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-white
@@ -26,7 +28,7 @@ export default function StayBookingSuccess() {
       </div>
 
       {/* Booking details */}
-      <div className="bg-[#f5f0e8] rounded-2xl p-5 w-full max-w-sm flex flex-col gap-3">
+      <div className="bg-[#f9fafb] border border-gray-200 rounded-2xl p-5 w-full max-w-sm flex flex-col gap-3">
         <div className="flex items-center gap-3">
           <Calendar size={16} color="#2c4a1e" />
           <p className="text-sm text-[#1a1a1a]">Check-in details sent to your email</p>
@@ -47,7 +49,7 @@ export default function StayBookingSuccess() {
           View my trips
         </button>
         <button
-          onClick={() => router.push('/messages')}
+          onClick={() => router.push(bookingId ? `/messages?booking=${bookingId}` : '/messages')}
           className="w-full border border-[#1a1a1a] text-[#1a1a1a] px-8 py-3.5 rounded-xl
                      font-semibold text-sm hover:bg-gray-50 transition-colors"
           style={{ WebkitTapHighlightColor: 'transparent' }}

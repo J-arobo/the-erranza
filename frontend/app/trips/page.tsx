@@ -177,10 +177,12 @@ export default function TripsPage() {
 
 function TripCard({ trip }: { trip: Trip }) {
   const style = STATUS_STYLES[trip.status]
+  const router = useRouter()
 
   return (
     <div
-      className="bg-white rounded-2xl overflow-hidden w-full"
+      onClick={() => router.push(`/trips/${trip.id}`)}
+      className="bg-white rounded-2xl overflow-hidden w-full cursor-pointer"
       style={{ boxShadow: '0 2px 16px rgba(0,0,0,0.08)' }}
     >
       <div className="flex gap-4 p-4">
@@ -218,11 +220,15 @@ function TripCard({ trip }: { trip: Trip }) {
       {/* Actions for upcoming trips */}
       {trip.status === 'upcoming' && (
         <div className="flex border-t border-gray-100">
-          <button className="flex-1 py-3 text-xs font-semibold text-[#1a1a1a]
+          <button
+            onClick={(e) => { e.stopPropagation(); router.push(`/trips/${trip.id}`) }}
+            className="flex-1 py-3 text-xs font-semibold text-[#1a1a1a]
                              hover:bg-gray-50 transition-colors border-r border-gray-100">
             Manage booking
           </button>
-          <button className="flex-1 py-3 text-xs font-semibold text-[#1a1a1a]
+          <button
+            onClick={(e) => { e.stopPropagation(); router.push(`/messages?booking=${trip.id}`) }}
+            className="flex-1 py-3 text-xs font-semibold text-[#1a1a1a]
                              hover:bg-gray-50 transition-colors">
             Message host
           </button>
@@ -232,7 +238,9 @@ function TripCard({ trip }: { trip: Trip }) {
       {/* Review for completed trips */}
       {trip.status === 'completed' && (
         <div className="border-t border-gray-100">
-          <button className="w-full py-3 text-xs font-semibold text-[#2c4a1e]
+          <button
+            onClick={(e) => { e.stopPropagation(); router.push(`/trips/${trip.id}`) }}
+            className="w-full py-3 text-xs font-semibold text-[#2c4a1e]
                              hover:bg-gray-50 transition-colors">
             Leave a review ★
           </button>
@@ -241,3 +249,4 @@ function TripCard({ trip }: { trip: Trip }) {
     </div>
   )
 }
+

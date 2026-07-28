@@ -40,6 +40,7 @@ class VendorListingController extends Controller
             'status' => ['nullable', 'in:draft,active'],
             'min_guests' => ['nullable', 'integer', 'min:1'],
             'max_guests' => ['nullable', 'integer', 'min:1'],
+            'min_nights' => ['nullable', 'integer', 'min:1'],
             // Room details
             'bedrooms' => ['nullable', 'integer', 'min:0'],
             'beds' => ['nullable', 'integer', 'min:0'],
@@ -74,7 +75,7 @@ class VendorListingController extends Controller
             $listing = $vendor->listings()->create([
                 ...collect($validated)->only([
                     'title', 'category', 'location', 'description', 'price', 'child_price',
-                    'extra_guest_price', 'min_guests', 'max_guests', 'min_lead_time_days',
+                    'extra_guest_price', 'min_guests', 'max_guests', 'min_nights', 'min_lead_time_days',
                     'cancellation_policy', 'custom_cancellation_text', 'amenities', 'excluded',
                     //Room details
                     'bedrooms', 'beds', 'bathrooms', 'lat', 'lng',
@@ -133,6 +134,7 @@ class VendorListingController extends Controller
             'status' => ['sometimes', 'in:draft,active,paused'],
             'min_guests' => ['nullable', 'integer', 'min:1'],
             'max_guests' => ['nullable', 'integer', 'min:1'],
+            'min_nights' => ['nullable', 'integer', 'min:1'],
             'min_lead_time_days' => ['nullable', 'integer', 'min:0'],
             'cancellation_policy' => ['nullable', 'in:flexible,moderate,strict,custom'],
             'custom_cancellation_text' => ['nullable', 'string'],
@@ -187,7 +189,7 @@ class VendorListingController extends Controller
         DB::transaction(function () use ($listing, $validated) {
             $listing->update(collect($validated)->only([
                 'title', 'category', 'location', 'description', 'price', 'child_price',
-                'extra_guest_price', 'status', 'min_guests', 'max_guests', 'min_lead_time_days',
+                'extra_guest_price', 'status', 'min_guests', 'max_guests', 'min_nights', 'min_lead_time_days',
                 'cancellation_policy', 'custom_cancellation_text', 'amenities', 'excluded',
                 // Room details
                 'bedrooms', 'beds', 'bathrooms', 'lat', 'lng',

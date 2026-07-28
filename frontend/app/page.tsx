@@ -5,24 +5,24 @@ import AppShell from '@/components/AppShell'
 import ListingCard from '@/components/ListingCard'
 import FooterSection from '@/components/FooterSection'
 import { packages } from '@/data/packages'
-import { carRentals } from '@/data/carRentals'
+// import { carRentals } from '@/data/carRentals'
 
 import { stays } from '@/data/stays'
 import { safari } from '@/data/safari'
-import { flights } from '@/data/flights'
-import { market } from '@/data/market'
-import { experiences } from '@/data/experiences'
-import { directory } from '@/data/directory'
+// import { flights } from '@/data/flights'
+// import { market } from '@/data/market'
+// import { experiences } from '@/data/experiences'
+// import { directory } from '@/data/directory'
 
 const sections = [
   { title: 'Popular Stays', slug: 'stays', data: stays, color: '#2c4a1e', category: 'stays' },
   { title: 'Safari Destinations', slug: 'safari', data: safari, color: '#5a3e10', category: 'safari' },
-  { title: 'Flights', slug: 'flights', data: flights, color: '#0d3550', category: 'flights' },
-  { title: 'Marketplace', slug: 'market', data: market, color: '#6b1a12', category: 'market' },
-  { title: 'Experiences', slug: 'experiences', data: experiences, color: '#163a0c', category: 'experiences' },
-  { title: 'Directory', slug: 'directory', data: directory, color: '#1a3d50', category: 'directory' },
+  // { title: 'Flights', slug: 'flights', data: flights, color: '#0d3550', category: 'flights' },
+  // { title: 'Marketplace', slug: 'market', data: market, color: '#6b1a12', category: 'market' },
+  // { title: 'Experiences', slug: 'experiences', data: experiences, color: '#163a0c', category: 'experiences' },
+  // { title: 'Directory', slug: 'directory', data: directory, color: '#1a3d50', category: 'directory' },
   { title: 'Travel Packages', slug: 'packages', data: packages, color: '#163a4a', category: 'packages' },
-  { title: 'Car Rentals', slug: 'car-rentals', data: carRentals, color: '#1a1a2e', category: 'car-rentals' },
+  // { title: 'Car Rentals', slug: 'car-rentals', data: carRentals, color: '#1a1a2e', category: 'car-rentals' },
 ]
 
 export default function Home() {

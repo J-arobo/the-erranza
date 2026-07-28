@@ -114,7 +114,7 @@ export default function VendorReviewsPage() {
         </div>
         <div className="flex-1 flex flex-col gap-1.5 ml-4">
           {[5, 4, 3, 2, 1].map((star) => {
-            const count   = reviews.filter(r => r.rating === star).length
+            const count = reviews.filter(r => r.rating === star).length
             const percent = reviews.length > 0 ? (count / reviews.length) * 100 : 0
             return (
               <div key={star} className="flex items-center gap-2">
@@ -234,8 +234,8 @@ export default function VendorReviewsPage() {
                 <button
                   onClick={() => postReply(review.id)}
                   disabled={!replyText[review.id]?.trim() || posting === review.id}
-                  className="px-4 py-1.5 bg-[#2c4a1e] text-white rounded-xl text-xs
-                             font-semibold hover:bg-[#3d6b28] transition-colors
+                  className="px-4 py-1.5 bg-gray-700 text-white rounded-xl text-xs
+                             font-semibold hover:bg-gray-800 transition-colors
                              disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   {posting === review.id ? 'Posting…' : 'Post response'}

@@ -99,5 +99,4 @@ class AuthController extends Controller
             'createdAt' => $user->created_at,
         ];
     }
-
 }

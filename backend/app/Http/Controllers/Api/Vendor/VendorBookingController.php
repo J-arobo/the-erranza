@@ -50,7 +50,11 @@ class VendorBookingController extends Controller
 
         abort_unless($booking->status === 'pending', 422, 'Only pending bookings can be declined.');
 
-        $booking->update(['status' => 'cancelled']);
+        $validated = $request->validate([
+            'decline_reason' => ['required', 'string', 'max:500'],
+        ]);
+
+        $booking->update(['status' => 'cancelled', 'decline_reason' => $validated['decline_reason']]);
 
         return response()->json(['booking' => $booking]);
     }

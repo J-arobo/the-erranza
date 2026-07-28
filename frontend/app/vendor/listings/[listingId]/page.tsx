@@ -1,7 +1,7 @@
 'use client'
 import { use, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Plus, X, Trash2 } from 'lucide-react'
+import { ArrowLeft, Plus, X, Check, Trash2 } from 'lucide-react'
 import { apiFetch, apiErrorMessage } from '@/lib/api'
 import PhotoManager from '@/components/vendor/PhotoManager'
 
@@ -12,6 +12,15 @@ type Props = {
 const CATEGORIES = ['Safari', 'Stays', 'Experiences', 'Packages']
 const STATUSES: Array<'active' | 'paused' | 'draft'> = ['active', 'paused', 'draft']
 const BLOCK_REASONS = ['Maintenance', 'Fully booked', 'Guide unavailable', 'Other']
+
+const AMENITY_CATALOG = [
+  'Professional guide', 'Hotel pickup & drop-off', 'Airport transfers', 'Park/entry fees',
+  'Breakfast', 'Lunch', 'Dinner', 'Bottled water', 'WiFi', 'Accommodation',
+  'All game drives', 'Equipment & gear', 'Travel insurance', 'Laundry service',
+  'Flying doctors cover', 'Parking',
+]
+
+const FIELD_CARD = 'bg-white border border-[#e0d9cc] rounded-2xl p-4 sm:p-5 shadow-sm'
 
 type PolicyId = 'flexible' | 'moderate' | 'strict' | 'custom'
 const POLICIES: { id: PolicyId; label: string; description: string }[] = [
@@ -43,6 +52,7 @@ type ApiListingDetail = {
   status: 'active' | 'paused' | 'draft' | 'suspended'
   min_guests: number | null
   max_guests: number | null
+  min_nights: number | null
   min_lead_time_days: number | null
   cancellation_policy: PolicyId
   custom_cancellation_text: string | null
@@ -83,6 +93,8 @@ export default function EditListingPage({ params }: Props) {
   const [saveError, setSaveError] = useState('')
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [confirmingDelete, setConfirmingDelete] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   const [bookingsCount, setBookingsCount] = useState(0)
   const [earnings, setEarnings] = useState('0')
@@ -93,8 +105,6 @@ export default function EditListingPage({ params }: Props) {
   const [price, setPrice] = useState('')
   const [images, setImages] = useState<string[]>([])
   const [description, setDescription] = useState('')
-  const [amenities, setAmenities] = useState<string[]>([])
-  const [amenityInput, setAmenityInput] = useState('')
   const [status, setStatus] = useState<'active' | 'paused' | 'draft'>('draft')
 
   // ── Itinerary ──
@@ -102,13 +112,16 @@ export default function EditListingPage({ params }: Props) {
   const [itineraryTitle, setItineraryTitle] = useState('')
   const [itineraryDesc, setItineraryDesc] = useState('')
 
-  // ── Excluded ──
-  const [excluded, setExcluded] = useState<string[]>([])
-  const [excludedInput, setExcludedInput] = useState('')
+  // ── Included / excluded (single selection — excluded is derived) ──
+  const [amenityOptions, setAmenityOptions] = useState<string[]>(AMENITY_CATALOG)
+  const [amenities, setAmenities] = useState<string[]>([])
+  const [amenityInput, setAmenityInput] = useState('')
+  const excludedComputed = amenityOptions.filter(o => !amenities.includes(o))
 
   // ── Group size & duration ──
   const [minGuests, setMinGuests] = useState('')
   const [maxGuests, setMaxGuests] = useState('')
+  const [minNights, setMinNights] = useState('')
   const [durationOptions, setDurationOptions] = useState<DurationOption[]>([])
   const [durationLabel, setDurationLabel] = useState('')
   const [durationPrice, setDurationPrice] = useState('')
@@ -151,7 +164,6 @@ export default function EditListingPage({ params }: Props) {
         setPrice(numToStr(listing.price))
         setImages(listing.images.map(img => img.url))
         setDescription(listing.description ?? '')
-        setAmenities(listing.amenities ?? [])
         setStatus(listing.status === 'suspended' ? 'draft' : listing.status)
         setBookingsCount(listing.bookings_count ?? 0)
         setEarnings(listing.earnings ?? '0')
@@ -160,10 +172,14 @@ export default function EditListingPage({ params }: Props) {
           day: d.day, title: d.title, description: d.description ?? '',
         })))
 
-        setExcluded(listing.excluded ?? [])
+        const savedAmenities = listing.amenities ?? []
+        const savedExcluded = listing.excluded ?? []
+        setAmenityOptions(Array.from(new Set([...AMENITY_CATALOG, ...savedAmenities, ...savedExcluded])))
+        setAmenities(savedAmenities)
 
         setMinGuests(numToStr(listing.min_guests))
         setMaxGuests(numToStr(listing.max_guests))
+        setMinNights(numToStr(listing.min_nights))
         setDurationOptions(listing.duration_options.map(d => ({
           id: d.id, label: d.label, price: numToStr(d.price),
         })))
@@ -202,22 +218,15 @@ export default function EditListingPage({ params }: Props) {
 
   const canSave = title.trim() && location.trim() && price.trim()
 
-  function addAmenity() {
+  function toggleAmenity(item: string) {
+    setAmenities(a => a.includes(item) ? a.filter(x => x !== item) : [...a, item])
+  }
+  function addAmenityOption() {
     const val = amenityInput.trim()
-    if (val && !amenities.includes(val)) setAmenities(a => [...a, val])
+    if (!val) return
+    setAmenityOptions(opts => opts.includes(val) ? opts : [...opts, val])
+    setAmenities(a => a.includes(val) ? a : [...a, val])
     setAmenityInput('')
-  }
-  function removeAmenity(item: string) {
-    setAmenities(a => a.filter(x => x !== item))
-  }
-
-  function addExcluded() {
-    const val = excludedInput.trim()
-    if (val && !excluded.includes(val)) setExcluded(e => [...e, val])
-    setExcludedInput('')
-  }
-  function removeExcluded(item: string) {
-    setExcluded(e => e.filter(x => x !== item))
   }
 
   function addItineraryDay() {
@@ -314,10 +323,11 @@ export default function EditListingPage({ params }: Props) {
           price: parseMoney(price),
           description: description.trim() || null,
           amenities,
-          excluded,
+          excluded: excludedComputed,
           status,
           min_guests: minGuests ? Number(minGuests) : null,
           max_guests: maxGuests ? Number(maxGuests) : null,
+          min_nights: minNights ? Number(minNights) : null,
           child_price: childPrice.trim() ? parseMoney(childPrice) : null,
           extra_guest_price: extraGuestPrice.trim() ? parseMoney(extraGuestPrice) : null,
           min_lead_time_days: minLeadTimeDays ? Number(minLeadTimeDays) : null,
@@ -360,11 +370,14 @@ export default function EditListingPage({ params }: Props) {
   }
 
   async function handleDelete() {
+    setDeleting(true)
     try {
       await apiFetch(`/vendor/listings/${listingId}`, { method: 'DELETE' })
       router.push('/vendor/listings')
     } catch (err) {
       setSaveError(apiErrorMessage(err))
+      setDeleting(false)
+      setConfirmingDelete(false)
     }
   }
 
@@ -389,7 +402,7 @@ export default function EditListingPage({ params }: Props) {
   }
 
   return (
-    <div className="p-5 lg:p-8 max-w-2xl mx-auto">
+    <div className="p-5 lg:p-8 max-w-2xl mx-auto overflow-x-hidden">
       <button onClick={() => router.push('/vendor/listings')}
         className="flex items-center gap-1.5 text-sm font-semibold text-[#1a1a1a] mb-5 hover:underline">
         <ArrowLeft size={16} /> Back to listings
@@ -414,7 +427,7 @@ export default function EditListingPage({ params }: Props) {
       )}
 
       <div className="flex flex-col gap-5">
-        <div>
+        <div className={FIELD_CARD}>
           <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">Status</label>
           <div className="flex gap-2">
             {STATUSES.map((s) => (
@@ -429,14 +442,14 @@ export default function EditListingPage({ params }: Props) {
           </div>
         </div>
 
-        <div>
+        <div className={FIELD_CARD}>
           <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">Title</label>
           <input value={title} onChange={(e) => setTitle(e.target.value)}
             className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm
                        outline-none focus:border-[#2c4a1e] transition-colors" />
         </div>
 
-        <div>
+        <div className={FIELD_CARD}>
           <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">Category</label>
           <div className="flex gap-2 flex-wrap">
             {CATEGORIES.map((c) => (
@@ -451,19 +464,19 @@ export default function EditListingPage({ params }: Props) {
           </div>
         </div>
 
-        <div>
+        <div className={FIELD_CARD}>
           <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">Location</label>
           <input value={location} onChange={(e) => setLocation(e.target.value)}
             className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm
                        outline-none focus:border-[#2c4a1e] transition-colors" />
         </div>
 
-        <div>
+        <div className={FIELD_CARD}>
           <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">Photos</label>
           <PhotoManager images={images} onChange={setImages} />
         </div>
 
-        <div>
+        <div className={FIELD_CARD}>
           <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">Description</label>
           <textarea value={description} onChange={(e) => setDescription(e.target.value)}
             rows={4}
@@ -473,6 +486,11 @@ export default function EditListingPage({ params }: Props) {
 
         {/* ══ ITINERARY ══ */}
         <div>
+          <h2 className="text-lg font-bold text-[#1a1a1a] mb-1">Itinerary</h2>
+          <p className="text-sm text-gray-500 mb-4">Day-by-day breakdown for guests.</p>
+        </div>
+
+        <div className={FIELD_CARD}>
           <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">Itinerary (day-by-day)</label>
           <div className="flex flex-col gap-2 mb-2">
             <input value={itineraryTitle} onChange={(e) => setItineraryTitle(e.target.value)}
@@ -506,64 +524,51 @@ export default function EditListingPage({ params }: Props) {
           )}
         </div>
 
-        <div>
+        <div className={FIELD_CARD}>
           <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">
             What&apos;s included
           </label>
-          <div className="flex gap-2 mb-2">
+          <p className="text-xs text-gray-400 mb-3">
+            Select everything included in this listing. Anything left unchecked will automatically
+            show to guests as excluded.
+          </p>
+          <div className="flex flex-wrap gap-2 mb-3">
+            {amenityOptions.map((item) => {
+              const checked = amenities.includes(item)
+              return (
+                <button key={item} type="button" onClick={() => toggleAmenity(item)}
+                  className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full border transition-colors
+                    ${checked
+                      ? 'bg-[#eaf5e4] text-[#2c4a1e] border-[#2c4a1e]'
+                      : 'bg-gray-50 text-gray-400 border-gray-200'}`}>
+                  {checked ? <Check size={12} /> : <X size={12} />}
+                  {item}
+                </button>
+              )
+            })}
+          </div>
+          <div className="flex gap-2">
             <input value={amenityInput} onChange={(e) => setAmenityInput(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addAmenity() } }}
-              placeholder="e.g. Hotel pickup"
-              className="flex-1 border border-gray-200 rounded-xl px-4 py-2.5 text-sm
+              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addAmenityOption() } }}
+              placeholder="Add another item..."
+              className="flex-1 min-w-0 border border-gray-200 rounded-xl px-4 py-2.5 text-sm
                          outline-none focus:border-[#2c4a1e] transition-colors" />
-            <button onClick={addAmenity}
+            <button onClick={addAmenityOption}
               className="px-4 rounded-xl bg-[#2c4a1e] text-white hover:bg-[#3d6b28] transition-colors">
               <Plus size={16} />
             </button>
           </div>
-          {amenities.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              {amenities.map((item) => (
-                <span key={item}
-                  className="flex items-center gap-1.5 bg-[#eaf5e4] text-[#2c4a1e]
-                             text-xs font-semibold px-3 py-1.5 rounded-full">
-                  {item}
-                  <button onClick={() => removeAmenity(item)}>
-                    <X size={12} />
-                  </button>
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div>
-          <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">
-            What&apos;s excluded
-          </label>
-          <div className="flex gap-2 mb-2">
-            <input value={excludedInput} onChange={(e) => setExcludedInput(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addExcluded() } }}
-              placeholder="e.g. International flights"
-              className="flex-1 border border-gray-200 rounded-xl px-4 py-2.5 text-sm
-                         outline-none focus:border-[#2c4a1e] transition-colors" />
-            <button onClick={addExcluded}
-              className="px-4 rounded-xl bg-gray-100 text-[#1a1a1a] hover:bg-gray-200 transition-colors">
-              <Plus size={16} />
-            </button>
-          </div>
-          {excluded.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              {excluded.map((item) => (
-                <span key={item}
-                  className="flex items-center gap-1.5 bg-gray-100 text-gray-600
-                             text-xs font-semibold px-3 py-1.5 rounded-full">
-                  {item}
-                  <button onClick={() => removeExcluded(item)}>
-                    <X size={12} />
-                  </button>
-                </span>
-              ))}
+          {excludedComputed.length > 0 && (
+            <div className="mt-4 pt-3 border-t border-gray-100">
+              <p className="text-xs font-semibold text-gray-500 mb-1.5">Showing as excluded to guests</p>
+              <div className="flex flex-wrap gap-2">
+                {excludedComputed.map((item) => (
+                  <span key={item}
+                    className="bg-gray-100 text-gray-500 text-xs font-semibold px-3 py-1.5 rounded-full">
+                    {item}
+                  </span>
+                ))}
+              </div>
             </div>
           )}
         </div>
@@ -574,29 +579,43 @@ export default function EditListingPage({ params }: Props) {
           <p className="text-sm text-gray-500 mb-4">Set booking limits and available durations.</p>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className={`${FIELD_CARD} grid grid-cols-2 gap-3`}>
           <div>
             <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">Min guests</label>
             <input value={minGuests} onChange={(e) => setMinGuests(e.target.value)}
               type="number" placeholder="e.g. 2"
-              className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm
+              className="w-full min-w-0 border border-gray-200 rounded-xl px-4 py-2.5 text-sm
                          outline-none focus:border-[#2c4a1e] transition-colors" />
-          </div>
-          <div>
-            <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">Max guests</label>
             <input value={maxGuests} onChange={(e) => setMaxGuests(e.target.value)}
               type="number" placeholder="e.g. 12"
-              className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm
+              className="w-full min-w-0 border border-gray-200 rounded-xl px-4 py-2.5 text-sm
                          outline-none focus:border-[#2c4a1e] transition-colors" />
+
           </div>
         </div>
 
-        <div>
+        {category === 'Stays' && (
+          <div className={FIELD_CARD}>
+            <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">Minimum nights</label>
+            <div className="flex items-center gap-2">
+              <input value={minNights} onChange={(e) => setMinNights(e.target.value)}
+                type="number" placeholder="e.g. 2"
+                className="w-32 border border-gray-200 rounded-xl px-4 py-2.5 text-sm
+                           outline-none focus:border-[#2c4a1e] transition-colors" />
+              <span className="text-sm text-gray-500">nights minimum stay</span>
+            </div>
+            <p className="text-xs text-gray-400 mt-1.5">
+              Optional. Leave blank to allow guests to book any length of stay.
+            </p>
+          </div>
+        )}
+
+        <div className={FIELD_CARD}>
           <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">Duration options</label>
           <div className="flex gap-2 mb-2">
             <input value={durationLabel} onChange={(e) => setDurationLabel(e.target.value)}
               placeholder="e.g. 3 Days / 2 Nights"
-              className="flex-1 border border-gray-200 rounded-xl px-4 py-2.5 text-sm
+              className="flex-1 min-w-0 border border-gray-200 rounded-xl px-4 py-2.5 text-sm
                          outline-none focus:border-[#2c4a1e] transition-colors" />
             <input value={durationPrice} onChange={(e) => setDurationPrice(e.target.value)}
               placeholder="Price (optional)"
@@ -631,14 +650,14 @@ export default function EditListingPage({ params }: Props) {
           <p className="text-sm text-gray-500 mb-4">Base price, tiered pricing, extras and seasonal overrides.</p>
         </div>
 
-        <div>
+        <div className={FIELD_CARD}>
           <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">Base price (per adult)</label>
           <input value={price} onChange={(e) => setPrice(e.target.value)}
             className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm
                        outline-none focus:border-[#2c4a1e] transition-colors" />
         </div>
 
-        <div>
+        <div className={FIELD_CARD}>
           <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">Child price</label>
           <input value={childPrice} onChange={(e) => setChildPrice(e.target.value)}
             placeholder="e.g. 22500 (optional)"
@@ -647,45 +666,47 @@ export default function EditListingPage({ params }: Props) {
           <p className="text-xs text-gray-400 mt-1.5">Leave blank to charge the adult price for children too.</p>
         </div>
 
-        <div>
-          <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">Group discounts</label>
-          <div className="flex gap-2 mb-2">
-            <input value={discountMinGuests} onChange={(e) => setDiscountMinGuests(e.target.value)}
-              type="number" placeholder="Min guests"
-              className="flex-1 border border-gray-200 rounded-xl px-4 py-2.5 text-sm
-                         outline-none focus:border-[#2c4a1e] transition-colors" />
-            <input value={discountPercent} onChange={(e) => setDiscountPercent(e.target.value)}
-              type="number" placeholder="Discount %"
-              className="flex-1 border border-gray-200 rounded-xl px-4 py-2.5 text-sm
-                         outline-none focus:border-[#2c4a1e] transition-colors" />
-            <button onClick={addGroupDiscount}
-              className="px-4 rounded-xl bg-[#2c4a1e] text-white hover:bg-[#3d6b28] transition-colors flex-shrink-0">
-              <Plus size={16} />
-            </button>
-          </div>
-          {groupDiscounts.length > 0 && (
-            <div className="flex flex-col gap-2">
-              {groupDiscounts.map((g) => (
-                <div key={g.id} className="flex items-center justify-between gap-3 p-3 rounded-xl border border-gray-200">
-                  <span className="text-sm text-[#1a1a1a]">{g.min_guests}+ guests</span>
-                  <div className="flex items-center gap-3 flex-shrink-0">
-                    <span className="text-sm font-semibold text-[#1a1a1a]">{g.discount_percent}% off</span>
-                    <button onClick={() => removeGroupDiscount(g.id)}>
-                      <X size={14} color="#888" />
-                    </button>
-                  </div>
-                </div>
-              ))}
+        {(category === 'Safari' || category === 'Packages') && (
+          <div className={FIELD_CARD}>
+            <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">Group discounts</label>
+            <div className="flex gap-2 mb-2">
+              <input value={discountMinGuests} onChange={(e) => setDiscountMinGuests(e.target.value)}
+                type="number" placeholder="Min guests"
+                className="flex-1 min-w-0 border border-gray-200 rounded-xl px-4 py-2.5 text-sm
+                           outline-none focus:border-[#2c4a1e] transition-colors" />
+              <input value={discountPercent} onChange={(e) => setDiscountPercent(e.target.value)}
+                type="number" placeholder="Discount %"
+                className="flex-1 min-w-0 border border-gray-200 rounded-xl px-4 py-2.5 text-sm
+                           outline-none focus:border-[#2c4a1e] transition-colors" />
+              <button onClick={addGroupDiscount}
+                className="px-4 rounded-xl bg-[#2c4a1e] text-white hover:bg-[#3d6b28] transition-colors flex-shrink-0">
+                <Plus size={16} />
+              </button>
             </div>
-          )}
-        </div>
+            {groupDiscounts.length > 0 && (
+              <div className="flex flex-col gap-2">
+                {groupDiscounts.map((g) => (
+                  <div key={g.id} className="flex items-center justify-between gap-3 p-3 rounded-xl border border-gray-200">
+                    <span className="text-sm text-[#1a1a1a]">{g.min_guests}+ guests</span>
+                    <div className="flex items-center gap-3 flex-shrink-0">
+                      <span className="text-sm font-semibold text-[#1a1a1a]">{g.discount_percent}% off</span>
+                      <button onClick={() => removeGroupDiscount(g.id)}>
+                        <X size={14} color="#888" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
-        <div>
+        <div className={FIELD_CARD}>
           <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">Extras &amp; add-ons</label>
           <div className="flex gap-2 mb-2">
             <input value={extraLabel} onChange={(e) => setExtraLabel(e.target.value)}
               placeholder="e.g. Hot air balloon safari"
-              className="flex-1 border border-gray-200 rounded-xl px-4 py-2.5 text-sm
+              className="flex-1 min-w-0 border border-gray-200 rounded-xl px-4 py-2.5 text-sm
                          outline-none focus:border-[#2c4a1e] transition-colors" />
             <input value={extraPrice} onChange={(e) => setExtraPrice(e.target.value)}
               placeholder="Price (Ksh)" type="number"
@@ -720,7 +741,7 @@ export default function EditListingPage({ params }: Props) {
           <p className="text-xs text-gray-400 mt-1.5">Checked items are pre-selected by default for guests.</p>
         </div>
 
-        <div>
+        <div className={FIELD_CARD}>
           <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">
             Price per additional guest
           </label>
@@ -731,27 +752,27 @@ export default function EditListingPage({ params }: Props) {
           <p className="text-xs text-gray-400 mt-1.5">Leave blank if your price already covers all guests.</p>
         </div>
 
-        <div>
+        <div className={FIELD_CARD}>
           <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">
             Seasonal rate overrides
           </label>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-2">
             <input value={seasonLabel} onChange={(e) => setSeasonLabel(e.target.value)}
               placeholder="Season name"
-              className="col-span-2 sm:col-span-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm
+              className="col-span-2 sm:col-span-1 min-w-0 border border-gray-200 rounded-xl px-3 py-2.5 text-sm
                          outline-none focus:border-[#2c4a1e] transition-colors" />
             <input value={seasonStart} onChange={(e) => setSeasonStart(e.target.value)}
               type="date"
-              className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm
+              className="min-w-0 border border-gray-200 rounded-xl px-3 py-2.5 text-sm
                          outline-none focus:border-[#2c4a1e] transition-colors" />
             <input value={seasonEnd} onChange={(e) => setSeasonEnd(e.target.value)}
               type="date"
-              className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm
+              className="min-w-0 border border-gray-200 rounded-xl px-3 py-2.5 text-sm
                          outline-none focus:border-[#2c4a1e] transition-colors" />
-            <div className="flex gap-2">
+            <div className="flex gap-2 min-w-0">
               <input value={seasonPrice} onChange={(e) => setSeasonPrice(e.target.value)}
                 placeholder="Price"
-                className="flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm
+                className="flex-1 min-w-0 border border-gray-200 rounded-xl px-3 py-2.5 text-sm
                            outline-none focus:border-[#2c4a1e] transition-colors" />
               <button onClick={addSeasonalRate}
                 className="px-3 rounded-xl bg-[#2c4a1e] text-white hover:bg-[#3d6b28] transition-colors flex-shrink-0">
@@ -786,7 +807,7 @@ export default function EditListingPage({ params }: Props) {
           </p>
         </div>
 
-        <div>
+        <div className={FIELD_CARD}>
           <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">Minimum lead time</label>
           <div className="flex items-center gap-2">
             <input value={minLeadTimeDays} onChange={(e) => setMinLeadTimeDays(e.target.value)}
@@ -800,7 +821,7 @@ export default function EditListingPage({ params }: Props) {
           </p>
         </div>
 
-        <div>
+        <div className={FIELD_CARD}>
           <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">Departures &amp; capacity</label>
           <p className="text-xs text-gray-400 mb-2">
             Set specific bookable dates and how many travellers each can take.
@@ -808,7 +829,7 @@ export default function EditListingPage({ params }: Props) {
           <div className="flex gap-2 mb-2">
             <input value={departureDate} onChange={(e) => setDepartureDate(e.target.value)}
               type="date"
-              className="flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm
+              className="flex-1 min-w-0 border border-gray-200 rounded-xl px-3 py-2.5 text-sm
                          outline-none focus:border-[#2c4a1e] transition-colors" />
             <input value={departureCapacity} onChange={(e) => setDepartureCapacity(e.target.value)}
               type="number" placeholder="Capacity"
@@ -842,20 +863,20 @@ export default function EditListingPage({ params }: Props) {
           )}
         </div>
 
-        <div>
+        <div className={FIELD_CARD}>
           <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">Blocked dates</label>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-2">
             <input value={blockStart} onChange={(e) => setBlockStart(e.target.value)}
               type="date"
-              className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm
+              className="min-w-0 border border-gray-200 rounded-xl px-3 py-2.5 text-sm
                          outline-none focus:border-[#2c4a1e] transition-colors" />
             <input value={blockEnd} onChange={(e) => setBlockEnd(e.target.value)}
               type="date"
-              className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm
+              className="min-w-0 border border-gray-200 rounded-xl px-3 py-2.5 text-sm
                          outline-none focus:border-[#2c4a1e] transition-colors" />
-            <div className="flex gap-2 col-span-2 sm:col-span-1">
+            <div className="flex gap-2 col-span-2 sm:col-span-1 min-w-0">
               <select value={blockReason} onChange={(e) => setBlockReason(e.target.value)}
-                className="flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm
+                className="flex-1 min-w-0 border border-gray-200 rounded-xl px-3 py-2.5 text-sm
                            outline-none focus:border-[#2c4a1e] transition-colors bg-white">
                 {BLOCK_REASONS.map((r) => <option key={r} value={r}>{r}</option>)}
               </select>
@@ -886,7 +907,7 @@ export default function EditListingPage({ params }: Props) {
           <p className="text-sm text-gray-500 mb-4">Choose the refund terms guests see before booking.</p>
         </div>
 
-        <div className="flex flex-col gap-2">
+        <div className={`${FIELD_CARD} flex flex-col gap-2`}>
           {POLICIES.map((p) => (
             <button key={p.id} onClick={() => setCancellationPolicy(p.id)}
               className={`flex items-start gap-3 text-left p-3.5 rounded-xl border transition-all
@@ -911,7 +932,7 @@ export default function EditListingPage({ params }: Props) {
 
         <div className="flex gap-3 pt-2">
           <button
-            onClick={handleDelete}
+            onClick={() => setConfirmingDelete(true)}
             className="flex items-center justify-center gap-1.5 border border-red-200
                        text-red-500 px-5 py-3 rounded-xl font-semibold text-sm
                        hover:bg-red-50 transition-colors"
@@ -929,6 +950,34 @@ export default function EditListingPage({ params }: Props) {
           </button>
         </div>
       </div>
+
+      {confirmingDelete && (
+        <div
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
+          style={{ background: 'rgba(0,0,0,0.4)' }}
+          onClick={(e) => { if (e.target === e.currentTarget && !deleting) setConfirmingDelete(false) }}
+        >
+          <div className="bg-white w-full sm:max-w-sm rounded-t-3xl sm:rounded-2xl p-6">
+            <h2 className="text-lg font-bold text-[#1a1a1a] mb-2">Delete this listing?</h2>
+            <p className="text-sm text-gray-500 mb-5">
+              This permanently deletes the listing and cannot be undone.
+            </p>
+            <div className="flex gap-2">
+              <button onClick={() => setConfirmingDelete(false)} disabled={deleting}
+                className="flex-1 py-3 rounded-xl border border-gray-200 text-sm font-semibold
+                     text-[#1a1a1a] hover:bg-gray-50 transition-colors disabled:opacity-50">
+                Cancel
+              </button>
+              <button onClick={handleDelete} disabled={deleting}
+                className="flex-1 py-3 rounded-xl bg-red-600 text-white text-sm font-semibold
+                     hover:bg-red-700 transition-colors disabled:opacity-50">
+                {deleting ? 'Deleting…' : 'Delete permanently'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
+

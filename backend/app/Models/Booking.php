@@ -11,7 +11,7 @@ class Booking extends Model
     protected $fillable = [
         'listing_id', 'traveller_id', 'status', 'guests', 'total',
         'check_in', 'check_out', 'proposed_date',
-        'refund_percent', 'refund_amount', 'special_requests',
+        'refund_percent', 'refund_amount', 'special_requests', 'decline_reason',
     ];
 
     protected function casts(): array

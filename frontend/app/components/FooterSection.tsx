@@ -98,7 +98,7 @@ export default function FooterSection() {
       </div>
 
       {/* Bottom margin so it clears the fixed bottom nav */}
-      <div className="h-24 sm:h-6" /> 
+      {/* <div className="h-24 sm:h-6" /> */}
       
 
     </footer>

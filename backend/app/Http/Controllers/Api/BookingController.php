@@ -58,7 +58,7 @@ class BookingController extends Controller
             }
         }
 
-                // Simplified pricing: base price × guests × nights (when a check-out
+        // Simplified pricing: base price × guests × nights (when a check-out
         // date is given). Duration options, seasonal rates and group
         // discounts still aren't factored in server-side.
         $nights = $validated['check_out'] ?? null
@@ -92,7 +92,7 @@ class BookingController extends Controller
     {
         $this->authorizeOwnership($request, $booking);
 
-        $booking->load(['listing.images', 'listing.vendor:id,business_name,phone', 'messages.sender:id,name', 'review']);
+        $booking->load(['listing.images', 'listing.itinerary', 'listing.vendor:id,business_name,phone', 'messages.sender:id,name', 'review']);
 
         return response()->json(['booking' => $booking]);
     }

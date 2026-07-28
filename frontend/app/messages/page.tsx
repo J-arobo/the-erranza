@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Image from 'next/image'
 import {
   Search, Settings, Send, ArrowLeft, Clock, X,
@@ -290,13 +290,17 @@ function DetailsSheet({ thread, onClose }: DetailsSheetProps) {
 export default function MessagesPage() {
   const { isLoggedIn } = useAuth()
   const router = useRouter()
+  const searchParams = useSearchParams()
 
   const [threads, setThreads] = useState<Thread[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
   const [filter, setFilter] = useState('All')
-  const [activeId, setActiveId] = useState<number | null>(null)
+  const [activeId, setActiveId] = useState<number | null>(() => {
+    const fromUrl = searchParams.get('booking')
+    return fromUrl ? Number(fromUrl) : null
+  })
   const [activeThread, setActiveThread] = useState<ThreadDetail | null>(null)
   const [threadLoading, setThreadLoading] = useState(false)
 

@@ -86,7 +86,7 @@ export default function VendorShell({ children }: { children: React.ReactNode })
 
   function handleBackToErranza() {
     setActiveRole('traveller')
-    router.push('/')
+    router.back()
   }
 
   async function markAllRead() {

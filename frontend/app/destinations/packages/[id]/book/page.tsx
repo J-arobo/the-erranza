@@ -1,5 +1,5 @@
 'use client'
-import { use, useEffect, useState } from 'react'
+import { use, useEffect, useState, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Image from 'next/image'
 import { ArrowLeft, X, ChevronRight, Shield, Star } from 'lucide-react'
@@ -47,6 +47,17 @@ export default function PackageBookingPage({ params }: Props) {
   const [pets, setPets] = useState(() => Number(searchParams.get('pets')) || 0)
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState('')
+  // client need to reach the bottom to activate the book button
+  const [reachedBottom, setReachedBottom] = useState(false)
+  const contentRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (step !== 'confirm') { setReachedBottom(false); return }
+    const el = contentRef.current
+    setReachedBottom(!!el && el.scrollHeight - el.clientHeight < 60)
+  }, [step])
+
+
   const guests = adults + children
 
   useEffect(() => {
@@ -124,6 +135,13 @@ export default function PackageBookingPage({ params }: Props) {
     if (step === 'review') router.back()
     if (step === 'confirm') setStep('review')
   }
+
+  function handleContentScroll(e: React.UIEvent<HTMLDivElement>) {
+    if (step !== 'confirm' || reachedBottom) return
+    const el = e.currentTarget
+    if (el.scrollHeight - el.scrollTop - el.clientHeight < 60) setReachedBottom(true)
+  }
+
 
   // ── Summary card — image/title/rating, departure picker, guests w/ Change, price ──
   const SummaryCard = ({ highlighted = false }: { highlighted?: boolean }) => (
@@ -243,7 +261,7 @@ export default function PackageBookingPage({ params }: Props) {
       </div>
 
       {/* ── CONTENT ── */}
-      <div className="flex-1 overflow-y-auto px-5 py-5 pb-40">
+      <div ref={contentRef} className="flex-1 overflow-y-auto px-5 py-5 pb-40" onScroll={handleContentScroll}>
 
         {/* ── STEP 1: Review ── */}
         {step === 'review' && (
@@ -367,15 +385,22 @@ export default function PackageBookingPage({ params }: Props) {
         <div className="px-5 py-4 pb-8">
           {step === 'confirm' ? (
             <>
-              <button onClick={goNext} disabled={submitting || !selectedDeparture}
-                className="w-full bg-[#2c4a1e] text-white py-4 rounded-2xl font-bold text-sm hover:bg-[#3d6b28] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                style={{ WebkitTapHighlightColor: 'transparent' }}>
+              <button
+                onClick={goNext}
+                disabled={submitting || !selectedDeparture || !reachedBottom}
+                className="w-full bg-[#2c4a1e] text-white py-4 rounded-2xl font-bold
+                           text-sm hover:bg-[#3d6b28] transition-colors
+                           disabled:opacity-40 disabled:cursor-not-allowed"
+                style={{ WebkitTapHighlightColor: 'transparent' }}
+              >
                 {submitting ? 'Booking…' : `Confirm and pay · Ksh ${Math.round(finalTotal).toLocaleString()}`}
               </button>
               <p className="text-xs text-gray-400 text-center mt-3 leading-relaxed">
                 By tapping, I agree to the{' '}
-                <button className="underline text-[#1a1a1a]">booking terms</button>{', '}
-                <button className="underline text-[#1a1a1a]">Terms of Service</button>{' and '}
+                <button className="underline text-[#1a1a1a]">booking terms</button>
+                {', '}
+                <button className="underline text-[#1a1a1a]">Terms of Service</button>
+                {' and '}
                 <button className="underline text-[#1a1a1a]">Privacy Policy</button>.
               </p>
             </>

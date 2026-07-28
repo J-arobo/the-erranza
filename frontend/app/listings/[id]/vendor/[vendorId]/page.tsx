@@ -147,7 +147,7 @@ function MiniCalendar({ selected, onSelect }: {
                 }}>
                 {past && (
                   <span style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
-                    <span style={{ position: 'absolute', width: '130%', height: '1px', background: '#c8c0b4', transform: 'rotate(-45deg)', transformOrigin: 'center' }} />
+                    <span style={{ position: 'absolute', width: '50%', height: '1px', background: '#c8c0b4', transform: 'rotate(-45deg)', transformOrigin: 'center' }} />
                   </span>
                 )}
                 {d}
@@ -234,7 +234,7 @@ function DesktopCalendar({ selected, onSelect, stacked = false }: {
                   }}>
                   {past && (
                     <span style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
-                      <span style={{ position: 'absolute', width: '130%', height: '1px', background: '#c8c0b4', transform: 'rotate(-45deg)', transformOrigin: 'center' }} />
+                      <span style={{ position: 'absolute', width: '50%', height: '1px', background: '#c8c0b4', transform: 'rotate(-45deg)', transformOrigin: 'center' }} />
                     </span>
                   )}
                   {d}

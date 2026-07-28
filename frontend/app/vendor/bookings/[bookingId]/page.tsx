@@ -60,6 +60,7 @@ type ApiBookingDetail = {
   refund_percent: number | null
   refund_amount: string | null
   special_requests: string | null
+  decline_reason: string | null
   listing: {
     id: number; title: string; category: string
     cancellation_policy: PolicyId; custom_cancellation_text: string | null
@@ -83,6 +84,11 @@ export default function BookingDetailPage({ params }: Props) {
   const [proposing, setProposing] = useState(false)
   const [proposedDate, setProposedDate] = useState('')
   const [cancelling, setCancelling] = useState(false)
+
+  // cancelling a booking
+  const [declining, setDeclining] = useState(false)
+  const [declineReason, setDeclineReason] = useState('')
+
 
   useEffect(() => {
     apiFetch<{ booking: ApiBookingDetail }>(`/vendor/bookings/${bookingId}`)
@@ -129,11 +135,16 @@ export default function BookingDetailPage({ params }: Props) {
   }
 
   async function declineBooking() {
+    if (!declineReason.trim()) return
     setBusy(true)
     setError('')
     try {
-      await apiFetch(`/vendor/bookings/${bookingId}/decline`, { method: 'POST' })
-      setBooking(b => b ? { ...b, status: 'cancelled' } : b)
+      await apiFetch(`/vendor/bookings/${bookingId}/decline`, {
+        method: 'POST',
+        body: JSON.stringify({ decline_reason: declineReason.trim() }),
+      })
+      setBooking(b => b ? { ...b, status: 'cancelled', decline_reason: declineReason.trim() } : b)
+      setDeclining(false)
     } catch (err) {
       setError(apiErrorMessage(err))
     } finally {
@@ -300,8 +311,16 @@ export default function BookingDetailPage({ params }: Props) {
         </div>
       )}
 
+      {booking.status === 'cancelled' && booking.refund_amount === null && booking.decline_reason && (
+        <div className="bg-red-50 rounded-2xl p-4 mb-5">
+          <p className="text-sm font-semibold text-red-600">Declined</p>
+          <p className="text-xs text-red-500 mt-0.5">{booking.decline_reason}</p>
+        </div>
+      )}
+
+
       {/* ── Pending: approve/decline (only for Safari/Packages) ── */}
-      {booking.status === 'pending' && needsApproval && !proposing && (
+      {booking.status === 'pending' && needsApproval && !proposing && !declining && (
         <div className="flex flex-col gap-2">
           <div className="flex gap-3">
             <button onClick={acceptBooking} disabled={busy}
@@ -309,17 +328,42 @@ export default function BookingDetailPage({ params }: Props) {
                                  font-semibold hover:bg-[#3d6b28] transition-colors disabled:opacity-50">
               Accept booking
             </button>
-            <button onClick={declineBooking} disabled={busy}
-              className="flex-1 py-3 rounded-xl border border-gray-200 text-sm
+            <button onClick={() => setDeclining(true)} disabled={busy}
+              className="flex-1 py-3 rounded-xl bg-white border border-gray-200 text-sm
                                  font-semibold text-[#1a1a1a] hover:bg-gray-50 transition-colors disabled:opacity-50">
               Decline
             </button>
           </div>
           <button onClick={() => setProposing(true)}
-            className="w-full py-3 rounded-xl border border-gray-200 text-sm
+            className="w-full py-3 rounded-xl bg-white border border-gray-200 text-sm
                        font-semibold text-[#1a1a1a] hover:bg-gray-50 transition-colors">
             Propose alternative dates
           </button>
+        </div>
+      )}
+
+      {/* ── Decline reason form ── */}
+      {declining && (
+        <div className="bg-white rounded-2xl border border-[#e0d9cc] shadow-sm p-5 flex flex-col gap-3">
+          <p className="text-sm font-semibold text-[#1a1a1a]">Reason for declining</p>
+          <p className="text-xs text-gray-400 -mt-2">This will be shared with the guest.</p>
+          <textarea value={declineReason} onChange={(e) => setDeclineReason(e.target.value)}
+            rows={3} placeholder="e.g. Fully booked for these dates, unable to accommodate the group size..."
+            className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm
+                       outline-none focus:border-[#2c4a1e] transition-colors resize-none" />
+          <div className="flex gap-3">
+            <button onClick={() => { setDeclining(false); setDeclineReason('') }}
+              className="flex-1 py-2.5 rounded-xl bg-white border border-gray-200 text-sm
+                         font-semibold text-[#1a1a1a] hover:bg-gray-50 transition-colors">
+              Cancel
+            </button>
+            <button onClick={declineBooking} disabled={!declineReason.trim() || busy}
+              className="flex-1 py-2.5 rounded-xl bg-red-600 text-white text-sm
+                         font-semibold hover:bg-red-700 transition-colors
+                         disabled:opacity-40 disabled:cursor-not-allowed">
+              {busy ? 'Declining…' : 'Confirm decline'}
+            </button>
+          </div>
         </div>
       )}
 
@@ -358,18 +402,19 @@ export default function BookingDetailPage({ params }: Props) {
         <div className="flex flex-col gap-2">
           <button
             onClick={() => router.push('/vendor/messages')}
-            className="w-full py-3 rounded-xl border border-gray-200 text-sm
+            className="w-full py-3 rounded-xl bg-white border border-gray-200 text-sm
                        font-semibold text-[#1a1a1a] hover:bg-gray-50 transition-colors">
             Message guest
           </button>
           <button
             onClick={() => setCancelling(true)}
-            className="w-full py-3 rounded-xl border border-red-200 text-sm
+            className="w-full py-3 rounded-xl bg-white border border-red-200 text-sm
                        font-semibold text-red-500 hover:bg-red-50 transition-colors">
             Cancel booking
           </button>
         </div>
       )}
+
 
       {/* ── Cancel confirmation ── */}
       {cancelling && (
@@ -409,11 +454,12 @@ export default function BookingDetailPage({ params }: Props) {
       {(booking.status === 'completed' || booking.status === 'cancelled' || booking.status === 'alternative_proposed') && (
         <button
           onClick={() => router.push('/vendor/messages')}
-          className="w-full py-3 rounded-xl border border-gray-200 text-sm
+          className="w-full py-3 rounded-xl bg-white border border-gray-200 text-sm
                      font-semibold text-[#1a1a1a] hover:bg-gray-50 transition-colors">
           Message guest
         </button>
       )}
+
     </div>
   )
 }
