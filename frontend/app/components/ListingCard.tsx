@@ -50,9 +50,9 @@ export default function ListingCard(listing: Props) {
   function getRoute() {
     if (listingCategory === 'stays') return `/listings/stays/${id}`
     if (listingCategory === 'safari') return `/listings/${id}/vendor/${id}`
+    if (listingCategory === 'packages') return `/destinations/packages/${id}`
     return `/listings/${id}`
   }
-
 
   function handleTap() { router.push(getRoute()) }
 
