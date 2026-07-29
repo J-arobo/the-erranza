@@ -129,6 +129,16 @@ export default function AppShell({ children, showCollapse = false }: Props) {
     if (path) router.push(path)
   }
 
+  function handleSearch(category: string, location: string, guests: number) {
+    const path = slugMap[category || activeTab] ?? '/destinations/stays'
+    const params = new URLSearchParams()
+    const trimmed = location.trim()
+    if (trimmed) params.set('location', trimmed)
+    if (guests > 0) params.set('guests', String(guests))
+    const qs = params.toString()
+    router.push(qs ? `${path}?${qs}` : path)
+  }
+
   function handleNavSelect(name: string) {
     const routes: Record<string, string> = {
       'Explore': '/',
@@ -193,7 +203,7 @@ export default function AppShell({ children, showCollapse = false }: Props) {
           collapsed={scrolled}
           activeCat={activeTab}
           activeTab={activeTab}
-          onTabSelect={handleTabSelect}
+          onSearch={handleSearch}
           scrollY={scrollY}
         />
       </div>

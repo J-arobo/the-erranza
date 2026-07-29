@@ -37,6 +37,11 @@ class ListingController extends Controller
         if ($request->filled('max_price')) {
             $query->where('price', '<=', $request->float('max_price'));
         }
+        if ($request->filled('guests')) {
+            $guests = (int) $request->input('guests');
+            $query->where(fn($q) => $q->whereNull('max_guests')->orWhere('max_guests', '>=', $guests))
+                ->where(fn($q) => $q->whereNull('min_guests')->orWhere('min_guests', '<=', $guests));
+        }
 
         $perPage = min((int) $request->input('per_page', 12), 100);
 
@@ -44,7 +49,6 @@ class ListingController extends Controller
             ->withCount(['reviews' => fn($q) => $q->where('removed', false)])
             ->withAvg(['reviews' => fn($q) => $q->where('removed', false)], 'rating')
             ->paginate($perPage);
-
 
         return response()->json($listings);
     }
@@ -76,6 +80,20 @@ class ListingController extends Controller
         $listing->is_superhost = $vendor->verification_status === 'approved' && $rating >= 4.8 && $reviewCount >= 5;
         $listing->years_hosting = (int) floor($vendor->created_at->diffInYears(now()));
         $listing->cohost = $vendor->teamMembers->firstWhere('status', 'active');
+
+        // Unavailable dates
+        $unavailableDates = $listing->bookings()
+            ->whereIn('status', ['pending', 'confirmed', 'alternative_proposed'])
+            ->whereNotNull('check_out')
+            ->get(['check_in', 'check_out'])
+            ->map(fn($b) => ['start' => $b->check_in->toDateString(), 'end' => $b->check_out->toDateString()])
+            ->concat($listing->blockedDates->map(fn($b) => [
+                'start' => $b->start_date->toDateString(),
+                'end' => $b->end_date->toDateString(),
+            ]))
+            ->values();
+
+        $listing->unavailable_dates = $unavailableDates;
 
         $bookingIds = Booking::whereHas('listing', fn($q) => $q->where('vendor_id', $vendor->id))->pluck('id');
         $threads = Message::whereIn('booking_id', $bookingIds)->orderBy('created_at')->get()->groupBy('booking_id');

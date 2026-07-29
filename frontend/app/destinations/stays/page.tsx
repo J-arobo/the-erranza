@@ -7,6 +7,8 @@ import { type Listing } from '@/data/stays'
 import { apiFetch, apiErrorMessage } from '@/lib/api'
 import { ArrowRight } from 'lucide-react'
 import { ChevronRight } from 'lucide-react'
+import { useSearchParams } from 'next/navigation'
+
 
 const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=400&q=80'
 
@@ -17,11 +19,15 @@ type ApiListing = {
   price: string
   images: { url: string }[]
   reviews_avg_rating: string | null
+  min_guests: number | null
+  max_guests: number | null
 }
 
 type PaginatedListings = { data: ApiListing[] }
 
-function mapListing(l: ApiListing): Listing {
+type StayListing = Listing & { minGuests: number | null; maxGuests: number | null }
+
+function mapListing(l: ApiListing): StayListing {
   return {
     id: String(l.id),
     location: l.location,
@@ -29,6 +35,8 @@ function mapListing(l: ApiListing): Listing {
     price: `Ksh ${Math.round(Number(l.price)).toLocaleString()}`,
     rating: l.reviews_avg_rating ? Number(l.reviews_avg_rating) : 4.5,
     image: l.images[0]?.url ?? FALLBACK_IMAGE,
+    minGuests: l.min_guests,
+    maxGuests: l.max_guests,
   }
 }
 
@@ -59,10 +67,15 @@ const SECTIONS = [
 ]
 
 export default function StaysPage() {
+  const searchParams = useSearchParams()
   const [search, setSearch] = useState('')
-  const [stays, setStays] = useState<Listing[]>([])
+  const [stays, setStays] = useState<StayListing[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+
+  useEffect(() => {
+    setSearch(searchParams.get('location') ?? '')
+  }, [searchParams])
 
   useEffect(() => {
     apiFetch<PaginatedListings>('/listings?category=Stays&per_page=100')
@@ -71,10 +84,18 @@ export default function StaysPage() {
       .finally(() => setLoading(false))
   }, [])
 
-  const filtered = stays.filter(item =>
-    item.title.toLowerCase().includes(search.toLowerCase()) ||
-    item.location.toLowerCase().includes(search.toLowerCase())
-  )
+  const guestsParam = Number(searchParams.get('guests') ?? '0') || 0
+
+  const filtered = stays.filter(item => {
+    const matchesText =
+      item.title.toLowerCase().includes(search.toLowerCase()) ||
+      item.location.toLowerCase().includes(search.toLowerCase())
+    const matchesGuests = guestsParam === 0 || (
+      (item.maxGuests === null || item.maxGuests >= guestsParam) &&
+      (item.minGuests === null || item.minGuests <= guestsParam)
+    )
+    return matchesText && matchesGuests
+  })
 
   return (
     <AppShell showCollapse={false}>

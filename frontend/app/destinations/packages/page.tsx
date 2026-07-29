@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Image from 'next/image'
 import { Plus, Check, ArrowRight } from 'lucide-react'
 import AppShell from '@/components/AppShell'
@@ -8,6 +8,7 @@ import FooterSection from '@/components/FooterSection'
 import HeartButton from '@/components/HeartButton'
 import ListingCard from '@/components/ListingCard'
 import { apiFetch, apiErrorMessage } from '@/lib/api'
+
 
 const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1547471080-7cc2caa01a7e?w=400&q=80'
 
@@ -29,6 +30,8 @@ type ApiListing = {
   images: { url: string }[]
   itinerary: { day: number; title: string }[]
   reviews_avg_rating: string | null
+  min_guests: number | null
+  max_guests: number | null
 }
 
 type PaginatedListings = { data: ApiListing[] }
@@ -41,6 +44,8 @@ type PackageItem = {
   rating: number
   image: string
   itinerary: string[]
+  minGuests: number | null
+  maxGuests: number | null
 }
 
 function mapPackage(l: ApiListing): PackageItem {
@@ -52,6 +57,8 @@ function mapPackage(l: ApiListing): PackageItem {
     rating: l.reviews_avg_rating ? Number(l.reviews_avg_rating) : 4.5,
     image: l.images[0]?.url ?? FALLBACK_IMAGE,
     itinerary: l.itinerary.map(d => d.title),
+    minGuests: l.min_guests,
+    maxGuests: l.max_guests,
   }
 }
 
@@ -148,6 +155,7 @@ function SectionHeading({ title }: { title: string }) {
 
 export default function PackagesPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [search, setSearch] = useState('')
   const [packages, setPackages] = useState<PackageItem[]>([])
   const [loading, setLoading] = useState(true)
@@ -156,6 +164,10 @@ export default function PackagesPage() {
   const [safaris, setSafaris] = useState<SafariCardItem[]>([])
   const [loadingSafaris, setLoadingSafaris] = useState(true)
   const [safarisError, setSafarisError] = useState('')
+
+  useEffect(() => {
+    setSearch(searchParams.get('location') ?? '')
+  }, [searchParams])
 
   useEffect(() => {
     apiFetch<PaginatedListings>('/listings?category=Packages&per_page=100')
@@ -171,10 +183,18 @@ export default function PackagesPage() {
       .finally(() => setLoadingSafaris(false))
   }, [])
 
-  const filtered = packages.filter(p =>
-    p.title.toLowerCase().includes(search.toLowerCase()) ||
-    p.location.toLowerCase().includes(search.toLowerCase())
-  )
+  const guestsParam = Number(searchParams.get('guests') ?? '0') || 0
+
+  const filtered = packages.filter(p => {
+    const matchesText =
+      p.title.toLowerCase().includes(search.toLowerCase()) ||
+      p.location.toLowerCase().includes(search.toLowerCase())
+    const matchesGuests = guestsParam === 0 || (
+      (p.maxGuests === null || p.maxGuests >= guestsParam) &&
+      (p.minGuests === null || p.minGuests <= guestsParam)
+    )
+    return matchesText && matchesGuests
+  })
 
   return (
     <AppShell showCollapse={false}>

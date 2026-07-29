@@ -28,6 +28,7 @@ type ApiListingDetail = {
   max_guests: number | null
   min_lead_time_days: number | null
   vendor: { business_name: string }
+  departures: { id: number; date: string; capacity: number; booked: number }[]
 }
 
 function toDateStr(d: Date): string {
@@ -124,6 +125,7 @@ export default function BookingPage({ params }: Props) {
   const [selectedDate, setSelectedDate] = useState<Date | null>(dateParam ? new Date(dateParam) : null)
   const [showDateSheet, setShowDateSheet] = useState(false)
   const [sheetDate, setSheetDate] = useState<Date | null>(selectedDate)
+  const [selectedDepartureId, setSelectedDepartureId] = useState<number | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState('')
   // client need to reach the bottom to activate the book button
@@ -141,10 +143,19 @@ export default function BookingPage({ params }: Props) {
 
   useState(() => {
     apiFetch<{ listing: ApiListingDetail }>(`/listings/${vendorId}`)
-      .then(({ listing }) => setListing(listing))
+      .then(({ listing }) => {
+        setListing(listing)
+        const todayStr = new Date().toISOString().slice(0, 10)
+        const upcoming = listing.departures.filter(d => d.date >= todayStr).sort((a, b) => a.date.localeCompare(b.date))
+        if (upcoming.length > 0) {
+          const matching = dateParam ? upcoming.find(d => d.date === dateParam) : null
+          setSelectedDepartureId((matching ?? upcoming[0]).id)
+        }
+      })
       .catch(() => setNotFound(true))
       .finally(() => setLoading(false))
   })
+
 
   if (loading) {
     return (
@@ -174,6 +185,10 @@ export default function BookingPage({ params }: Props) {
     return d
   })()
 
+  const todayStr = new Date().toISOString().slice(0, 10)
+  const upcomingDepartures = listing.departures.filter(d => d.date >= todayStr).sort((a, b) => a.date.localeCompare(b.date))
+  const usesDepartures = listing.departures.length > 0
+
   const stepIndex = STEPS.indexOf(step)
   const basePrice = Math.round(Number(listing.price))
   const totalPrice = basePrice * guests
@@ -182,13 +197,13 @@ export default function BookingPage({ params }: Props) {
   const tourImage = listing.images[0]?.url ?? FALLBACK_IMAGE
   const guideName = listing.vendor.business_name
   const rating = listing.reviews_avg_rating ? Number(listing.reviews_avg_rating).toFixed(2) : '4.50'
-  const dateReady = !!selectedDate
+  const dateReady = usesDepartures ? !!selectedDepartureId : !!selectedDate
 
   async function goNext() {
     if (step === 'review') { setStep('message'); return }
     if (step === 'message') { setStep('confirm'); return }
     if (step === 'confirm') {
-      if (!selectedDate) {
+      if (usesDepartures ? !selectedDepartureId : !selectedDate) {
         setSubmitError('Please select a tour date first.')
         return
       }
@@ -201,7 +216,9 @@ export default function BookingPage({ params }: Props) {
           body: JSON.stringify({
             listing_id: listing!.id,
             guests,
-            check_in: toDateStr(selectedDate),
+            ...(usesDepartures
+              ? { departure_id: selectedDepartureId }
+              : { check_in: toDateStr(selectedDate!) }),
           }),
         })
 
@@ -219,6 +236,7 @@ export default function BookingPage({ params }: Props) {
         setSubmitting(false)
       }
     }
+
   }
 
   function goBack() {
@@ -275,20 +293,52 @@ export default function BookingPage({ params }: Props) {
       <div className="border-t border-gray-100 pt-3 flex flex-col gap-3">
 
         {/* Date */}
-        <div className="flex items-center justify-between">
+        {usesDepartures ? (
           <div>
-            <p className="text-sm font-semibold text-[#1a1a1a]">Tour date</p>
-            <p className="text-sm text-gray-500">
-              {selectedDate ? formatDisplayDate(selectedDate) : 'Add a date'}
-            </p>
+            <p className="text-sm font-semibold text-[#1a1a1a] mb-2">Tour date</p>
+            {upcomingDepartures.length === 0 ? (
+              <p className="text-sm text-red-500">No upcoming departures available.</p>
+            ) : (
+              <div className="flex flex-col gap-2">
+                {upcomingDepartures.map((dep) => {
+                  const full = dep.booked >= dep.capacity
+                  return (
+                    <label key={dep.id}
+                      className={`flex items-center justify-between p-2.5 rounded-xl border cursor-pointer
+                        ${selectedDepartureId === dep.id ? 'border-[#1a1a1a] bg-gray-50' : 'border-gray-200'}
+                        ${full ? 'opacity-50 pointer-events-none' : ''}`}>
+                      <div className="flex items-center gap-2">
+                        <input type="radio" name="departure" checked={selectedDepartureId === dep.id}
+                          onChange={() => setSelectedDepartureId(dep.id)} disabled={full}
+                          className="w-4 h-4 accent-[#1a1a1a]" />
+                        <span className="text-sm text-[#1a1a1a]">{formatDisplayDate(new Date(dep.date))}</span>
+                      </div>
+                      <span className="text-xs text-gray-400">
+                        {full ? 'Fully booked' : `${dep.capacity - dep.booked} spots left`}
+                      </span>
+                    </label>
+                  )
+                })}
+              </div>
+            )}
           </div>
-          <button
-            onClick={() => { setSheetDate(selectedDate); setShowDateSheet(true) }}
-            className="text-sm text-[#1a1a1a] font-semibold"
-          >
-            Change
-          </button>
-        </div>
+        ) : (
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-semibold text-[#1a1a1a]">Tour date</p>
+              <p className="text-sm text-gray-500">
+                {selectedDate ? formatDisplayDate(selectedDate) : 'Add a date'}
+              </p>
+            </div>
+            <button
+              onClick={() => { setSheetDate(selectedDate); setShowDateSheet(true) }}
+              className="text-sm text-[#1a1a1a] font-semibold"
+            >
+              Change
+            </button>
+          </div>
+        )}
+
 
         {/* Guests */}
         <div className="flex items-center justify-between">

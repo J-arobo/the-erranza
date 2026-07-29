@@ -7,7 +7,7 @@ type Props = {
   collapsed: boolean
   activeCat: string
   activeTab: string
-  onTabSelect: (name: string) => void
+  onSearch: (category: string, location: string, guests: number) => void
   scrollY: number
 }
 
@@ -94,42 +94,51 @@ function CalendarMonth({ year, month, startDate, endDate, onSelect }: CalendarMo
 }
 
 // ── Guest Counter ─────────────────────────────────────────────────────────
-function GuestCounter({ compact = false }: { compact?: boolean }) {
-  const [adults, setAdults] = useState(0)
-  const [children, setChildren] = useState(0)
-  const [infants, setInfants] = useState(0)
-  const [pets, setPets] = useState(0)
+type GuestCounts = { adults: number; children: number; infants: number; pets: number }
+const EMPTY_GUESTS: GuestCounts = { adults: 0, children: 0, infants: 0, pets: 0 }
 
-  const rows = [
-    { label: 'Adults', sub: 'Ages 13 or above', count: adults, set: setAdults },
-    { label: 'Children', sub: 'Ages 2–12', count: children, set: setChildren },
-    { label: 'Infants', sub: 'Under 2', count: infants, set: setInfants },
-    { label: 'Pets', sub: '', count: pets, set: setPets },
+function guestsLabel(g: GuestCounts): string {
+  const total = g.adults + g.children
+  const parts: string[] = []
+  if (total > 0) parts.push(`${total} guest${total > 1 ? 's' : ''}`)
+  if (g.infants > 0) parts.push(`${g.infants} infant${g.infants > 1 ? 's' : ''}`)
+  if (g.pets > 0) parts.push(`${g.pets} pet${g.pets > 1 ? 's' : ''}`)
+  return parts.length > 0 ? parts.join(', ') : 'Add guests'
+}
+
+function GuestCounter({
+  compact = false, value, onChange,
+}: { compact?: boolean; value: GuestCounts; onChange: (v: GuestCounts) => void }) {
+  const rows: { key: keyof GuestCounts; label: string; sub: string }[] = [
+    { key: 'adults', label: 'Adults', sub: 'Ages 13 or above' },
+    { key: 'children', label: 'Children', sub: 'Ages 2–12' },
+    { key: 'infants', label: 'Infants', sub: 'Under 2' },
+    { key: 'pets', label: 'Pets', sub: '' },
   ]
 
   return (
     <div className={`flex flex-col ${compact ? 'gap-3' : 'gap-4'}`}>
-      {rows.map(({ label, sub, count, set }) => (
-        <div key={label} className="flex items-center justify-between">
+      {rows.map(({ key, label, sub }) => (
+        <div key={key} className="flex items-center justify-between">
           <div>
-            <p className={`font-semibold text-[#304333] ${compact ? 'text-sm' : 'text-sm'}`}>
+            <p className="font-semibold text-[#304333] text-sm">
               {label}
             </p>
             {sub && <p className="text-xs text-gray-400">{sub}</p>}
           </div>
           <div className="flex items-center gap-3">
             <button
-              onClick={() => set(Math.max(0, count - 1))}
-              disabled={count === 0}
+              onClick={() => onChange({ ...value, [key]: Math.max(0, value[key] - 1) })}
+              disabled={value[key] === 0}
               className="w-8 h-8 rounded-full border border-gray-300 flex items-center
                          justify-center text-lg text-gray-500 hover:border-[#1a1a1a]
                          transition-colors disabled:opacity-30"
             >−</button>
             <span className="text-sm font-semibold text-[#304333] w-4 text-center">
-              {count}
+              {value[key]}
             </span>
             <button
-              onClick={() => set(count + 1)}
+              onClick={() => onChange({ ...value, [key]: value[key] + 1 })}
               className="w-8 h-8 rounded-full border border-gray-300 flex items-center
                          justify-center text-lg text-gray-500 hover:border-[#1a1a1a]
                          transition-colors"
@@ -146,7 +155,7 @@ export default function SearchBar({
   collapsed,
   activeCat,
   activeTab,
-  onTabSelect,
+  onSearch,
   scrollY,
 }: Props) {
   const [where, setWhere] = useState('')
@@ -154,6 +163,7 @@ export default function SearchBar({
   const [focused, setFocused] = useState(false)
   const [activeCard, setActiveCard] = useState<'where' | 'when' | 'who' | null>(null)
   const [modalTab, setModalTab] = useState(activeTab)
+  const [guests, setGuests] = useState<GuestCounts>(EMPTY_GUESTS)
 
   // Calendar state
   const today = new Date()
@@ -213,6 +223,8 @@ export default function SearchBar({
     ? `${formatDate(startDate)}${endDate ? ` – ${formatDate(endDate)}` : ''}`
     : 'Add dates'
 
+  const totalGuests = guests.adults + guests.children
+
   // Mobile modal handlers
   const handleMobileOpen = () => {
     setModalTab(activeTab)
@@ -225,7 +237,7 @@ export default function SearchBar({
     setActiveCard(null)
   }
   const handleSearch = () => {
-    onTabSelect(modalTab)
+    onSearch(modalTab, where.trim(), totalGuests)
     handleClose()
   }
   const handleSelect = (place: string) => {
@@ -316,15 +328,11 @@ export default function SearchBar({
   return (
     <>
       {/* ════════════════════════════════════════
-          MOBILE — full-screen modal (sm and below)
+          MOBILE — full-screen modal
           ════════════════════════════════════════ */}
-      {/* ════════════════════════════════════════
-    MOBILE — full-screen modal
-    ════════════════════════════════════════ */}
       <div className="sm:hidden">
         <div className="px-4 py-2 bg-[#f5f6f4] flex-shrink-0">
 
-          {/* ✅ div → button, closing tag matches */}
           <button
             type="button"
             onClick={handleMobileOpen}
@@ -362,7 +370,6 @@ export default function SearchBar({
               <SlidersHorizontal size={13} color="#555" />
             </span>
           </button>
-          {/* ✅ button closes here */}
 
         </div>
 
@@ -397,7 +404,7 @@ export default function SearchBar({
 
             <div className="flex-1 overflow-y-auto px-4 py-2 flex flex-col gap-3">
 
-              {/* ✅ WHERE — button with matching closing tag */}
+              {/* WHERE */}
               <div
                 onClick={() => setActiveCard('where')}
                 className={`bg-[#FEFDFC] rounded-2xl shadow-sm transition-all duration-200
@@ -480,9 +487,8 @@ export default function SearchBar({
                   </div>
                 )}
               </div>
-              {/* ✅ WHERE button closes here */}
 
-              {/* ✅ WHEN — button with matching closing tag */}
+              {/* WHEN */}
               <div
                 onClick={() => setActiveCard('when')}
                 className={`bg-white rounded-2xl shadow-sm transition-all duration-200
@@ -502,9 +508,8 @@ export default function SearchBar({
                   </div>
                 )}
               </div>
-              {/* ✅ WHEN button closes here */}
 
-              {/* ✅ WHO — button with matching closing tag */}
+              {/* WHO */}
               <div
                 onClick={() => setActiveCard('who')}
                 className={`bg-white rounded-2xl shadow-sm transition-all duration-200
@@ -515,16 +520,15 @@ export default function SearchBar({
                 {activeCard === 'who' ? (
                   <div onClick={(e) => e.stopPropagation()}>
                     <h2 className="text-xl font-bold text-[#304333] mb-3">Who?</h2>
-                    <GuestCounter />
+                    <GuestCounter value={guests} onChange={setGuests} />
                   </div>
                 ) : (
                   <div className="flex justify-between items-center">
                     <span className="text-sm font-semibold text-gray-400">Who</span>
-                    <span className="text-sm font-semibold text-[#304333]">Add guests</span>
+                    <span className="text-sm font-semibold text-[#304333]">{guestsLabel(guests)}</span>
                   </div>
                 )}
               </div>
-              {/* ✅ WHO button closes here */}
 
               <div className="h-4" />
             </div>
@@ -538,6 +542,7 @@ export default function SearchBar({
                   setWhere('')
                   setStartDate(null)
                   setEndDate(null)
+                  setGuests(EMPTY_GUESTS)
                   setActiveCard('where')
                 }}
                 className="text-sm font-semibold text-[#304333]"
@@ -561,7 +566,7 @@ export default function SearchBar({
       </div>
 
       {/* ════════════════════════════════════════
-          DESKTOP — inline expanded bar (sm and above)
+          DESKTOP — inline expanded bar
           ════════════════════════════════════════ */}
       <div className="hidden sm:block bg-[#f5f6f4] px-6 py-3 flex-shrink-0">
         <div ref={desktopRef} className="relative max-w-3xl mx-auto">
@@ -615,25 +620,32 @@ export default function SearchBar({
             <div className="w-px bg-gray-200 my-3" />
 
             {/* WHO section */}
-            <button
-              onClick={() => setActiveCard(activeCard === 'who' ? null : 'who')}
+            <div
               className={`flex items-center gap-3 pr-3 pl-6 py-3 rounded-full
-                          transition-colors hover:bg-gray-50
+                          transition-colors
                           ${activeCard === 'who' ? 'bg-white shadow-md' : ''}`}
             >
-              <div className="flex flex-col text-left flex-1">
+              <button
+                type="button"
+                onClick={() => setActiveCard(activeCard === 'who' ? null : 'who')}
+                className="flex flex-col text-left flex-1 hover:opacity-80 transition-opacity"
+              >
                 <span className="text-xs font-bold text-[#1a1a1a]">Who</span>
-                <span className="text-sm text-gray-400 mt-0.5">Add guests</span>
-              </div>
-              <div className={`flex items-center justify-center flex-shrink-0 transition-all duration-200
-                ${activeCard
-                  ? 'bg-[#2c4a1e] rounded-full px-5 py-3 gap-2'
-                  : 'w-12 h-12 bg-[#2c4a1e] rounded-full'}`}
+                <span className="text-sm text-gray-400 mt-0.5">{guestsLabel(guests)}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => onSearch(activeTab, where.trim(), totalGuests)}
+                className={`flex items-center justify-center flex-shrink-0 transition-all duration-200
+                  hover:bg-[#3d6b28]
+                  ${activeCard
+                    ? 'bg-[#2c4a1e] rounded-full px-5 py-3 gap-2'
+                    : 'w-12 h-12 bg-[#2c4a1e] rounded-full'}`}
               >
                 <Search size={18} color="white" />
                 {activeCard && <span className="text-white font-semibold text-sm whitespace-nowrap">Search</span>}
-              </div>
-            </button>
+              </button>
+            </div>
           </div>
 
           {/* WHERE dropdown */}
@@ -681,7 +693,7 @@ export default function SearchBar({
           {activeCard === 'who' && (
             <div className="absolute top-full right-0 mt-3 w-96 bg-white rounded-2xl
                             shadow-xl border border-gray-100 p-6 z-50">
-              <GuestCounter compact={false} />
+              <GuestCounter value={guests} onChange={setGuests} />
             </div>
           )}
         </div>

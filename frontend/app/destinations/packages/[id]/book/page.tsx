@@ -35,7 +35,7 @@ export default function PackageBookingPage({ params }: Props) {
   const [pkg, setPkg] = useState<ApiListingDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
-  const [selectedDeparture, setSelectedDeparture] = useState<string | null>(null)
+  const [selectedDeparture, setSelectedDeparture] = useState<number | null>(null)
 
   const [step, setStep] = useState<Step>('review')
   const [payMode, setPayMode] = useState<'full' | 'instalments'>('full')
@@ -66,7 +66,7 @@ export default function PackageBookingPage({ params }: Props) {
         setPkg(listing)
         const today = new Date().toISOString().slice(0, 10)
         const upcoming = listing.departures.filter(d => d.date >= today).sort((a, b) => a.date.localeCompare(b.date))
-        if (upcoming[0]) setSelectedDeparture(upcoming[0].date)
+        if (upcoming[0]) setSelectedDeparture(upcoming[0].id)
       })
       .catch(() => setNotFound(true))
       .finally(() => setLoading(false))
@@ -119,7 +119,7 @@ export default function PackageBookingPage({ params }: Props) {
           body: JSON.stringify({
             listing_id: pkg!.id,
             guests,
-            check_in: selectedDeparture,
+            departure_id: selectedDeparture,
           }),
         })
         router.push(`/destinations/packages/${id}/book/success`)
@@ -178,16 +178,16 @@ export default function PackageBookingPage({ params }: Props) {
             <p className="text-sm text-red-500">No upcoming departures available.</p>
           ) : (
             <div className="flex flex-col gap-2">
-              {upcomingDepartures.map((dep) => {
+                            {upcomingDepartures.map((dep) => {
                 const full = dep.booked >= dep.capacity
                 return (
                   <label key={dep.id}
                     className={`flex items-center justify-between p-2.5 rounded-xl border cursor-pointer
-                      ${selectedDeparture === dep.date ? 'border-[#304333] bg-[#F1F5E4]' : 'border-gray-200'}
+                      ${selectedDeparture === dep.id ? 'border-[#304333] bg-[#F1F5E4]' : 'border-gray-200'}
                       ${full ? 'opacity-50 pointer-events-none' : ''}`}>
                     <div className="flex items-center gap-2">
-                      <input type="radio" name="departure" checked={selectedDeparture === dep.date}
-                        onChange={() => setSelectedDeparture(dep.date)} disabled={full}
+                      <input type="radio" name="departure" checked={selectedDeparture === dep.id}
+                        onChange={() => setSelectedDeparture(dep.id)} disabled={full}
                         className="w-4 h-4 accent-[#304333]" />
                       <span className="text-sm text-[#1a1a1a]">{formatDate(dep.date)}</span>
                     </div>

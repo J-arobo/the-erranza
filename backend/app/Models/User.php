@@ -13,10 +13,13 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
+use Filament\Models\Contracts\FilamentUser;
+use Filament\Panel;
+
 
 #[Fillable(['name', 'email', 'password', 'phone', 'avatar_url', 'active_role', 'suspended', 'suspend_reason'])]
 #[Hidden(['password', 'remember_token'])]
-class User extends Authenticatable
+class User extends Authenticatable implements FilamentUser
 {
     /** @use HasFactory<UserFactory> */
     use HasApiTokens, HasFactory, Notifiable;
@@ -39,6 +42,11 @@ class User extends Authenticatable
     {
         return $this->roles->contains('name', $name);
     }
+    public function canAccessPanel(Panel $panel): bool
+    {
+        return $this->hasRole('admin') || $this->hasRole('super_admin');
+    }
+
 
     public function vendor(): HasOne
     {
@@ -59,5 +67,4 @@ class User extends Authenticatable
     {
         return $this->hasMany(WishlistItem::class);
     }
-
 }

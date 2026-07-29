@@ -4,6 +4,8 @@ import AppShell from '@/components/AppShell'
 import ListingCard from '@/components/ListingCard'
 import FooterSection from '@/components/FooterSection'
 import { apiFetch, apiErrorMessage } from '@/lib/api'
+import { useSearchParams } from 'next/navigation'
+
 
 const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1547471080-7cc2caa01a7e?w=400&q=80'
 
@@ -24,6 +26,8 @@ type ApiListing = {
   price: string
   images: { url: string }[]
   reviews_avg_rating: string | null
+  min_guests: number | null
+  max_guests: number | null
 }
 
 type PaginatedListings = { data: ApiListing[] }
@@ -36,6 +40,8 @@ type SafariItem = {
   rating: number
   image: string
   video: string
+  minGuests: number | null
+  maxGuests: number | null
 }
 
 function mapSafari(l: ApiListing): SafariItem {
@@ -47,6 +53,8 @@ function mapSafari(l: ApiListing): SafariItem {
     rating: l.reviews_avg_rating ? Number(l.reviews_avg_rating) : 4.5,
     image: l.images[0]?.url ?? FALLBACK_IMAGE,
     video: SAFARI_VIDEOS[Number(l.id) % SAFARI_VIDEOS.length],
+    minGuests: l.min_guests,
+    maxGuests: l.max_guests,
   }
 }
 
@@ -75,11 +83,16 @@ const SECTIONS = [
 ]
 
 export default function SafariPage() {
+  const searchParams = useSearchParams()
   const [search, setSearch] = useState('')
   const [activeFilter, setFilter] = useState('All')
   const [safaris, setSafaris] = useState<SafariItem[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+
+  useEffect(() => {
+    setSearch(searchParams.get('location') ?? '')
+  }, [searchParams])
 
   useEffect(() => {
     apiFetch<PaginatedListings>('/listings?category=Safari&per_page=100')
@@ -88,10 +101,18 @@ export default function SafariPage() {
       .finally(() => setLoading(false))
   }, [])
 
-  const filtered = safaris.filter(item =>
-    item.title.toLowerCase().includes(search.toLowerCase()) ||
-    item.location.toLowerCase().includes(search.toLowerCase())
-  )
+  const guestsParam = Number(searchParams.get('guests') ?? '0') || 0
+
+  const filtered = safaris.filter(item => {
+    const matchesText =
+      item.title.toLowerCase().includes(search.toLowerCase()) ||
+      item.location.toLowerCase().includes(search.toLowerCase())
+    const matchesGuests = guestsParam === 0 || (
+      (item.maxGuests === null || item.maxGuests >= guestsParam) &&
+      (item.minGuests === null || item.minGuests <= guestsParam)
+    )
+    return matchesText && matchesGuests
+  })
 
   return (
     <AppShell showCollapse={false}>

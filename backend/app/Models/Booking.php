@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Booking extends Model
 {
     protected $fillable = [
-        'listing_id', 'traveller_id', 'status', 'guests', 'total',
+        'listing_id', 'departure_id', 'traveller_id', 'status', 'guests', 'total',
         'check_in', 'check_out', 'proposed_date',
         'refund_percent', 'refund_amount', 'special_requests', 'decline_reason',
     ];
@@ -33,6 +33,11 @@ class Booking extends Model
     public function traveller(): BelongsTo
     {
         return $this->belongsTo(User::class, 'traveller_id');
+    }
+
+    public function departure(): BelongsTo
+    {
+        return $this->belongsTo(ListingDeparture::class, 'departure_id');
     }
 
     public function travelers(): HasMany

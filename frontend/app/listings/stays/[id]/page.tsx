@@ -104,14 +104,28 @@ type ApiListingDetail = {
     languages: string[] | null
     verification_status: string
   }
+  // Unavailable dates
+  unavailable_dates: { start: string; end: string }[]
 }
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 const WDAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
 
+type DateRange = { start: Date; end: Date }
+
+function parseUnavailable(ranges: { start: string; end: string }[]): DateRange[] {
+  return ranges.map(r => ({ start: new Date(r.start + 'T00:00:00'), end: new Date(r.end + 'T00:00:00') }))
+}
+function isDateBlocked(date: Date, ranges: DateRange[]): boolean {
+  return ranges.some(r => date >= r.start && date < r.end)
+}
+function rangeCrossesBlocked(start: Date, end: Date, ranges: DateRange[]): boolean {
+  return ranges.some(r => start < r.end && end > r.start)
+}
+
 // ── Mobile single-month calendar (unchanged) ──
-function MiniCalendar({ checkIn, checkOut, onSelect }: {
-  checkIn: Date | null; checkOut: Date | null; onSelect: (d: Date) => void
+function MiniCalendar({ checkIn, checkOut, onSelect, disabledRanges }: {
+  checkIn: Date | null; checkOut: Date | null; onSelect: (d: Date) => void; disabledRanges: DateRange[]
 }) {
   const today = new Date()
   const [year, setYear] = useState(today.getFullYear())
@@ -123,6 +137,7 @@ function MiniCalendar({ checkIn, checkOut, onSelect }: {
   const todayMid = new Date(today.getFullYear(), today.getMonth(), today.getDate())
 
   const isPast = (d: number) => new Date(year, month, d) < todayMid
+  const isBlocked = (d: number) => isDateBlocked(new Date(year, month, d), disabledRanges)
   const isStart = (d: number) => checkIn?.toDateString() === new Date(year, month, d).toDateString()
   const isEnd = (d: number) => checkOut?.toDateString() === new Date(year, month, d).toDateString()
   const isInRange = (d: number) => {
@@ -156,7 +171,7 @@ function MiniCalendar({ checkIn, checkOut, onSelect }: {
       <div className="grid grid-cols-7" style={{ rowGap: 4 }}>
         {cells.map((d, i) => {
           if (!d) return <div key={i} />
-          const past = isPast(d), start = isStart(d), end = isEnd(d), inRange = isInRange(d)
+          const past = isPast(d) || isBlocked(d), start = isStart(d), end = isEnd(d), inRange = isInRange(d)
           const hasRange = !!(checkIn && checkOut)
           const inStrip = hasRange && (inRange || start || end)
           const col = i % 7
@@ -208,8 +223,8 @@ function MiniCalendar({ checkIn, checkOut, onSelect }: {
 }
 
 // ── Desktop two-month calendar ──
-function DesktopCalendar({ checkIn, checkOut, onSelect }: {
-  checkIn: Date | null; checkOut: Date | null; onSelect: (d: Date) => void
+function DesktopCalendar({ checkIn, checkOut, onSelect, disabledRanges }: {
+  checkIn: Date | null; checkOut: Date | null; onSelect: (d: Date) => void; disabledRanges: DateRange[]
 }) {
   const today = new Date()
   const todayMid = new Date(today.getFullYear(), today.getMonth(), today.getDate())
@@ -234,6 +249,7 @@ function DesktopCalendar({ checkIn, checkOut, onSelect }: {
     const cells = [...Array(firstDay).fill(null), ...Array.from({ length: daysInMonth }, (_, i) => i + 1)]
 
     const isPast = (d: number) => new Date(year, month, d) < todayMid
+    const isBlocked = (d: number) => isDateBlocked(new Date(year, month, d), disabledRanges)
     const isStart = (d: number) => checkIn?.toDateString() === new Date(year, month, d).toDateString()
     const isEnd = (d: number) => checkOut?.toDateString() === new Date(year, month, d).toDateString()
     const isInRange = (d: number) => {
@@ -273,7 +289,7 @@ function DesktopCalendar({ checkIn, checkOut, onSelect }: {
         <div className="grid grid-cols-7" style={{ rowGap: 2 }}>
           {cells.map((d, i) => {
             if (!d) return <div key={i} />
-            const past = isPast(d), start = isStart(d), end = isEnd(d), inRange = isInRange(d)
+            const past = isPast(d) || isBlocked(d), start = isStart(d), end = isEnd(d), inRange = isInRange(d)
             const hasRange = !!(checkIn && checkOut)
             const inStrip = hasRange && (inRange || start || end)
             const col = i % 7
@@ -470,6 +486,7 @@ export default function StayDetailPage({ params }: Props) {
     : cancellationPolicy.description
 
   const wishlisted = isWishlisted(id)
+  const disabledRanges = parseUnavailable(listing.unavailable_dates ?? [])
   const images = detail.images
   const calNights = (checkIn && checkOut) ? Math.max(1, Math.round((checkOut.getTime() - checkIn.getTime()) / 86400000)) : nights
   const total = priceNum * calNights
@@ -495,6 +512,8 @@ export default function StayDetailPage({ params }: Props) {
     if (sidebarActiveField === 'checkin' || !checkIn || (checkIn && checkOut)) {
       setCheckIn(date); setCheckOut(null); setSidebarActiveField('checkout')
     } else if (date <= checkIn) {
+      setCheckIn(date); setCheckOut(null); setSidebarActiveField('checkout')
+    } else if (rangeCrossesBlocked(checkIn, date, disabledRanges)) {
       setCheckIn(date); setCheckOut(null); setSidebarActiveField('checkout')
     } else {
       setCheckOut(date); setShowSidebarCal(false)
@@ -890,7 +909,8 @@ export default function StayDetailPage({ params }: Props) {
                     {showSidebarCal && (
                       <div className="absolute bg-white rounded-xl shadow-xl z-50 p-4"
                         style={{ top: 60, marginTop: 0, border: '1px solid #e8e0d0', right: 0, width: 660 }}>
-                        <DesktopCalendar checkIn={checkIn} checkOut={checkOut} onSelect={handleSidebarCalSelect} />
+                        <DesktopCalendar checkIn={checkIn} checkOut={checkOut} onSelect={handleSidebarCalSelect} disabledRanges={disabledRanges} />
+
                         <div className="flex justify-between items-center mt-3 pt-3" style={{ borderTop: '1px solid #e8e0d0' }}>
                           <button onClick={() => { setCheckIn(null); setCheckOut(null); setSidebarActiveField('checkin') }}
                             className="text-sm font-semibold text-[#304333] underline"
@@ -1028,12 +1048,11 @@ export default function StayDetailPage({ params }: Props) {
             )}
 
             <div className="hidden sm:block mt-4">
-              <DesktopCalendar checkIn={checkIn} checkOut={checkOut} onSelect={handleSidebarCalSelect} />
+              <DesktopCalendar checkIn={checkIn} checkOut={checkOut} onSelect={handleSidebarCalSelect} disabledRanges={disabledRanges} />
             </div>
             <div className="sm:hidden mt-4">
-              <MiniCalendar checkIn={checkIn} checkOut={checkOut} onSelect={handleSidebarCalSelect} />
+              <MiniCalendar checkIn={checkIn} checkOut={checkOut} onSelect={handleSidebarCalSelect} disabledRanges={disabledRanges} />
             </div>
-
             {(checkIn || checkOut) && (
               <button onClick={() => { setCheckIn(null); setCheckOut(null) }}
                 className="mt-3 text-sm font-semibold text-[#304333] underline"

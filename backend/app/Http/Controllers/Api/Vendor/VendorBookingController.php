@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Vendor;
 use App\Http\Controllers\Controller;
 use App\Models\Booking;
 use Illuminate\Http\Request;
+use App\Models\ListingDeparture;
 
 class VendorBookingController extends Controller
 {
@@ -54,6 +55,10 @@ class VendorBookingController extends Controller
             'decline_reason' => ['required', 'string', 'max:500'],
         ]);
 
+        if ($booking->departure_id) {
+            ListingDeparture::where('id', $booking->departure_id)->decrement('booked');
+        }
+
         $booking->update(['status' => 'cancelled', 'decline_reason' => $validated['decline_reason']]);
 
         return response()->json(['booking' => $booking]);
@@ -82,6 +87,10 @@ class VendorBookingController extends Controller
         $validated = $request->validate([
             'refund_percent' => ['required', 'integer', 'min:0', 'max:100'],
         ]);
+
+        if ($booking->departure_id && in_array($booking->status, ['pending', 'confirmed', 'alternative_proposed'])) {
+            ListingDeparture::where('id', $booking->departure_id)->decrement('booked');
+        }
 
         $booking->update([
             'status' => 'cancelled',

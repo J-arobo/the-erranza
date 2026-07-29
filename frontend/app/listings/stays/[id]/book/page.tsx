@@ -24,6 +24,7 @@ type ApiListing = {
   reviews_count: number
   reviews_avg_rating: string | null
   vendor: { business_name: string }
+  unavailable_dates: { start: string; end: string }[]
 }
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
@@ -36,8 +37,21 @@ function toDateStr(d: Date): string {
   return `${y}-${m}-${day}`
 }
 
-function BookMonthGrid({ year, month, checkIn, checkOut, onSelect, hideLabel }: {
-  year: number; month: number; checkIn: Date | null; checkOut: Date | null; onSelect: (d: Date) => void; hideLabel?: boolean
+type DateRange = { start: Date; end: Date }
+
+function parseUnavailable(ranges: { start: string; end: string }[]): DateRange[] {
+  return ranges.map(r => ({ start: new Date(r.start + 'T00:00:00'), end: new Date(r.end + 'T00:00:00') }))
+}
+function isDateBlocked(date: Date, ranges: DateRange[]): boolean {
+  return ranges.some(r => date >= r.start && date < r.end)
+}
+function rangeCrossesBlocked(start: Date, end: Date, ranges: DateRange[]): boolean {
+  return ranges.some(r => start < r.end && end > r.start)
+}
+
+
+function BookMonthGrid({ year, month, checkIn, checkOut, onSelect, hideLabel, disabledRanges }: {
+  year: number; month: number; checkIn: Date | null; checkOut: Date | null; onSelect: (d: Date) => void; hideLabel?: boolean; disabledRanges: DateRange[]
 }) {
   const today = new Date()
   const firstDay = new Date(year, month, 1).getDay()
@@ -45,6 +59,7 @@ function BookMonthGrid({ year, month, checkIn, checkOut, onSelect, hideLabel }: 
   const cells = [...Array(firstDay).fill(null), ...Array.from({ length: daysInMonth }, (_, i) => i + 1)]
   const todayMid = new Date(today.getFullYear(), today.getMonth(), today.getDate())
   const isPast = (d: number) => new Date(year, month, d) < todayMid
+  const isBlocked = (d: number) => isDateBlocked(new Date(year, month, d), disabledRanges)
   const isStart = (d: number) => checkIn?.toDateString() === new Date(year, month, d).toDateString()
   const isEnd = (d: number) => checkOut?.toDateString() === new Date(year, month, d).toDateString()
   const isInRange = (d: number) => { if (!checkIn || !checkOut) return false; const date = new Date(year, month, d); return date > checkIn && date < checkOut }
@@ -60,7 +75,7 @@ function BookMonthGrid({ year, month, checkIn, checkOut, onSelect, hideLabel }: 
       <div className="grid grid-cols-7" style={{ rowGap: 2 }}>
         {cells.map((d, i) => {
           if (!d) return <div key={i} />
-          const past = isPast(d), start = isStart(d), end = isEnd(d), inRange = isInRange(d)
+          const past = isPast(d) || isBlocked(d), start = isStart(d), end = isEnd(d), inRange = isInRange(d)
           const hasRange = !!(checkIn && checkOut)
           const inStrip = hasRange && (inRange || start || end)
           const col = i % 7
@@ -94,8 +109,8 @@ function BookMonthGrid({ year, month, checkIn, checkOut, onSelect, hideLabel }: 
   )
 }
 
-function BookCalendar({ checkIn, checkOut, onSelect }: {
-  checkIn: Date | null; checkOut: Date | null; onSelect: (d: Date) => void
+function BookCalendar({ checkIn, checkOut, onSelect, disabledRanges }: {
+  checkIn: Date | null; checkOut: Date | null; onSelect: (d: Date) => void; disabledRanges: DateRange[]
 }) {
   const today = new Date()
   const [year, setYear] = useState(today.getFullYear())
@@ -120,7 +135,7 @@ function BookCalendar({ checkIn, checkOut, onSelect }: {
             <ChevronRight size={16} color="#1a1a1a" />
           </button>
         </div>
-        <BookMonthGrid year={year} month={month} checkIn={checkIn} checkOut={checkOut} onSelect={onSelect} hideLabel />
+        <BookMonthGrid year={year} month={month} checkIn={checkIn} checkOut={checkOut} onSelect={onSelect} hideLabel disabledRanges={disabledRanges} />
       </div>
 
       {/* Desktop/tablet: two months side by side */}
@@ -136,8 +151,9 @@ function BookCalendar({ checkIn, checkOut, onSelect }: {
           </button>
         </div>
         <div className="grid grid-cols-2 gap-8">
-          <BookMonthGrid year={year} month={month} checkIn={checkIn} checkOut={checkOut} onSelect={onSelect} />
-          <BookMonthGrid year={nextYear} month={nextMonth} checkIn={checkIn} checkOut={checkOut} onSelect={onSelect} />
+          <BookMonthGrid year={year} month={month} checkIn={checkIn} checkOut={checkOut} onSelect={onSelect} disabledRanges={disabledRanges} />
+          <BookMonthGrid year={nextYear} month={nextMonth} checkIn={checkIn} checkOut={checkOut} onSelect={onSelect} disabledRanges={disabledRanges} />
+
         </div>
       </div>
     </div>
@@ -229,7 +245,7 @@ export default function StayBookingPage({ params }: Props) {
       </div>
     )
   }
-
+  const disabledRanges = parseUnavailable(listing.unavailable_dates ?? [])
   const stepIndex = STEPS.indexOf(step)
   const priceNum = Math.round(Number(listing.price))
   const rating = listing.reviews_avg_rating ? Number(listing.reviews_avg_rating).toFixed(2) : '4.50'
@@ -296,6 +312,8 @@ export default function StayBookingPage({ params }: Props) {
     if (sheetField === 'checkin' || !sheetCI || (sheetCI && sheetCO)) {
       setSheetCI(date); setSheetCO(null); setSheetField('checkout')
     } else if (date <= sheetCI) {
+      setSheetCI(date); setSheetCO(null); setSheetField('checkout')
+    } else if (rangeCrossesBlocked(sheetCI, date, disabledRanges)) {
       setSheetCI(date); setSheetCO(null); setSheetField('checkout')
     } else {
       setSheetCO(date); setSheetField('checkin')
@@ -722,7 +740,7 @@ export default function StayBookingPage({ params }: Props) {
               </button>
             </div>
             <div className="overflow-y-auto flex-1">
-              <BookCalendar checkIn={sheetCI} checkOut={sheetCO} onSelect={handleSheetCalSelect} />
+              <BookCalendar checkIn={sheetCI} checkOut={sheetCO} onSelect={handleSheetCalSelect} disabledRanges={disabledRanges} />
             </div>
             <div className="flex items-center justify-between pt-4 mt-2" style={{ borderTop: '1px solid #f0ede8' }}>
               <button onClick={() => { setSheetCI(null); setSheetCO(null); setSheetField('checkin') }}

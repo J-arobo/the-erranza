@@ -11,11 +11,11 @@ class Listing extends Model
     protected $fillable = [
         'vendor_id', 'title', 'category', 'location', 'description',
         'price', 'child_price', 'extra_guest_price', 'status',
-        'min_guests', 'max_guests', 'min_lead_time_days',
+        'min_guests', 'max_guests', 'min_nights', 'min_lead_time_days',
         'bedrooms', 'beds', 'bathrooms', 'lat', 'lng',
         'cancellation_policy', 'custom_cancellation_text',
         'amenities', 'excluded', 'flagged', 'flag_reason', 'views',
-    ];
+    ];    
 
     protected function casts(): array
     {
