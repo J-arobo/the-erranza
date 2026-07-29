@@ -1,7 +1,7 @@
 'use client'
 // src/app/listings/stays/[id]/book/page.tsx
 
-import { use, useEffect, useState, useRef } from 'react'
+import { Suspense, use, useEffect, useState, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Image from 'next/image'
 import { ArrowLeft, X, ChevronRight, Shield, Star, ChevronLeft } from 'lucide-react'
@@ -160,7 +160,7 @@ function BookCalendar({ checkIn, checkOut, onSelect, disabledRanges }: {
   )
 }
 
-export default function StayBookingPage({ params }: Props) {
+function StayBookingPageContent({ params }: Props) {
   const { id } = use(params)
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -876,5 +876,13 @@ export default function StayBookingPage({ params }: Props) {
       )}
 
     </div>
+  )
+}
+
+export default function StayBookingPage({ params }: Props) {
+  return (
+    <Suspense fallback={null}>
+      <StayBookingPageContent params={params} />
+    </Suspense>
   )
 }

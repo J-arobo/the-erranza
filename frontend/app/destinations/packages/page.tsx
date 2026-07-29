@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Image from 'next/image'
 import { Plus, Check, ArrowRight } from 'lucide-react'
@@ -8,6 +8,7 @@ import FooterSection from '@/components/FooterSection'
 import HeartButton from '@/components/HeartButton'
 import ListingCard from '@/components/ListingCard'
 import { apiFetch, apiErrorMessage } from '@/lib/api'
+
 
 
 const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1547471080-7cc2caa01a7e?w=400&q=80'
@@ -153,7 +154,7 @@ function SectionHeading({ title }: { title: string }) {
   )
 }
 
-export default function PackagesPage() {
+function PackagesPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [search, setSearch] = useState('')
@@ -269,5 +270,14 @@ export default function PackagesPage() {
         <FooterSection />
       </div>
     </AppShell>
+  )
+}
+
+
+export default function PackagesPage() {
+  return (
+    <Suspense fallback={null}>
+      <PackagesPageContent />
+    </Suspense>
   )
 }

@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import AppShell from '@/components/AppShell'
 import ListingCard from '@/components/ListingCard'
 import FooterSection from '@/components/FooterSection'
@@ -66,7 +66,7 @@ const SECTIONS = [
   },
 ]
 
-export default function StaysPage() {
+function StaysPageContent() {
   const searchParams = useSearchParams()
   const [search, setSearch] = useState('')
   const [stays, setStays] = useState<StayListing[]>([])
@@ -187,5 +187,15 @@ export default function StaysPage() {
         <FooterSection />
       </div>
     </AppShell>
+  )
+}
+
+
+
+export default function StaysPage() {
+  return (
+    <Suspense fallback={null}>
+      <StaysPageContent />
+    </Suspense>
   )
 }

@@ -1,5 +1,5 @@
 'use client'
-import { use, useState, useEffect, useRef } from 'react'
+import { Suspense, use, useState, useEffect, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Image from 'next/image'
 import { ArrowLeft, X, ChevronRight, ChevronLeft, Shield, Star } from 'lucide-react'
@@ -106,7 +106,7 @@ function DateCalendar({ selected, minDate, onSelect }: {
   )
 }
 
-export default function BookingPage({ params }: Props) {
+function BookingPageContent({ params }: Props) {
   const { id, vendorId } = use(params)
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -685,5 +685,13 @@ export default function BookingPage({ params }: Props) {
       )}
 
     </div>
+  )
+}
+
+export default function BookingPage({ params }: Props) {
+  return (
+    <Suspense fallback={null}>
+      <BookingPageContent params={params} />
+    </Suspense>
   )
 }

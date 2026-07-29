@@ -3,8 +3,9 @@
 
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Check, Calendar, MapPin } from 'lucide-react'
+import { Suspense } from 'react'
 
-export default function StayBookingSuccess() {
+function StayBookingSuccessContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const bookingId = searchParams.get('booking')
@@ -65,5 +66,13 @@ export default function StayBookingSuccess() {
         </button>
       </div>
     </div>
+  )
+}
+
+export default function StayBookingSuccess() {
+  return (
+    <Suspense fallback={null}>
+      <StayBookingSuccessContent />
+    </Suspense>
   )
 }

@@ -1,5 +1,5 @@
 'use client'
-import { use, useEffect, useState, useRef } from 'react'
+import { Suspense, use, useEffect, useState, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Image from 'next/image'
 import { ArrowLeft, X, ChevronRight, Shield, Star } from 'lucide-react'
@@ -27,7 +27,7 @@ function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
-export default function PackageBookingPage({ params }: Props) {
+function PackageBookingPageContent({ params }: Props) {
   const { id } = use(params)
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -460,5 +460,13 @@ export default function PackageBookingPage({ params }: Props) {
       )}
 
     </div>
+  )
+}
+
+export default function PackageBookingPage({ params }: Props) {
+  return (
+    <Suspense fallback={null}>
+      <PackageBookingPageContent params={params} />
+    </Suspense>
   )
 }

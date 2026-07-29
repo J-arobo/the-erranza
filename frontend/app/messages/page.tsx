@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Image from 'next/image'
 import {
@@ -287,7 +287,7 @@ function DetailsSheet({ thread, onClose }: DetailsSheetProps) {
   )
 }
 
-export default function MessagesPage() {
+function MessagesPageContent() {
   const { isLoggedIn } = useAuth()
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -421,5 +421,15 @@ export default function MessagesPage() {
         <BottomNav active="Messages" onSelect={() => { }} scrollingDown={false} scrolled={false} />
       )}
     </div>
+  )
+}
+
+
+
+export default function MessagesPage() {
+  return (
+    <Suspense fallback={null}>
+      <MessagesPageContent />
+    </Suspense>
   )
 }

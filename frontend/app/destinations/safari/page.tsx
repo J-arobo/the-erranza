@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import AppShell from '@/components/AppShell'
 import ListingCard from '@/components/ListingCard'
 import FooterSection from '@/components/FooterSection'
@@ -82,7 +82,7 @@ const SECTIONS = [
   },
 ]
 
-export default function SafariPage() {
+function SafariPageContent() {
   const searchParams = useSearchParams()
   const [search, setSearch] = useState('')
   const [activeFilter, setFilter] = useState('All')
@@ -203,5 +203,14 @@ export default function SafariPage() {
       </div>
       <FooterSection />
     </AppShell>
+  )
+}
+
+
+export default function SafariPage() {
+  return (
+    <Suspense fallback={null}>
+      <SafariPageContent />
+    </Suspense>
   )
 }

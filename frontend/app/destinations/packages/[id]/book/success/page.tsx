@@ -1,8 +1,9 @@
 'use client'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Check } from 'lucide-react'
+import { Suspense } from 'react'
 
-export default function PackageBookingSuccessPage() {
+function PackageBookingSuccessPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const bookingId = searchParams.get('booking')
@@ -43,5 +44,13 @@ export default function PackageBookingSuccessPage() {
         </button>
       </div>
     </div>
+  )
+}
+
+export default function PackageBookingSuccessPage() {
+  return (
+    <Suspense fallback={null}>
+      <PackageBookingSuccessPageContent />
+    </Suspense>
   )
 }
