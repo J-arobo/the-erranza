@@ -24,7 +24,7 @@ return [
         'http://localhost:3001',
         'http://192.168.1.183:3001',
         'http://192.168.1.148:3001',
-        /* 'http://localhost:3001', */
+        'https://erranza-six.vercel.app',
     ],
 
     'allowed_origins_patterns' => [],
