@@ -737,14 +737,21 @@ function StayBookingPageContent({ params }: Props) {
           style={{ background: 'rgba(0,0,0,0.4)' }}
           onClick={e => e.target === e.currentTarget && setShowDateSheet(false)}>
           <div className="bg-white w-full sm:max-w-2xl rounded-t-3xl sm:rounded-2xl p-6 h-[85vh] sm:h-auto sm:max-h-[90vh] flex flex-col">
-            <div className="flex items-center justify-between mb-5">
-              <h2 className="text-lg font-bold text-[#1a1a1a]">Change dates</h2>
+            <div className="flex items-center justify-between mb-1">
+              <h2 className="text-lg font-bold text-[#1a1a1a]">
+                {sheetCI && !sheetCO ? 'Select checkout date' : 'Change dates'}
+              </h2>
               <button onClick={() => setShowDateSheet(false)}
                 className="w-8 h-8 flex items-center justify-center rounded-full"
                 style={{ background: '#f5f5f5', border: 'none', cursor: 'pointer' }}>
                 <X size={16} color="#1a1a1a" />
               </button>
             </div>
+
+            {sheetCI && !sheetCO && (
+              <p className="text-sm text-gray-500 mb-4">Check-in {fmtDate(sheetCI)} — now choose your checkout date</p>
+            )}
+
             <div className="overflow-y-auto flex-1">
               <BookCalendar checkIn={sheetCI} checkOut={sheetCO} onSelect={handleSheetCalSelect} disabledRanges={disabledRanges} />
             </div>

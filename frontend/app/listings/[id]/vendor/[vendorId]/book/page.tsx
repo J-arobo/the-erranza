@@ -43,14 +43,21 @@ function formatDisplayDate(d: Date) {
   return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })
 }
 
-function DateMonthGrid({ year, month, selected, minDate, onSelect }: {
-  year: number; month: number; selected: Date | null; minDate: Date; onSelect: (d: Date) => void
+function DateMonthGrid({ year, month, checkIn, checkOut, minDate, onSelect }: {
+  year: number; month: number; checkIn: Date | null; checkOut: Date | null; minDate: Date; onSelect: (d: Date) => void
 }) {
   const firstDay = new Date(year, month, 1).getDay()
   const daysInMonth = new Date(year, month + 1, 0).getDate()
   const cells = [...Array(firstDay).fill(null), ...Array.from({ length: daysInMonth }, (_, i) => i + 1)]
   const isDisabled = (d: number) => new Date(year, month, d) < minDate
-  const isSelected = (d: number) => selected?.toDateString() === new Date(year, month, d).toDateString()
+  const isStart = (d: number) => checkIn?.toDateString() === new Date(year, month, d).toDateString()
+  const isEnd = (d: number) => checkOut?.toDateString() === new Date(year, month, d).toDateString()
+  const isInRange = (d: number) => {
+    if (!checkIn || !checkOut) return false
+    const date = new Date(year, month, d)
+    return date > checkIn && date < checkOut
+  }
+  const stripBg = '#ececec'
 
   return (
     <div>
@@ -60,15 +67,29 @@ function DateMonthGrid({ year, month, selected, minDate, onSelect }: {
       <div className="grid grid-cols-7" style={{ rowGap: 2 }}>
         {cells.map((d, i) => {
           if (!d) return <div key={i} />
-          const disabled = isDisabled(d), selectedDay = isSelected(d)
+          const disabled = isDisabled(d), start = isStart(d), end = isEnd(d), inRange = isInRange(d)
+          const hasRange = !!(checkIn && checkOut)
+          const inStrip = hasRange && (inRange || start || end)
+          const col = i % 7
+          const prevInStrip = d > 1 && hasRange && (() => { const p = new Date(year, month, d - 1); return p >= checkIn! && p <= checkOut! })()
+          const nextInStrip = hasRange && (() => { const n = new Date(year, month, d + 1); if (n.getMonth() !== month) return false; return n >= checkIn! && n <= checkOut! })()
+          const roundLeft = inStrip && (!prevInStrip || col === 0)
+          const roundRight = inStrip && (!nextInStrip || col === 6)
           return (
-            <div key={i} style={{ height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div key={i} style={{
+              height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center',
+              background: inStrip ? stripBg : 'transparent',
+              borderRadius: inStrip ? `${roundLeft ? 22 : 0}px ${roundRight ? 22 : 0}px ${roundRight ? 22 : 0}px ${roundLeft ? 22 : 0}px` : 0,
+              ...(start && !end && hasRange ? { background: `linear-gradient(to right, transparent 50%, ${stripBg} 50%)`, borderRadius: 0 } : {}),
+              ...(end && !start && hasRange ? { background: `linear-gradient(to left, transparent 50%, ${stripBg} 50%)`, borderRadius: 0 } : {}),
+              ...(start && end ? { background: 'transparent', borderRadius: 0 } : {}),
+            }}>
               <button disabled={disabled} onClick={() => !disabled && onSelect(new Date(year, month, d))}
                 style={{
                   width: 44, height: 44, borderRadius: '50%', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 14, fontWeight: selectedDay ? 700 : 400, background: selectedDay ? '#1a1a1a' : 'transparent',
-                  color: selectedDay ? '#fff' : disabled ? '#d1d5db' : '#1a1a1a', cursor: disabled ? 'not-allowed' : 'pointer',
-                  WebkitTapHighlightColor: 'transparent',
+                  fontSize: 14, fontWeight: start || end ? 700 : 400, background: start || end ? '#1a1a1a' : 'transparent',
+                  color: start || end ? '#fff' : disabled ? '#d1d5db' : '#1a1a1a', cursor: disabled ? 'not-allowed' : 'pointer',
+                  flexShrink: 0, WebkitTapHighlightColor: 'transparent', position: 'relative', zIndex: 1,
                 }}>
                 {d}
               </button>
@@ -80,10 +101,10 @@ function DateMonthGrid({ year, month, selected, minDate, onSelect }: {
   )
 }
 
-function DateCalendar({ selected, minDate, onSelect }: {
-  selected: Date | null; minDate: Date; onSelect: (d: Date) => void
+function DateCalendar({ checkIn, checkOut, minDate, onSelect }: {
+  checkIn: Date | null; checkOut: Date | null; minDate: Date; onSelect: (d: Date) => void
 }) {
-  const start = selected ?? minDate
+  const start = checkIn ?? minDate
   const [year, setYear] = useState(start.getFullYear())
   const [month, setMonth] = useState(start.getMonth())
   function goBack() { if (month === 0) { setMonth(11); setYear(y => y - 1) } else setMonth(m => m - 1) }
@@ -102,7 +123,7 @@ function DateCalendar({ selected, minDate, onSelect }: {
           <ChevronRight size={16} color="#1a1a1a" />
         </button>
       </div>
-      <DateMonthGrid year={year} month={month} selected={selected} minDate={minDate} onSelect={onSelect} />
+      <DateMonthGrid year={year} month={month} checkIn={checkIn} checkOut={checkOut} minDate={minDate} onSelect={onSelect} />
     </div>
   )
 }
@@ -125,9 +146,11 @@ function BookingPageContent({ params }: Props) {
   const [message, setMessage] = useState('')
   const [insurance, setInsurance] = useState(false)
   const [guests, setGuests] = useState(() => Number(searchParams.get('guests')) || 1)
-  const [selectedDate, setSelectedDate] = useState<Date | null>(dateParam ? new Date(dateParam) : null)
+  const [selectedCheckIn, setSelectedCheckIn] = useState<Date | null>(dateParam ? new Date(dateParam) : null)
+  const [selectedCheckOut, setSelectedCheckOut] = useState<Date | null>(null)
   const [showDateSheet, setShowDateSheet] = useState(false)
-  const [sheetDate, setSheetDate] = useState<Date | null>(selectedDate)
+  const [sheetCheckIn, setSheetCheckIn] = useState<Date | null>(selectedCheckIn)
+  const [sheetCheckOut, setSheetCheckOut] = useState<Date | null>(selectedCheckOut)
   const [selectedDepartureId, setSelectedDepartureId] = useState<number | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState('')
@@ -194,13 +217,26 @@ function BookingPageContent({ params }: Props) {
 
   const stepIndex = STEPS.indexOf(step)
   const basePrice = Math.round(Number(listing.price))
-  const totalPrice = basePrice * guests
+  const nights = (!usesDepartures && selectedCheckIn && selectedCheckOut)
+    ? Math.max(1, Math.round((selectedCheckOut.getTime() - selectedCheckIn.getTime()) / 86400000))
+    : 1
+  const totalPrice = basePrice * guests * nights
   const insurancePrice = totalPrice * 0.12
   const finalTotal = insurance ? totalPrice + insurancePrice : totalPrice
   const tourImage = listing.images[0]?.url ?? FALLBACK_IMAGE
   const guideName = listing.vendor.business_name
   const rating = listing.reviews_avg_rating ? Number(listing.reviews_avg_rating).toFixed(2) : '4.50'
-  const dateReady = usesDepartures ? !!selectedDepartureId : !!selectedDate
+  const dateReady = usesDepartures ? !!selectedDepartureId : !!(selectedCheckIn && selectedCheckOut)
+
+  function handleSheetCalSelect(date: Date) {
+    if (!sheetCheckIn || (sheetCheckIn && sheetCheckOut)) {
+      setSheetCheckIn(date); setSheetCheckOut(null)
+    } else if (date <= sheetCheckIn) {
+      setSheetCheckIn(date); setSheetCheckOut(null)
+    } else {
+      setSheetCheckOut(date)
+    }
+  }
 
   async function goNext() {
     if (step === 'review') {
@@ -209,8 +245,8 @@ function BookingPageContent({ params }: Props) {
     }
     if (step === 'message') { setStep('confirm'); return }
     if (step === 'confirm') {
-      if (usesDepartures ? !selectedDepartureId : !selectedDate) {
-        setSubmitError('Please select a tour date first.')
+      if (usesDepartures ? !selectedDepartureId : !(selectedCheckIn && selectedCheckOut)) {
+        setSubmitError('Please select your tour dates first.')
         return
       }
 
@@ -224,7 +260,7 @@ function BookingPageContent({ params }: Props) {
             guests,
             ...(usesDepartures
               ? { departure_id: selectedDepartureId }
-              : { check_in: toDateStr(selectedDate!) }),
+              : { check_in: toDateStr(selectedCheckIn!), check_out: toDateStr(selectedCheckOut!) }),
           }),
         })
 
@@ -329,19 +365,25 @@ function BookingPageContent({ params }: Props) {
             )}
           </div>
         ) : (
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-semibold text-[#1a1a1a]">Tour date</p>
+          <div>
+            <p className="text-sm font-semibold text-[#1a1a1a] mb-0.5">
+              {selectedCheckIn && !selectedCheckOut ? 'Select checkout date' : 'Tour dates'}
+            </p>
+            <div className="flex items-center justify-between gap-2">
               <p className="text-sm text-gray-500">
-                {selectedDate ? formatDisplayDate(selectedDate) : 'Add a date'}
+                {selectedCheckIn && selectedCheckOut
+                  ? `${formatDisplayDate(selectedCheckIn)} – ${formatDisplayDate(selectedCheckOut)}`
+                  : selectedCheckIn
+                  ? `Check-in ${formatDisplayDate(selectedCheckIn)} — now choose checkout`
+                  : 'Add dates'}
               </p>
+              <button
+                onClick={() => { setSheetCheckIn(selectedCheckIn); setSheetCheckOut(selectedCheckOut); setShowDateSheet(true) }}
+                className="text-sm text-[#1a1a1a] font-semibold flex-shrink-0"
+              >
+                Change
+              </button>
             </div>
-            <button
-              onClick={() => { setSheetDate(selectedDate); setShowDateSheet(true) }}
-              className="text-sm text-[#1a1a1a] font-semibold"
-            >
-              Change
-            </button>
           </div>
         )}
 
@@ -372,7 +414,9 @@ function BookingPageContent({ params }: Props) {
           <div>
             <p className="text-sm font-semibold text-[#1a1a1a]">Total price</p>
             <p className="text-sm text-gray-500">
-              Ksh {basePrice.toLocaleString()} × {guests} = Ksh {totalPrice.toLocaleString()}
+              {usesDepartures
+                ? `Ksh ${basePrice.toLocaleString()} × ${guests} = Ksh ${totalPrice.toLocaleString()}`
+                : `Ksh ${basePrice.toLocaleString()} × ${guests} × ${nights} night${nights !== 1 ? 's' : ''} = Ksh ${totalPrice.toLocaleString()}`}
             </p>
           </div>
         </div>
@@ -428,7 +472,7 @@ function BookingPageContent({ params }: Props) {
 
             {!dateReady && (
               <p className="text-xs text-amber-700 bg-amber-50 rounded-xl px-3 py-2 mb-4">
-                Add your tour date to continue.
+                Add your tour dates to continue.
               </p>
             )}
 
@@ -580,7 +624,7 @@ function BookingPageContent({ params }: Props) {
               <div className="flex flex-col gap-2">
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-500">
-                    {guests} {guests === 1 ? 'person' : 'people'} × Ksh {basePrice.toLocaleString()}
+                    {guests} {guests === 1 ? 'person' : 'people'} × Ksh {basePrice.toLocaleString()}{!usesDepartures ? ` × ${nights} night${nights !== 1 ? 's' : ''}` : ''}
                   </span>
                   <span className="text-sm text-[#1a1a1a]">Ksh {totalPrice.toLocaleString()}</span>
                 </div>
@@ -658,30 +702,38 @@ function BookingPageContent({ params }: Props) {
           style={{ background: 'rgba(0,0,0,0.4)' }}
           onClick={e => e.target === e.currentTarget && setShowDateSheet(false)}>
           <div className="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl p-6 h-[85vh] sm:h-auto sm:max-h-[90vh] flex flex-col">
-            <div className="flex items-center justify-between mb-5">
-              <h2 className="text-lg font-bold text-[#1a1a1a]">Choose a tour date</h2>
+            <div className="flex items-center justify-between mb-1">
+              <h2 className="text-lg font-bold text-[#1a1a1a]">
+                {sheetCheckIn && !sheetCheckOut ? 'Select checkout date' : 'Choose tour dates'}
+              </h2>
               <button onClick={() => setShowDateSheet(false)}
                 className="w-8 h-8 flex items-center justify-center rounded-full"
                 style={{ background: '#f5f5f5', border: 'none', cursor: 'pointer' }}>
                 <X size={16} color="#1a1a1a" />
               </button>
             </div>
+            {sheetCheckIn && !sheetCheckOut && (
+              <p className="text-sm text-gray-500 mb-3">
+                Check-in {formatDisplayDate(sheetCheckIn)} — now choose your checkout date
+              </p>
+            )}
             {listing.min_lead_time_days ? (
               <p className="text-xs text-gray-400 mb-4">
                 This tour requires at least {listing.min_lead_time_days} days' notice.
               </p>
             ) : null}
             <div className="overflow-y-auto flex-1">
-              <DateCalendar selected={sheetDate} minDate={minDate} onSelect={setSheetDate} />
+              <DateCalendar checkIn={sheetCheckIn} checkOut={sheetCheckOut} minDate={minDate} onSelect={handleSheetCalSelect} />
             </div>
             <div className="flex items-center justify-between pt-4 mt-2" style={{ borderTop: '1px solid #f0ede8' }}>
-              <button onClick={() => setSheetDate(null)}
+              <button onClick={() => { setSheetCheckIn(null); setSheetCheckOut(null) }}
                 className="text-sm font-semibold text-[#1a1a1a] underline"
                 style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
-                Clear date
+                Clear dates
               </button>
-              <button onClick={() => { setSelectedDate(sheetDate); setShowDateSheet(false) }}
-                className="px-6 py-3 rounded-xl text-sm font-bold text-white"
+              <button onClick={() => { setSelectedCheckIn(sheetCheckIn); setSelectedCheckOut(sheetCheckOut); setShowDateSheet(false) }}
+                disabled={!sheetCheckIn || !sheetCheckOut}
+                className="px-6 py-3 rounded-xl text-sm font-bold text-white disabled:opacity-40 disabled:cursor-not-allowed"
                 style={{ background: '#1a1a1a', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
                 Save
               </button>

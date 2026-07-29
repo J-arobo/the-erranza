@@ -1042,12 +1042,15 @@ export default function StayDetailPage({ params }: Props) {
             <h2 className="text-xl font-semibold text-[#304333] mb-1">
               {checkIn && checkOut
                 ? `${calNights} night${calNights !== 1 ? 's' : ''} in ${location.split(',')[0]}`
-                : 'Select dates'}
+                : checkIn ? 'Select checkout date' : 'Select dates'}
             </h2>
             {checkIn && checkOut && (
               <p className="text-sm text-[#78716c] mb-3">
                 {fmtDateFull(checkIn)} – {fmtDateFull(checkOut)}
               </p>
+            )}
+            {checkIn && !checkOut && (
+              <p className="text-sm text-[#78716c] mb-4">Check-in {fmtDateFull(checkIn)} — now choose your checkout date</p>
             )}
             {!checkIn && (
               <p className="text-sm text-[#78716c] mb-4">Add your travel dates for exact pricing</p>
