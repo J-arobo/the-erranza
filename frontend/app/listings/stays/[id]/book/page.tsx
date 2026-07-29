@@ -4,6 +4,7 @@
 import { Suspense, use, useEffect, useState, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Image from 'next/image'
+import { useAuth } from '@/context/AuthContext'
 import { ArrowLeft, X, ChevronRight, Shield, Star, ChevronLeft } from 'lucide-react'
 import { apiFetch, apiErrorMessage } from '@/lib/api'
 
@@ -182,6 +183,8 @@ function StayBookingPageContent({ params }: Props) {
   }
 
   const [listing, setListing] = useState<ApiListing | null>(null)
+  const { isLoggedIn } = useAuth()
+  const [showLoginPrompt, setShowLoginPrompt] = useState(false)
   const [loadingListing, setLoadingListing] = useState(true)
   const [notFound, setNotFound] = useState(false)
 
@@ -260,7 +263,10 @@ function StayBookingPageContent({ params }: Props) {
   const datesReady = !!(localCheckIn && localCheckOut)
 
   async function goNext() {
-    if (step === 'review') { setStep('message'); return }
+    if (step === 'review') {
+      if (!isLoggedIn) { setShowLoginPrompt(true); return }
+      setStep('message'); return
+    }
     if (step === 'message') { setStep('confirm'); return }
     if (step === 'confirm') {
       if (!localCheckIn || !localCheckOut) {
@@ -874,6 +880,30 @@ function StayBookingPageContent({ params }: Props) {
           </div>
         </div>
       )}
+
+      {showLoginPrompt && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
+          style={{ background: 'rgba(0,0,0,0.4)' }}
+          onClick={(e) => { if (e.target === e.currentTarget) setShowLoginPrompt(false) }}>
+          <div className="bg-white w-full sm:max-w-sm rounded-t-3xl sm:rounded-2xl p-6">
+            <h2 className="text-lg font-bold text-[#1a1a1a] mb-2">Log in to continue</h2>
+            <p className="text-sm text-gray-500 mb-5">
+              You&apos;ll need to log in or create an account before you can book this stay.
+            </p>
+            <div className="flex gap-2">
+              <button onClick={() => setShowLoginPrompt(false)}
+                className="flex-1 py-3 rounded-xl border border-gray-200 text-sm font-semibold text-[#1a1a1a] hover:bg-gray-50 transition-colors">
+                Cancel
+              </button>
+              <button onClick={() => router.push(`/login?redirect=${encodeURIComponent(`/listings/stays/${id}/book${searchParams.toString() ? '?' + searchParams.toString() : ''}`)}`)}
+                className="flex-1 py-3 rounded-xl bg-[#1a1a1a] text-white text-sm font-semibold hover:bg-[#333] transition-colors">
+                Log in
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
 
     </div>
   )

@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import Image from 'next/image'
 import { ArrowLeft, X, ChevronRight, ChevronLeft, Shield, Star } from 'lucide-react'
 import { apiFetch, apiErrorMessage } from '@/lib/api'
+import { useAuth } from '@/context/AuthContext'
 
 type Props = {
   params: Promise<{ id: string; vendorId: string }>
@@ -114,6 +115,8 @@ function BookingPageContent({ params }: Props) {
   const dateParam = searchParams.get('date')
 
   const [listing, setListing] = useState<ApiListingDetail | null>(null)
+  const { isLoggedIn } = useAuth()
+  const [showLoginPrompt, setShowLoginPrompt] = useState(false)
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
 
@@ -200,7 +203,10 @@ function BookingPageContent({ params }: Props) {
   const dateReady = usesDepartures ? !!selectedDepartureId : !!selectedDate
 
   async function goNext() {
-    if (step === 'review') { setStep('message'); return }
+    if (step === 'review') {
+      if (!isLoggedIn) { setShowLoginPrompt(true); return }
+      setStep('message'); return
+    }
     if (step === 'message') { setStep('confirm'); return }
     if (step === 'confirm') {
       if (usesDepartures ? !selectedDepartureId : !selectedDate) {
@@ -394,7 +400,7 @@ function BookingPageContent({ params }: Props) {
           className="w-9 h-9 rounded-full border border-gray-200 flex items-center
                      justify-center hover:bg-gray-50 transition-colors"
         >
-          {step === 'review' ? <X size={16} color="#1a1a1a" /> : <ArrowLeft size={16} color="#1a1a1a" />}
+          <ArrowLeft size={16} color="#1a1a1a" />
         </button>
 
         <h1 className="text-[15px] font-semibold text-[#1a1a1a]">
@@ -413,7 +419,7 @@ function BookingPageContent({ params }: Props) {
       </div>
 
       {/* ── CONTENT ── */}
-      <div ref={contentRef} className="flex-1 overflow-y-auto px-5 py-5 pb-40" onScroll={handleContentScroll}>s
+      <div ref={contentRef} className="flex-1 overflow-y-auto px-5 py-5 pb-40" onScroll={handleContentScroll}>
 
         {/* ── STEP 1: Review ── */}
         {step === 'review' && (
@@ -683,6 +689,31 @@ function BookingPageContent({ params }: Props) {
           </div>
         </div>
       )}
+  
+      {/* ── LOGIN PROMPT ── */}
+      {showLoginPrompt && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
+          style={{ background: 'rgba(0,0,0,0.4)' }}
+          onClick={(e) => { if (e.target === e.currentTarget) setShowLoginPrompt(false) }}>
+          <div className="bg-white w-full sm:max-w-sm rounded-t-3xl sm:rounded-2xl p-6">
+            <h2 className="text-lg font-bold text-[#1a1a1a] mb-2">Log in to continue</h2>
+            <p className="text-sm text-gray-500 mb-5">
+              You&apos;ll need to log in or create an account before you can book this tour.
+            </p>
+            <div className="flex gap-2">
+              <button onClick={() => setShowLoginPrompt(false)}
+                className="flex-1 py-3 rounded-xl border border-gray-200 text-sm font-semibold text-[#1a1a1a] hover:bg-gray-50 transition-colors">
+                Cancel
+              </button>
+              <button onClick={() => router.push(`/login?redirect=${encodeURIComponent(`/listings/${id}/vendor/${vendorId}/book${searchParams.toString() ? '?' + searchParams.toString() : ''}`)}`)}
+                className="flex-1 py-3 rounded-xl bg-[#1a1a1a] text-white text-sm font-semibold hover:bg-[#333] transition-colors">
+                Log in
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
 
     </div>
   )

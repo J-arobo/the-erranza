@@ -607,7 +607,13 @@ export default function StayDetailPage({ params }: Props) {
                 <span className="text-xs text-[#78716c]">· {reviewCount} reviews</span>
               </div>
             </div>
-            <button onClick={() => router.push(`/listings/stays/${id}/book`)}
+            <button onClick={() => {
+              const params = new URLSearchParams()
+              if (checkIn) params.set('checkIn', checkIn.toISOString())
+              if (checkOut) params.set('checkOut', checkOut.toISOString())
+              router.push(`/listings/stays/${id}/book${params.toString() ? '?' + params.toString() : ''}`)
+            }}
+
               className="px-5 py-2.5 rounded-xl font-semibold text-sm text-white transition-opacity hover:opacity-90"
               style={{ background: 'linear-gradient(to right, #e8612a, #d44d1a)', border: 'none', cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}>
               Reserve
@@ -1391,7 +1397,13 @@ export default function StayDetailPage({ params }: Props) {
             </button>
           )}
         </div>
-        <button onClick={() => router.push(`/listings/stays/${id}/book`)}
+        <button onClick={() => {
+          const params = new URLSearchParams()
+          if (checkIn) params.set('checkIn', checkIn.toISOString())
+          if (checkOut) params.set('checkOut', checkOut.toISOString())
+          router.push(`/listings/stays/${id}/book${params.toString() ? '?' + params.toString() : ''}`)
+        }}
+
           className="px-7 py-3 rounded-xl font-semibold text-sm text-white transition-opacity hover:opacity-90"
           style={{ background: 'linear-gradient(to right, #e8612a, #d44d1a)', border: 'none', cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}>
           Reserve

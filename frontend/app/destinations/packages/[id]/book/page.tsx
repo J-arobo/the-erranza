@@ -4,6 +4,8 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import Image from 'next/image'
 import { ArrowLeft, X, ChevronRight, Shield, Star } from 'lucide-react'
 import { apiFetch, apiErrorMessage } from '@/lib/api'
+import { useAuth } from '@/context/AuthContext'
+
 
 type Props = {
   params: Promise<{ id: string }>
@@ -33,6 +35,8 @@ function PackageBookingPageContent({ params }: Props) {
   const searchParams = useSearchParams()
 
   const [pkg, setPkg] = useState<ApiListingDetail | null>(null)
+  const { isLoggedIn } = useAuth()
+  const [showLoginPrompt, setShowLoginPrompt] = useState(false)
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
   const [selectedDeparture, setSelectedDeparture] = useState<number | null>(null)
@@ -104,7 +108,10 @@ function PackageBookingPageContent({ params }: Props) {
   const packageImage = pkg.images[0]?.url ?? FALLBACK_IMAGE
 
   async function goNext() {
-    if (step === 'review') { setStep('confirm'); return }
+    if (step === 'review') {
+      if (!isLoggedIn) { setShowLoginPrompt(true); return }
+      setStep('confirm'); return
+    }
     if (step === 'confirm') {
       if (!selectedDeparture) {
         setSubmitError('Please select a departure date first.')
@@ -178,7 +185,7 @@ function PackageBookingPageContent({ params }: Props) {
             <p className="text-sm text-red-500">No upcoming departures available.</p>
           ) : (
             <div className="flex flex-col gap-2">
-                            {upcomingDepartures.map((dep) => {
+              {upcomingDepartures.map((dep) => {
                 const full = dep.booked >= dep.capacity
                 return (
                   <label key={dep.id}
@@ -458,6 +465,30 @@ function PackageBookingPageContent({ params }: Props) {
           </div>
         </div>
       )}
+      {/* ── LOGIN PROMPT ── */}
+      {showLoginPrompt && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
+          style={{ background: 'rgba(0,0,0,0.4)' }}
+          onClick={(e) => { if (e.target === e.currentTarget) setShowLoginPrompt(false) }}>
+          <div className="bg-white w-full sm:max-w-sm rounded-t-3xl sm:rounded-2xl p-6">
+            <h2 className="text-lg font-bold text-[#1a1a1a] mb-2">Log in to continue</h2>
+            <p className="text-sm text-gray-500 mb-5">
+              You&apos;ll need to log in or create an account before you can book this package.
+            </p>
+            <div className="flex gap-2">
+              <button onClick={() => setShowLoginPrompt(false)}
+                className="flex-1 py-3 rounded-xl border border-gray-200 text-sm font-semibold text-[#1a1a1a] hover:bg-gray-50 transition-colors">
+                Cancel
+              </button>
+              <button onClick={() => router.push(`/login?redirect=${encodeURIComponent(`/destinations/packages/${id}/book${searchParams.toString() ? '?' + searchParams.toString() : ''}`)}`)}
+                className="flex-1 py-3 rounded-xl bg-[#1a1a1a] text-white text-sm font-semibold hover:bg-[#333] transition-colors">
+                Log in
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
 
     </div>
   )
