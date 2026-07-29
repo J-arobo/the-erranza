@@ -689,7 +689,7 @@ function BookingPageContent({ params }: Props) {
           </div>
         </div>
       )}
-  
+
       {/* ── LOGIN PROMPT ── */}
       {showLoginPrompt && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
@@ -701,9 +701,9 @@ function BookingPageContent({ params }: Props) {
               You&apos;ll need to log in or create an account before you can book this tour.
             </p>
             <div className="flex gap-2">
-              <button onClick={() => setShowLoginPrompt(false)}
+            <button onClick={() => router.push(`/login?redirect=${encodeURIComponent(`/listings/${id}/vendor/${vendorId}/book${searchParams.toString() ? '?' + searchParams.toString() : ''}`)}`)}
                 className="flex-1 py-3 rounded-xl border border-gray-200 text-sm font-semibold text-[#1a1a1a] hover:bg-gray-50 transition-colors">
-                Cancel
+                Create account
               </button>
               <button onClick={() => router.push(`/login?redirect=${encodeURIComponent(`/listings/${id}/vendor/${vendorId}/book${searchParams.toString() ? '?' + searchParams.toString() : ''}`)}`)}
                 className="flex-1 py-3 rounded-xl bg-[#1a1a1a] text-white text-sm font-semibold hover:bg-[#333] transition-colors">
