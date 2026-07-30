@@ -88,6 +88,7 @@ type ApiListingDetail = {
   cancellation_policy: 'flexible' | 'moderate' | 'strict' | 'custom'
   custom_cancellation_text: string | null
   amenities: string[] | null
+  excluded: string[] | null
   images: { url: string }[]
   reviews: { id: number; rating: number; comment: string; created_at: string; traveller: { name: string } }[]
   reviews_count: number
@@ -367,8 +368,9 @@ export default function StayDetailPage({ params }: Props) {
 
   const [activeImg, setActiveImg] = useState(0)
   const [showGallery, setShowGallery] = useState(false)
+  const [showAllReviewsPage, setShowAllReviewsPage] = useState(false)
   const [showDescModal, setShowDescModal] = useState(false)
-  const [showAllAmen, setShowAllAmen] = useState(false)
+  const [showAmenitiesModal, setShowAmenitiesModal] = useState(false)
   const [showFullDesc, setShowFullDesc] = useState(false)
   const [nights, setNights] = useState(2)
   const [checkIn, setCheckIn] = useState<Date | null>(null)
@@ -469,6 +471,7 @@ export default function StayDetailPage({ params }: Props) {
     description: listing.description ?? 'No description provided yet.',
     images: listing.images.length > 0 ? listing.images.map(i => i.url) : [FALLBACK_IMAGE],
     amenities: listing.amenities ?? [],
+    excluded: listing.excluded ?? [],
     reviews: listing.reviews.map(r => ({
       name: r.traveller.name,
       date: formatRelative(r.created_at),
@@ -755,7 +758,8 @@ export default function StayDetailPage({ params }: Props) {
                 <div className="flex items-center gap-2 justify-center sm:justify-start">
                   <Star size={14} fill="#F5D06E" color="#304333" />
                   <span className="text-sm font-semibold text-[#304333]">{rating}</span>
-                  <button className="text-sm text-[#304333] font-semibold underline" style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                  <button onClick={() => setShowAllReviewsPage(true)}
+                    className="text-sm text-[#304333] font-semibold underline" style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
                     {reviewCount} reviews
                   </button>
                   {detail.isSuperhost && (
@@ -824,7 +828,7 @@ export default function StayDetailPage({ params }: Props) {
                 <h2 className="text-xl font-semibold text-[#304333] mb-5">What this place offers</h2>
 
                 <div className="hidden sm:grid grid-cols-2 gap-x-8 gap-y-4">
-                  {(showAllAmen ? detail.amenities : detail.amenities.slice(0, 8)).map((label: string) => (
+                  {detail.amenities.slice(0, 10).map((label: string) => (
                     <div key={label} className="flex items-center gap-3">
                       <span className="text-[#304333] flex-shrink-0">{getIcon(label)}</span>
                       <span className="text-sm text-[#304333]">{label}</span>
@@ -832,7 +836,7 @@ export default function StayDetailPage({ params }: Props) {
                   ))}
                 </div>
                 <div className="sm:hidden flex flex-col gap-4">
-                  {(showAllAmen ? detail.amenities : detail.amenities.slice(0, 6)).map((label: string) => (
+                  {detail.amenities.slice(0, 5).map((label: string) => (
                     <div key={label} className="flex items-center gap-4">
                       <span className="text-[#304333]">{getIcon(label)}</span>
                       <span className="text-base text-[#304333]">{label}</span>
@@ -840,14 +844,56 @@ export default function StayDetailPage({ params }: Props) {
                   ))}
                 </div>
 
-                {detail.amenities.length > 6 && (
-                  <button onClick={() => setShowAllAmen(s => !s)}
+                {detail.amenities.length > 5 && (
+                  <button onClick={() => setShowAmenitiesModal(true)}
                     className="mt-6 px-8 py-3.5 rounded-xl text-sm font-semibold text-[#304333] transition-colors hover:bg-[#ede8df]"
                     style={{ background: '#F1F5E4', cursor: 'pointer', WebkitTapHighlightColor: 'transparent', border: 'none', color: '#304333', fontFamily: 'inherit' }}>
-                    {showAllAmen ? 'Show less' : `Show all ${detail.amenities.length} amenities`}
+                    {`Show all ${detail.amenities.length} amenities`}
                   </button>
                 )}
               </div>
+
+              {showAmenitiesModal && (
+                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
+                  style={{ background: 'rgba(0,0,0,0.4)' }}
+                  onClick={(e) => { if (e.target === e.currentTarget) setShowAmenitiesModal(false) }}>
+                  <div className="bg-white w-full sm:max-w-lg rounded-t-3xl sm:rounded-2xl p-6 max-h-[85vh] overflow-y-auto"
+                    style={{ fontFamily: "Georgia, 'Times New Roman', serif" }}>
+                    <div className="flex items-center justify-between mb-5">
+                      <h2 className="text-xl font-bold text-[#304333]">What this place offers</h2>
+                      <button onClick={() => setShowAmenitiesModal(false)}
+                        className="w-9 h-9 rounded-full flex items-center justify-center"
+                        style={{ background: '#f5f0e6', border: 'none', cursor: 'pointer' }}>
+                        <X size={18} color="#304333" />
+                      </button>
+                    </div>
+                    <div className="flex flex-col gap-4 mb-6">
+                      {detail.amenities.map((label: string) => (
+                        <div key={label} className="flex items-center gap-4">
+                          <span className="text-[#304333]">{getIcon(label)}</span>
+                          <span className="text-sm text-[#304333]">{label}</span>
+                        </div>
+                      ))}
+                    </div>
+                    {detail.excluded.length > 0 && (
+                      <>
+                        <div className="border-t border-[#e8e0d0] pt-5 mb-1">
+                          <p className="text-sm font-semibold text-[#78716c] mb-4">Not included</p>
+                        </div>
+                        <div className="flex flex-col gap-4">
+                          {detail.excluded.map((label: string) => (
+                            <div key={label} className="flex items-center gap-4">
+                              <X size={18} color="#a8a29e" />
+                              <span className="text-sm text-[#a8a29e] line-through">{label}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
+
             </div>
 
             {/* ══ DESKTOP BOOKING SIDEBAR ══ */}
@@ -915,6 +961,13 @@ export default function StayDetailPage({ params }: Props) {
                     {showSidebarCal && (
                       <div className="absolute bg-white rounded-xl shadow-xl z-50 p-4"
                         style={{ top: 60, marginTop: 0, border: '1px solid #e8e0d0', right: 0, width: 660 }}>
+                        <p className="text-sm font-semibold text-[#304333] mb-3">
+                          {checkIn && !checkOut
+                            ? 'Select checkout date'
+                            : checkIn && checkOut
+                              ? `${fmtDateFull(checkIn)} – ${fmtDateFull(checkOut)}`
+                              : 'Select check-in date'}
+                        </p>
                         <DesktopCalendar checkIn={checkIn} checkOut={checkOut} onSelect={handleSidebarCalSelect} disabledRanges={disabledRanges} />
 
                         <div className="flex justify-between items-center mt-3 pt-3" style={{ borderTop: '1px solid #e8e0d0' }}>
@@ -1079,21 +1132,31 @@ export default function StayDetailPage({ params }: Props) {
             <p className="text-sm text-[#78716c] mb-4 flex items-center gap-1">
               <MapPin size={13} /> {location}
             </p>
-            <MapComponent lat={detail.lat} lng={detail.lng} label={title} />
+            <div style={{ position: 'relative', isolation: 'isolate' }}>
+              <MapComponent lat={detail.lat} lng={detail.lng} label={title} />
+            </div>
+
             <p className="text-sm text-[#78716c] mt-3">{location} · Exact address provided after booking</p>
           </div>
 
           <Divider />
 
           {/* ── Reviews ── */}
-          {detail.reviews.length > 0 && (
+          {detail.reviews.length === 0 ? (
+            <div className="pb-1 sm:px-0" style={{ ...MOB_PAD }}>
+              <div className="rounded-2xl px-4 py-8 text-center" style={{ background: '#F1F5E4' }}>
+                <p className="text-sm font-semibold text-[#304333]">No reviews yet</p>
+              </div>
+            </div>
+          ) : (
             <div className="pb-1">
-              <div className="flex items-center gap-2 mb-5 sm:px-0" style={{ ...MOB_PAD }}>
+              <button onClick={() => setShowAllReviewsPage(true)}
+                className="flex items-center gap-2 mb-5 sm:px-0" style={{ ...MOB_PAD, background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' }}>
                 <Star size={18} fill="#F5D06E" color="#304333" />
                 <span className="text-xl font-semibold text-[#304333]">{rating}</span>
                 <span className="text-[#a8a29e]">·</span>
-                <span className="text-xl font-semibold text-[#304333]">{reviewCount} reviews</span>
-              </div>
+                <span className="text-xl font-semibold text-[#304333] underline">{reviewCount} reviews</span>
+              </button>
 
               <div className="hidden sm:grid grid-cols-2 gap-6">
                 {detail.reviews.map((rev, i: number) => (
@@ -1124,7 +1187,7 @@ export default function StayDetailPage({ params }: Props) {
 
               <div className="sm:hidden overflow-x-auto -mx-4 px-4" style={{ scrollbarWidth: 'none' }}>
                 <div className="flex gap-4" style={{ width: 'max-content' }}>
-                  {detail.reviews.map((rev, i: number) => (
+                  {detail.reviews.slice(0, 5).map((rev, i: number) => (
                     <div key={i} className="flex-shrink-0 p-4 rounded-2xl bg-white"
                       style={{ width: 300, border: '1px solid #e8e0d0' }}>
                       <div className="flex items-center gap-3 mb-3">
@@ -1149,10 +1212,19 @@ export default function StayDetailPage({ params }: Props) {
                       </p>
                     </div>
                   ))}
+                  <button onClick={() => setShowAllReviewsPage(true)}
+                    className="flex-shrink-0 flex flex-col items-center justify-center gap-2 rounded-2xl"
+                    style={{ width: 160, border: '1px solid #e8e0d0', background: 'white', cursor: 'pointer' }}>
+                    <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: '#F1F5E4' }}>
+                      <ChevronRight size={18} color="#304333" />
+                    </div>
+                    <span className="text-sm font-semibold text-[#304333]">See all {reviewCount} reviews</span>
+                  </button>
                 </div>
               </div>
             </div>
           )}
+
 
           <Divider />
 
@@ -1412,6 +1484,56 @@ export default function StayDetailPage({ params }: Props) {
           Reserve
         </button>
       </div>
+
+      {showAllReviewsPage && (
+        <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center"
+          style={{ background: 'rgba(0,0,0,0.4)' }}
+          onClick={(e) => { if (e.target === e.currentTarget) setShowAllReviewsPage(false) }}>
+          <div className="bg-white w-full sm:max-w-lg rounded-t-3xl sm:rounded-2xl p-6 max-h-[85vh] overflow-y-auto"
+            style={{ fontFamily: "Georgia, 'Times New Roman', serif" }}>
+            <div className="flex items-center justify-between mb-5">
+              <div className="flex items-center gap-1.5">
+                <Star size={16} fill="#F5D06E" color="#304333" />
+                <span className="text-sm font-semibold text-[#304333]">{rating} · {reviewCount} reviews</span>
+              </div>
+              <button onClick={() => setShowAllReviewsPage(false)}
+                className="w-9 h-9 rounded-full flex items-center justify-center"
+                style={{ background: '#f5f5f5', border: 'none', cursor: 'pointer' }}>
+                <X size={18} color="#304333" />
+              </button>
+            </div>
+            {detail.reviews.length === 0 ? (
+              <div className="rounded-2xl px-4 py-10 text-center" style={{ background: '#F1F5E4' }}>
+                <p className="text-sm font-semibold text-[#304333]">No reviews yet</p>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-6">
+
+                {detail.reviews.map((rev, i: number) => (
+                  <div key={i} className="flex flex-col gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-[#2c4a1e] flex items-center justify-center text-white text-sm font-semibold flex-shrink-0">
+                        {rev.avatar}
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-[#304333]">{rev.name}</p>
+                        <p className="text-xs text-[#78716c]">{rev.date}</p>
+                      </div>
+                    </div>
+                    <div className="flex gap-0.5">
+                      {Array.from({ length: rev.rating }).map((_: unknown, j: number) => (
+                        <Star key={j} size={12} fill="#F5D06E" color="#304333" />
+                      ))}
+                    </div>
+                    <p className="text-sm text-[#304333] leading-relaxed">{rev.text}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
 
     </div>
   )

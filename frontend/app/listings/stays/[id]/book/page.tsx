@@ -737,36 +737,42 @@ function StayBookingPageContent({ params }: Props) {
           style={{ background: 'rgba(0,0,0,0.4)' }}
           onClick={e => e.target === e.currentTarget && setShowDateSheet(false)}>
           <div className="bg-white w-full sm:max-w-2xl rounded-t-3xl sm:rounded-2xl p-6 h-[85vh] sm:h-auto sm:max-h-[90vh] flex flex-col">
-            <div className="flex items-center justify-between mb-1">
-              <h2 className="text-lg font-bold text-[#1a1a1a]">
-                {sheetCI && !sheetCO ? 'Select checkout date' : 'Change dates'}
-              </h2>
-              <button onClick={() => setShowDateSheet(false)}
-                className="w-8 h-8 flex items-center justify-center rounded-full"
-                style={{ background: '#f5f5f5', border: 'none', cursor: 'pointer' }}>
-                <X size={16} color="#1a1a1a" />
-              </button>
+            <div className="bg-white w-full sm:max-w-2xl rounded-t-3xl sm:rounded-2xl p-6 h-[85vh] sm:h-auto sm:max-h-[90vh] flex flex-col">
+              <div className="flex items-center justify-between mb-1">
+                <h2 className="text-lg font-bold text-[#1a1a1a]">
+                  {!sheetCI ? 'Select check-in date' : !sheetCO ? 'Select checkout date' : 'Change dates'}
+                </h2>
+                <button onClick={() => setShowDateSheet(false)}
+                  className="w-8 h-8 flex items-center justify-center rounded-full"
+                  style={{ background: '#f5f5f5', border: 'none', cursor: 'pointer' }}>
+                  <X size={16} color="#1a1a1a" />
+                </button>
+              </div>
+
+              {!sheetCI && (
+                <p className="text-sm text-gray-500 mb-4">Choose the date you&apos;ll be checking in</p>
+              )}
+              {sheetCI && !sheetCO && (
+                <p className="text-sm text-gray-500 mb-4">Check-in {fmtDate(sheetCI)} — now choose your checkout date</p>
+              )}
+              <div className="overflow-y-auto flex-1">
+                <BookCalendar checkIn={sheetCI} checkOut={sheetCO} onSelect={handleSheetCalSelect} disabledRanges={disabledRanges} />
+              </div>
+              <div className="flex items-center justify-between pt-4 mt-2" style={{ borderTop: '1px solid #f0ede8' }}>
+                <button onClick={() => { setSheetCI(null); setSheetCO(null); setSheetField('checkin') }}
+                  className="text-sm font-semibold text-[#1a1a1a] underline"
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
+                  Clear dates
+                </button>
+                <button onClick={() => { setLocalCheckIn(sheetCI); setLocalCheckOut(sheetCO); setShowDateSheet(false) }}
+                  disabled={!sheetCI || !sheetCO}
+                  className="px-6 py-3 rounded-xl text-sm font-bold text-white disabled:opacity-40 disabled:cursor-not-allowed"
+                  style={{ background: '#1a1a1a', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
+                  Save
+                </button>
+              </div>
             </div>
 
-            {sheetCI && !sheetCO && (
-              <p className="text-sm text-gray-500 mb-4">Check-in {fmtDate(sheetCI)} — now choose your checkout date</p>
-            )}
-
-            <div className="overflow-y-auto flex-1">
-              <BookCalendar checkIn={sheetCI} checkOut={sheetCO} onSelect={handleSheetCalSelect} disabledRanges={disabledRanges} />
-            </div>
-            <div className="flex items-center justify-between pt-4 mt-2" style={{ borderTop: '1px solid #f0ede8' }}>
-              <button onClick={() => { setSheetCI(null); setSheetCO(null); setSheetField('checkin') }}
-                className="text-sm font-semibold text-[#1a1a1a] underline"
-                style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
-                Clear dates
-              </button>
-              <button onClick={() => { setLocalCheckIn(sheetCI); setLocalCheckOut(sheetCO); setShowDateSheet(false) }}
-                className="px-6 py-3 rounded-xl text-sm font-bold text-white"
-                style={{ background: '#1a1a1a', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
-                Save
-              </button>
-            </div>
           </div>
         </div>
       )}

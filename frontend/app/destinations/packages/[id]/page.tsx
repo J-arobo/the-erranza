@@ -3,7 +3,7 @@ import { use, useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import {
-  ArrowLeft, Share2, Heart, Star, X, Camera, Grid2X2,
+  ArrowLeft, Share2, Heart, Star, X, Camera, Grid2X2, Check,
   MapPin, Clock, ChevronRight, Calendar, Award, Shield, Globe,
 } from 'lucide-react'
 import { apiFetch, apiErrorMessage } from '@/lib/api'
@@ -36,6 +36,7 @@ type ApiListingDetail = {
   price: string
   description: string | null
   amenities: string[] | null
+  excluded: string[] | null
   duration_options: { label: string; price: string | null }[]
   departures: { id: number; date: string; capacity: number; booked: number }[]
   images: { url: string }[]
@@ -60,7 +61,7 @@ export default function PackageDetailPage({ params }: Props) {
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
   const [otherPackages, setOtherPackages] = useState<ApiListingSummary[]>([])
-
+  const [showAmenitiesModal, setShowAmenitiesModal] = useState(false)
   const [wishlisted, setWishlisted] = useState(false)
   const [activeImage, setActiveImage] = useState(0)
   const [showGallery, setShowGallery] = useState(false)
@@ -428,16 +429,75 @@ export default function PackageDetailPage({ params }: Props) {
                 <>
                   <Divider />
                   <div>
-                    <h2 className="text-xl font-semibold text-[#304333] mb-4">What&apos;s included</h2>
-                    <div className="flex flex-col gap-3">
-                      {pkg.amenities.map((item) => (
+                    <h2 className="text-xl font-semibold text-[#304333] mb-5">What&apos;s included</h2>
+                    <div className="hidden sm:grid grid-cols-2 gap-x-8 gap-y-4">
+                      {pkg.amenities.slice(0, 10).map((item) => (
                         <div key={item} className="flex items-center gap-3">
+                          <Check size={16} color="#2c4a1e" strokeWidth={2.5} className="flex-shrink-0" />
                           <span className="text-sm text-[#304333]">{item}</span>
                         </div>
                       ))}
                     </div>
+                    <div className="sm:hidden flex flex-col gap-4">
+                      {pkg.amenities.slice(0, 5).map((item) => (
+                        <div key={item} className="flex items-center gap-4">
+                          <Check size={16} color="#2c4a1e" strokeWidth={2.5} className="flex-shrink-0" />
+                          <span className="text-base text-[#304333]">{item}</span>
+                        </div>
+                      ))}
+                    </div>
+                    {pkg.amenities.length > 5 && (
+                      <button
+                        onClick={() => setShowAmenitiesModal(true)}
+                        className="mt-6 px-8 py-3.5 rounded-xl text-sm font-semibold text-[#304333] transition-colors hover:bg-[#ede8df]"
+                        style={{ background: '#F1F5E4' }}
+                      >
+                        {`Show all ${pkg.amenities.length} amenities`}
+                      </button>
+                    )}
                   </div>
                 </>
+              )}
+
+              {showAmenitiesModal && (
+                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
+                  style={{ background: 'rgba(0,0,0,0.4)' }}
+                  onClick={(e) => { if (e.target === e.currentTarget) setShowAmenitiesModal(false) }}>
+                  <div className="bg-white w-full sm:max-w-lg rounded-t-3xl sm:rounded-2xl p-6 max-h-[85vh] overflow-y-auto"
+                    style={{ fontFamily: "Georgia, 'Times New Roman', serif" }}>
+                    <div className="flex items-center justify-between mb-5">
+                      <h2 className="text-xl font-bold text-[#304333]">What&apos;s included</h2>
+                      <button onClick={() => setShowAmenitiesModal(false)}
+                        className="w-9 h-9 rounded-full flex items-center justify-center"
+                        style={{ background: '#f5f0e6', border: 'none', cursor: 'pointer' }}>
+                        <X size={18} color="#304333" />
+                      </button>
+                    </div>
+                    <div className="flex flex-col gap-4 mb-6">
+                      {(pkg.amenities ?? []).map((item) => (
+                        <div key={item} className="flex items-center gap-4">
+                          <Check size={16} color="#2c4a1e" strokeWidth={2.5} className="flex-shrink-0" />
+                          <span className="text-sm text-[#304333]">{item}</span>
+                        </div>
+                      ))}
+                    </div>
+                    {(pkg.excluded ?? []).length > 0 && (
+                      <>
+                        <div className="border-t border-[#e8e0d0] pt-5 mb-1">
+                          <p className="text-sm font-semibold text-[#78716c] mb-4">Not included</p>
+                        </div>
+                        <div className="flex flex-col gap-4">
+                          {(pkg.excluded ?? []).map((item) => (
+                            <div key={item} className="flex items-center gap-4">
+                              <X size={18} color="#a8a29e" />
+                              <span className="text-sm text-[#a8a29e] line-through">{item}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
               )}
 
               <Divider />

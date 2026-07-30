@@ -43,6 +43,7 @@ type ApiListingDetail = {
   price: string
   description: string | null
   amenities: string[] | null
+  excluded: string[] | null
   lat: string | null
   lng: string | null
   min_lead_time_days: number | null
@@ -273,8 +274,8 @@ export default function VendorDetailPage({ params }: Props) {
 
   const [wishlisted, setWishlisted] = useState(false)
   const [showFullDesc, setShowFullDesc] = useState(false)
-  const [showAllAmenities, setShowAllAmenities] = useState(false)
-  const [showAllReviews, setShowAllReviews] = useState(false)
+  const [showAmenitiesModal, setShowAmenitiesModal] = useState(false)
+  const [showAllReviewsPage, setShowAllReviewsPage] = useState(false)
   const [expandedReview, setExpandedReview] = useState<number | null>(null)
   const [activeImage, setActiveImage] = useState(0)
   const [showGallery, setShowGallery] = useState(false)
@@ -328,12 +329,14 @@ export default function VendorDetailPage({ params }: Props) {
   }
 
   const amenities = listing.amenities ?? []
+  const excluded = listing.excluded ?? []
   const images = listing.images.length > 0 ? listing.images.map(i => i.url) : [FALLBACK_IMAGE]
   const heroVideo = SAFARI_VIDEOS[Number(listing.id) % SAFARI_VIDEOS.length]
-  const visibleAmenities = showAllAmenities ? amenities : amenities.slice(0, 4)
+  const visibleAmenitiesDesktop = amenities.slice(0, 10)
+  const visibleAmenitiesMobile = amenities.slice(0, 5)
   const reviews = listing.reviews
-  const visibleReviewsDesktop = showAllReviews ? reviews : reviews.slice(0, 2)
-  const visibleReviewsMobile = showAllReviews ? reviews : reviews.slice(0, 1)
+  const visibleReviewsDesktop = reviews.slice(0, 2)
+  const visibleReviewsMobile = reviews.slice(0, 1)
   const basePrice = Math.round(Number(listing.price))
   const rating = listing.reviews_avg_rating ? Number(listing.reviews_avg_rating).toFixed(2) : '4.50'
   const lat = listing.lat != null && isFinite(Number(listing.lat)) ? Number(listing.lat) : null
@@ -459,7 +462,6 @@ export default function VendorDetailPage({ params }: Props) {
       </div>
     )
   }
-
   return (
     <div className="fixed inset-0 flex flex-col" style={{ background: '#FEFDFC', fontFamily: "Georgia, 'Times New Roman', serif" }}>
       <div className="flex-1 overflow-y-auto overflow-x-hidden" style={{ WebkitOverflowScrolling: 'touch', background: '#FEFDFC' }}>
@@ -614,7 +616,8 @@ export default function VendorDetailPage({ params }: Props) {
                 <div className="flex items-center justify-center sm:justify-start gap-1.5">
                   <Star size={14} fill="#F5D06E" color="#304333" />
                   <span className="text-sm font-semibold text-[#304333]">{rating}</span>
-                  <button className="text-sm text-[#304333] font-semibold underline">
+                  <button onClick={() => setShowAllReviewsPage(true)}
+                    className="text-sm text-[#304333] font-semibold underline">
                     {listing.reviews_count} reviews
                   </button>
                 </div>
@@ -661,7 +664,7 @@ export default function VendorDetailPage({ params }: Props) {
                   <div>
                     <h2 className="text-xl font-semibold text-[#304333] mb-5">What this tour offers</h2>
                     <div className="hidden sm:grid grid-cols-2 gap-x-8 gap-y-4">
-                      {visibleAmenities.map((item) => (
+                      {visibleAmenitiesDesktop.map((item) => (
                         <div key={item} className="flex items-center gap-3">
                           <Check size={16} color="#2c4a1e" strokeWidth={2.5} className="flex-shrink-0" />
                           <span className="text-sm text-[#304333]">{item}</span>
@@ -669,26 +672,66 @@ export default function VendorDetailPage({ params }: Props) {
                       ))}
                     </div>
                     <div className="sm:hidden flex flex-col gap-4">
-                      {visibleAmenities.map((item) => (
+                      {visibleAmenitiesMobile.map((item) => (
                         <div key={item} className="flex items-center gap-4">
                           <Check size={16} color="#2c4a1e" strokeWidth={2.5} className="flex-shrink-0" />
                           <span className="text-base text-[#304333]">{item}</span>
                         </div>
                       ))}
                     </div>
-                    {amenities.length > 4 && (
+                    {amenities.length > 5 && (
                       <button
-                        onClick={() => setShowAllAmenities(s => !s)}
+                        onClick={() => setShowAmenitiesModal(true)}
                         className="mt-6 px-8 py-3.5 rounded-xl text-sm font-semibold text-[#304333] transition-colors hover:bg-[#ede8df]"
                         style={{ background: '#F1F5E4' }}
                       >
-                        {showAllAmenities ? 'Show fewer' : `Show all ${amenities.length} amenities`}
+                        {`Show all ${amenities.length} amenities`}
                       </button>
                     )}
                   </div>
                 </>
               )}
 
+              {showAmenitiesModal && (
+                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
+                  style={{ background: 'rgba(0,0,0,0.4)' }}
+                  onClick={(e) => { if (e.target === e.currentTarget) setShowAmenitiesModal(false) }}>
+                  <div className="bg-white w-full sm:max-w-lg rounded-t-3xl sm:rounded-2xl p-6 max-h-[85vh] overflow-y-auto"
+                    style={{ fontFamily: "Georgia, 'Times New Roman', serif" }}>
+                    <div className="flex items-center justify-between mb-5">
+                      <h2 className="text-xl font-bold text-[#304333]">What this tour offers</h2>
+                      <button onClick={() => setShowAmenitiesModal(false)}
+                        className="w-9 h-9 rounded-full flex items-center justify-center"
+                        style={{ background: '#f5f0e6', border: 'none', cursor: 'pointer' }}>
+                        <X size={18} color="#304333" />
+                      </button>
+                    </div>
+                    <div className="flex flex-col gap-4 mb-6">
+                      {amenities.map((item) => (
+                        <div key={item} className="flex items-center gap-4">
+                          <Check size={16} color="#2c4a1e" strokeWidth={2.5} className="flex-shrink-0" />
+                          <span className="text-sm text-[#304333]">{item}</span>
+                        </div>
+                      ))}
+                    </div>
+                    {excluded.length > 0 && (
+                      <>
+                        <div className="border-t border-[#e8e0d0] pt-5 mb-1">
+                          <p className="text-sm font-semibold text-[#78716c] mb-4">Not included</p>
+                        </div>
+                        <div className="flex flex-col gap-4">
+                          {excluded.map((item) => (
+                            <div key={item} className="flex items-center gap-4">
+                              <X size={18} color="#a8a29e" />
+                              <span className="text-sm text-[#a8a29e] line-through">{item}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* ══ DESKTOP BOOKING SIDEBAR ══ */}
@@ -937,11 +980,11 @@ export default function VendorDetailPage({ params }: Props) {
 
                 {reviews.length > 2 && (
                   <button
-                    onClick={() => setShowAllReviews(s => !s)}
+                    onClick={() => setShowAllReviewsPage(true)}
                     className="mt-4 px-8 py-3.5 rounded-xl text-sm font-semibold text-[#304333] transition-colors hover:bg-[#ede8df]"
                     style={{ background: '#F1F5E4' }}
                   >
-                    {showAllReviews ? 'Show fewer reviews' : `Show all ${listing.reviews_count} reviews`}
+                    Show all {listing.reviews_count} reviews
                   </button>
                 )}
               </>
@@ -1175,7 +1218,8 @@ export default function VendorDetailPage({ params }: Props) {
                   {selectedDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} · Ksh {(basePrice * guests).toLocaleString()}
                 </p>
               ) : (
-                <button className="text-sm text-[#304333] underline font-semibold"
+                <button onClick={() => setShowAllReviewsPage(true)}
+                  className="text-sm text-[#304333] underline font-semibold"
                   style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
                   {listing.reviews_count} reviews
                 </button>
@@ -1198,6 +1242,58 @@ export default function VendorDetailPage({ params }: Props) {
         </div>
 
       </div >
+
+      {/* Show all reviews modal */}
+      {showAllReviewsPage && (
+        <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center"
+          style={{ background: 'rgba(0,0,0,0.4)' }}
+          onClick={(e) => { if (e.target === e.currentTarget) setShowAllReviewsPage(false) }}>
+          <div className="bg-white w-full sm:max-w-lg rounded-t-3xl sm:rounded-2xl p-6 max-h-[85vh] overflow-y-auto"
+            style={{ fontFamily: "Georgia, 'Times New Roman', serif" }}>
+            <div className="flex items-center justify-between mb-5">
+              <div className="flex items-center gap-1.5">
+                <Star size={16} fill="#F5D06E" color="#304333" />
+                <span className="text-sm font-semibold text-[#304333]">{rating} · {listing.reviews_count} reviews</span>
+              </div>
+              <button onClick={() => setShowAllReviewsPage(false)}
+                className="w-9 h-9 rounded-full flex items-center justify-center"
+                style={{ background: '#f5f0e6', border: 'none', cursor: 'pointer' }}>
+                <X size={18} color="#304333" />
+              </button>
+            </div>
+            {reviews.length === 0 ? (
+              <div className="rounded-2xl px-4 py-10 text-center" style={{ background: '#F1F5E4' }}>
+                <p className="text-sm font-semibold text-[#304333]">No reviews yet</p>
+              </div>
+            ) : (
+              <div className="grid sm:grid-cols-2 gap-6">
+                {reviews.map((review) => (
+                  <div key={review.id} className="flex flex-col gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold flex-shrink-0 text-white" style={{ background: '#2c4a1e' }}>
+                        {review.traveller.name[0]}
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-[#304333]">{review.traveller.name}</p>
+                        <p className="text-xs text-[#78716c]">
+                          {new Date(review.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex gap-0.5">
+                      {Array.from({ length: 5 }).map((_, j) => (
+                        <Star key={j} size={12} fill={j < review.rating ? '#304333' : '#ddd'} color={j < review.rating ? '#304333' : '#ddd'} />
+                      ))}
+                    </div>
+                    <p className="text-sm text-[#304333] leading-relaxed">{review.comment}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
     </div>
   )
 }
