@@ -21,6 +21,7 @@ type Thread = {
   listing_title: string
   listing_image: string | null
   vendor_name: string
+  vendor_avatar: string | null
   last_message: string | null
   last_message_at: string | null
   unread: boolean
@@ -38,6 +39,7 @@ type ThreadDetail = {
   listing_title: string
   listing_image: string | null
   vendor_name: string
+  vendor_avatar: string | null
   messages: ThreadMessage[]
 }
 
@@ -125,8 +127,9 @@ function ConversationList({
                     <Image src={t.listing_image ?? FALLBACK_IMAGE} alt={t.vendor_name} fill sizes="44px" className="object-cover" />
                   </div>
                   <div className={`absolute bottom-0 right-0 w-7 h-7 rounded-full border-2 border-white flex items-center justify-center text-xs font-bold text-white
-                    ${t.unread ? 'bg-[#2c4a1e]' : 'bg-gray-400'}`}>
-                    {t.vendor_name[0]}
+                    ${t.unread ? 'bg-[#2c4a1e]' : 'bg-gray-400'}`}
+                    style={t.vendor_avatar ? { backgroundImage: `url(${t.vendor_avatar})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}>
+                    {!t.vendor_avatar && t.vendor_name[0]}
                   </div>
                 </div>
                 <div className="flex-1 min-w-0">

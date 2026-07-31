@@ -26,8 +26,16 @@ class BookingSeeder extends Seeder
         foreach ($travellers as $name => $email) {
             $user = User::firstOrCreate(
                 ['email' => $email],
-                ['name' => $name, 'password' => Hash::make('password'), 'active_role' => 'traveller']
+                [
+                    'name' => $name,
+                    'password' => Hash::make('password'),
+                    'active_role' => 'traveller',
+                    'avatar_url' => 'https://i.pravatar.cc/300?u=' . $email,
+                ]
             );
+            if (! $user->avatar_url) {
+                $user->update(['avatar_url' => 'https://i.pravatar.cc/300?u=' . $email]);
+            }
             $user->roles()->syncWithoutDetaching($travellerRole);
             $users[$name] = $user;
         }

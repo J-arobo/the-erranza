@@ -34,7 +34,7 @@ function formatDuration(minutes: number): string {
   return mins > 0 ? `within ${hours}h ${mins}m` : `within ${hours}h`
 }
 
-type ApiReview = { id: number; rating: number; comment: string; created_at: string; traveller: { name: string } }
+type ApiReview = { id: number; rating: number; comment: string; created_at: string; traveller: { name: string; avatar_url: string | null } }
 
 type ApiListingDetail = {
   id: number
@@ -924,9 +924,12 @@ export default function VendorDetailPage({ params }: Props) {
                   {visibleReviewsDesktop.map((review) => (
                     <div key={review.id} className="flex flex-col gap-3">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full flex items-center justify-center
-                                                        text-sm font-semibold flex-shrink-0 text-white" style={{ background: '#2c4a1e' }}>
-                          {review.traveller.name[0]}
+                      <div className="w-10 h-10 rounded-full flex items-center justify-center
+                                                        text-sm font-semibold flex-shrink-0 text-white"
+                          style={review.traveller.avatar_url
+                            ? { backgroundImage: `url(${review.traveller.avatar_url})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+                            : { background: '#2c4a1e' }}>
+                          {!review.traveller.avatar_url && review.traveller.name[0]}
                         </div>
                         <div>
                           <p className="text-sm font-semibold text-[#304333]">{review.traveller.name}</p>

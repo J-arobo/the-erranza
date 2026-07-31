@@ -67,7 +67,7 @@ class ListingController extends Controller
             'blockedDates',
             'vendor:id,business_name,bio,logo_url,languages,verification_status,created_at',
             'vendor.teamMembers',
-            'reviews' => fn($q) => $q->where('removed', false)->with('traveller:id,name')->latest(),
+            'reviews' => fn($q) => $q->where('removed', false)->with('traveller:id,name,avatar_url')->latest(),
         ]);
 
         $listing->loadCount(['reviews' => fn($q) => $q->where('removed', false)]);

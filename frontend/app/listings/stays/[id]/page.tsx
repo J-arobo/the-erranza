@@ -90,7 +90,7 @@ type ApiListingDetail = {
   amenities: string[] | null
   excluded: string[] | null
   images: { url: string }[]
-  reviews: { id: number; rating: number; comment: string; created_at: string; traveller: { name: string } }[]
+  reviews: { id: number; rating: number; comment: string; created_at: string; traveller: { name: string; avatar_url: string | null } }[]
   reviews_count: number
   reviews_avg_rating: string | null
   is_superhost: boolean
@@ -479,6 +479,7 @@ export default function StayDetailPage({ params }: Props) {
       date: formatRelative(r.created_at),
       rating: r.rating,
       avatar: r.traveller.name[0]?.toUpperCase() ?? '?',
+      avatarUrl: r.traveller.avatar_url,
       text: r.comment,
     })),
     lat: listing.lat != null && isFinite(Number(listing.lat)) ? Number(listing.lat) : -1.2864,
@@ -1164,8 +1165,9 @@ export default function StayDetailPage({ params }: Props) {
                 {detail.reviews.map((rev, i: number) => (
                   <div key={i} className="flex flex-col gap-3">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-[#2c4a1e] flex items-center justify-center text-white text-sm font-semibold flex-shrink-0">
-                        {rev.avatar}
+                    <div className="w-10 h-10 rounded-full bg-[#2c4a1e] flex items-center justify-center text-white text-sm font-semibold flex-shrink-0"
+                        style={rev.avatarUrl ? { backgroundImage: `url(${rev.avatarUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}>
+                        {!rev.avatarUrl && rev.avatar}
                       </div>
                       <div>
                         <p className="text-sm font-semibold text-[#304333]">{rev.name}</p>

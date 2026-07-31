@@ -13,7 +13,7 @@ class VendorReviewController extends Controller
         $vendor = $request->attributes->get('vendor');
 
         $reviews = $vendor->reviews()
-            ->with(['listing:id,title', 'traveller:id,name'])
+            ->with(['listing:id,title', 'traveller:id,name,avatar_url'])
             ->latest()
             ->get();
 

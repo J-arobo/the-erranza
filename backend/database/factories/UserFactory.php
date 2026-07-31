@@ -30,6 +30,7 @@ class UserFactory extends Factory
             'email_verified_at' => now(),
             'password' => static::$password ??= Hash::make('password'),
             'remember_token' => Str::random(10),
+            'avatar_url' => 'https://i.pravatar.cc/300?u=' . fake()->uuid(),
         ];
     }
 

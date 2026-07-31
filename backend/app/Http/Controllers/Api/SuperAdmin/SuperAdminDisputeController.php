@@ -16,7 +16,7 @@ class SuperAdminDisputeController extends Controller
         $disputes = Dispute::with([
             'booking.listing:id,title,vendor_id',
             'booking.listing.vendor:id,business_name',
-            'raisedBy:id,name',
+            'raisedBy:id,name,avatar_url',
         ])
             ->latest()
             ->get();

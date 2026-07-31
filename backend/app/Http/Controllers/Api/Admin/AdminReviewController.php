@@ -13,7 +13,7 @@ class AdminReviewController extends Controller
 
     public function index(Request $request)
     {
-        $reviews = Review::with(['listing:id,title', 'vendor:id,business_name', 'traveller:id,name'])
+        $reviews = Review::with(['listing:id,title', 'vendor:id,business_name', 'traveller:id,name,avatar_url'])
             ->latest()
             ->get();
 
@@ -31,7 +31,7 @@ class AdminReviewController extends Controller
             'remove_reason' => $validated['reason'],
         ]);
 
-        $review->load(['listing:id,title', 'vendor:id,business_name', 'traveller:id,name']);
+        $review->load(['listing:id,title', 'vendor:id,business_name', 'traveller:id,name,avatar_url']);
 
         $this->logAdminAction($request, 'removed review', "review #{$review->id} — {$validated['reason']}");
 
@@ -45,7 +45,7 @@ class AdminReviewController extends Controller
             'remove_reason' => null,
         ]);
 
-        $review->load(['listing:id,title', 'vendor:id,business_name', 'traveller:id,name']);
+        $review->load(['listing:id,title', 'vendor:id,business_name', 'traveller:id,name,avatar_url']);
 
         $this->logAdminAction($request, 'restored review', "review #{$review->id}");
 

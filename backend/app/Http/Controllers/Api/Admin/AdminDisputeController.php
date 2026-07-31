@@ -17,7 +17,7 @@ class AdminDisputeController extends Controller
         $disputes = Dispute::with([
             'booking.listing:id,title,vendor_id',
             'booking.listing.vendor:id,business_name',
-            'raisedBy:id,name',
+            'raisedBy:id,name,avatar_url',
         ])
             ->latest()
             ->get();
@@ -44,7 +44,7 @@ class AdminDisputeController extends Controller
             'resolved_at' => now(),
         ]);
 
-        $dispute->load(['booking.listing:id,title,vendor_id', 'booking.listing.vendor:id,business_name', 'raisedBy:id,name']);
+        $dispute->load(['booking.listing:id,title,vendor_id', 'booking.listing.vendor:id,business_name', 'raisedBy:id,name,avatar_url']);
 
         $this->logAdminAction($request, 'resolved dispute', "dispute #{$dispute->id} — Ksh {$dispute->amount}");
 
@@ -55,7 +55,7 @@ class AdminDisputeController extends Controller
     {
         $dispute->update(['status' => 'escalated']);
 
-        $dispute->load(['booking.listing:id,title,vendor_id', 'booking.listing.vendor:id,business_name', 'raisedBy:id,name']);
+        $dispute->load(['booking.listing:id,title,vendor_id', 'booking.listing.vendor:id,business_name', 'raisedBy:id,name,avatar_url']);
 
         $this->logAdminAction($request, 'escalated dispute', "dispute #{$dispute->id} — Ksh {$dispute->amount}");
 

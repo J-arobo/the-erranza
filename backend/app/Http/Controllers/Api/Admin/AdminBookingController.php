@@ -13,7 +13,7 @@ class AdminBookingController extends Controller
         $query = Booking::with([
             'listing:id,title,vendor_id',
             'listing.vendor:id,business_name',
-            'traveller:id,name,email',
+            'traveller:id,name,email,avatar_url',
         ]);
 
         if ($request->filled('status')) {

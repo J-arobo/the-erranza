@@ -180,7 +180,7 @@ class BookingController extends Controller
     {
         $this->authorizeOwnership($request, $booking);
 
-        $booking->load(['listing.images', 'listing.itinerary', 'listing.vendor:id,business_name,phone', 'messages.sender:id,name', 'review', 'payments']);
+        $booking->load(['listing.images', 'listing.itinerary', 'listing.vendor:id,business_name,phone', 'messages.sender:id,name,avatar_url', 'review', 'payments']);
 
         return response()->json(['booking' => $booking]);
     }

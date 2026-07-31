@@ -15,7 +15,7 @@ class MessageController extends Controller
             ->with([
                 'listing:id,title',
                 'listing.images',
-                'listing.vendor:id,business_name',
+                'listing.vendor:id,business_name,logo_url',
                 'messages' => fn ($q) => $q->latest()->limit(1),
             ])
             ->get()
@@ -27,6 +27,7 @@ class MessageController extends Controller
                     'listing_title' => $booking->listing->title,
                     'listing_image' => $booking->listing->images->first()?->url,
                     'vendor_name' => $booking->listing->vendor->business_name,
+                    'vendor_avatar' => $booking->listing->vendor->logo_url,
                     'last_message' => $last?->text,
                     'last_message_at' => $last?->created_at,
                     'unread' => $last?->sender_type === 'vendor',
@@ -42,13 +43,14 @@ class MessageController extends Controller
     {
         abort_unless($booking->traveller_id === $request->user()->id, 403);
 
-        $booking->load(['listing:id,title', 'listing.images', 'listing.vendor:id,business_name', 'messages.sender']);
+        $booking->load(['listing:id,title', 'listing.images', 'listing.vendor:id,business_name,logo_url', 'messages.sender']);
 
         return response()->json([
             'booking_id' => $booking->id,
             'listing_title' => $booking->listing->title,
             'listing_image' => $booking->listing->images->first()?->url,
             'vendor_name' => $booking->listing->vendor->business_name,
+            'vendor_avatar' => $booking->listing->vendor->logo_url,
             'messages' => $booking->messages,
         ]);
     }

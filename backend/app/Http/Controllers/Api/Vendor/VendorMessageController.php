@@ -16,7 +16,7 @@ class VendorMessageController extends Controller
             ->whereHas('messages')
             ->with([
                 'listing:id,title',
-                'traveller:id,name',
+                'traveller:id,name,avatar_url',
                 'messages' => fn ($q) => $q->latest()->limit(1),
             ])
             ->get()
@@ -42,12 +42,13 @@ class VendorMessageController extends Controller
     {
         $this->authorizeOwnership($request, $booking);
 
-        $booking->load(['listing:id,title', 'traveller:id,name', 'messages.sender:id,name']);
+        $booking->load(['listing:id,title', 'traveller:id,name,avatar_url', 'messages.sender:id,name,avatar_url']);
 
         return response()->json([
             'booking_id' => $booking->id,
             'listing_title' => $booking->listing->title,
             'guest_name' => $booking->traveller->name,
+            'guest_avatar' => $booking->traveller->avatar_url,
             'messages' => $booking->messages,
         ]);
     }

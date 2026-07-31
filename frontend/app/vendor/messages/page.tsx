@@ -19,6 +19,7 @@ type Thread = {
   booking_id: number
   listing_title: string
   guest_name: string
+  guest_avatar: string | null
   last_message: string | null
   last_message_at: string | null
   unanswered: boolean
@@ -35,6 +36,7 @@ type ThreadDetail = {
   booking_id: number
   listing_title: string
   guest_name: string
+  guest_avatar: string | null
   messages: ThreadMessage[]
 }
 
@@ -125,10 +127,12 @@ export default function VendorMessagesPage() {
             <button key={t.booking_id} onClick={() => setActiveId(t.booking_id)}
               className={`flex items-center gap-3 px-4 py-3 text-left w-full transition-colors
                 ${activeId === t.booking_id ? 'bg-[#eaf5e4]' : 'hover:bg-gray-50'}`}>
-              <div className="w-10 h-10 rounded-full flex items-center justify-center
+                            <div className="w-10 h-10 rounded-full flex items-center justify-center
                               text-sm font-bold flex-shrink-0"
-                style={{ background: avatarColor(t.guest_name) }}>
-                {t.guest_name[0]?.toUpperCase()}
+                style={t.guest_avatar
+                  ? { backgroundImage: `url(${t.guest_avatar})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+                  : { background: avatarColor(t.guest_name) }}>
+                {!t.guest_avatar && t.guest_name[0]?.toUpperCase()}
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-2">
@@ -158,8 +162,10 @@ export default function VendorMessagesPage() {
                   ← Back
                 </button>
                 <div className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold"
-                  style={{ background: avatarColor(activeThread.guest_name) }}>
-                  {activeThread.guest_name[0]?.toUpperCase()}
+                  style={activeThread.guest_avatar
+                    ? { backgroundImage: `url(${activeThread.guest_avatar})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+                    : { background: avatarColor(activeThread.guest_name) }}>
+                  {!activeThread.guest_avatar && activeThread.guest_name[0]?.toUpperCase()}
                 </div>
                 <div>
                   <p className="text-sm font-bold text-[#1a1a1a]">{activeThread.guest_name}</p>
