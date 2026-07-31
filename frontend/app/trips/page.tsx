@@ -20,6 +20,7 @@ type ApiBooking = {
   status: 'pending' | 'confirmed' | 'completed' | 'cancelled' | 'alternative_proposed'
   guests: number
   total: string
+  payment_plan: 'full' | 'instalments'
   check_in: string | null
   check_out: string | null
   listing: {
@@ -38,6 +39,7 @@ type Trip = {
   dates: string
   guests: number
   price: string
+  instalments: boolean
   status: 'upcoming' | 'completed' | 'cancelled'
 }
 
@@ -68,6 +70,7 @@ function mapBooking(b: ApiBooking): Trip {
     dates: formatDateRange(b.check_in, b.check_out),
     guests: b.guests,
     price: formatKsh(b.total),
+    instalments: b.payment_plan === 'instalments',
     status: mapStatus(b.status),
   }
 }
@@ -213,7 +216,10 @@ function TripCard({ trip }: { trip: Trip }) {
               </span>
             </div>
           </div>
-          <p className="text-[12px] font-semibold text-[#2c4a1e] mt-0.5">{trip.price}</p>
+          <p className="text-[12px] font-semibold text-[#2c4a1e] mt-0.5">
+            {trip.price}{trip.instalments && <span className="text-gray-400 font-normal"> · 3 instalments</span>}
+          </p>
+
         </div>
       </div>
 

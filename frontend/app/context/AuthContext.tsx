@@ -58,7 +58,8 @@ export type Message = {
 type AuthContextType = {
   user: User | null
   ready: boolean
-  register: (name: string, email: string, password: string, phone?: string) => Promise<void>
+  register: (name: string, email: string, password: string, phone?: string, avatarUrl?: string) => Promise<void>
+  updateProfile: (updates: { name?: string; phone?: string; avatarUrl?: string }) => Promise<void>
   login: (email: string, password: string) => Promise<void>
   logout: () => void
   isLoggedIn: boolean
@@ -80,6 +81,7 @@ type AuthContextType = {
 const AuthContext = createContext<AuthContextType>({
   user: null,
   ready: false,
+  updateProfile: async () => { },
   register: async () => { },
   login: async () => { },
   logout: () => { },
@@ -222,16 +224,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .finally(() => setWishlistsReady(true))
   }, [user?.id])
 
-  const register = useCallback(async (name: string, email: string, password: string, phone?: string) => {
+  const register = useCallback(async (name: string, email: string, password: string, phone?: string, avatarUrl?: string) => {
     const { user, token } = await apiFetch<{ user: ApiUser; token: string }>('/auth/register', {
       method: 'POST',
       body: JSON.stringify({
         name, email, password,
         password_confirmation: password,
         phone,
+        avatar_url: avatarUrl,
       }),
     })
     setToken(token)
+    setUser(mapUser(user))
+  }, [])
+
+  const updateProfile = useCallback(async (updates: { name?: string; phone?: string; avatarUrl?: string }) => {
+    const { user } = await apiFetch<{ user: ApiUser }>('/auth/me', {
+      method: 'PATCH',
+      body: JSON.stringify({
+        ...(updates.name !== undefined ? { name: updates.name } : {}),
+        ...(updates.phone !== undefined ? { phone: updates.phone } : {}),
+        ...(updates.avatarUrl !== undefined ? { avatar_url: updates.avatarUrl } : {}),
+      }),
+    })
     setUser(mapUser(user))
   }, [])
 
@@ -322,6 +337,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     user,
     ready,
     register,
+    updateProfile,
     login,
     logout,
     isLoggedIn: !!user,
@@ -339,7 +355,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     addTrip,
     messages: MOCK_MESSAGES,
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [user, ready, wishlists, wishlistsReady, trips, register, login, logout, becomePartner])
+  }), [user, ready, wishlists, wishlistsReady, trips, register, updateProfile, login, logout, becomePartner])
 
   return (
     <AuthContext.Provider value={value}>

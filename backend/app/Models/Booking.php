@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Booking extends Model
 {
     protected $fillable = [
-        'listing_id', 'departure_id', 'traveller_id', 'status', 'guests', 'total',
+        'listing_id', 'departure_id', 'traveller_id', 'status', 'guests', 'total', 'payment_plan',
         'check_in', 'check_out', 'proposed_date',
         'refund_percent', 'refund_amount', 'special_requests', 'decline_reason',
     ];
@@ -49,6 +49,12 @@ class Booking extends Model
     {
         return $this->hasMany(Message::class)->orderBy('created_at');
     }
+
+    public function payments(): HasMany
+    {
+        return $this->hasMany(BookingPayment::class)->orderBy('due_date');
+    }
+
     // Reviews relationship
     public function review(): \Illuminate\Database\Eloquent\Relations\HasOne
     {

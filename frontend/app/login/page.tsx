@@ -52,6 +52,8 @@ function validate(name: string, email: string, password: string, phone: string, 
 type LoginFormProps = {
   name: string
   onNameChange: (v: string) => void
+  avatarPreview: string | null
+  onAvatarChange: (dataUrl: string | null) => void
   email: string
   onEmailChange: (v: string) => void
   password: string
@@ -72,7 +74,7 @@ type LoginFormProps = {
 // defining this inside LoginInner would redefine (and remount) it on every
 // keystroke, which is what was killing input focus after each character typed.
 function LoginForm({
-  name, onNameChange, email, onEmailChange, password, onPasswordChange,
+  name, onNameChange, avatarPreview, onAvatarChange, email, onEmailChange, password, onPasswordChange,
   phone, onPhoneChange, country, onCountryChange, showCountry, onToggleCountry,
   fieldErrors, error, loading, onContinue,
 }: LoginFormProps) {
@@ -95,6 +97,41 @@ function LoginForm({
           />
           {fieldErrors.name && <p className="text-xs text-red-500 mt-1">{fieldErrors.name}</p>}
         </div>
+        <div className="flex items-center gap-3">
+          <label className="relative w-14 h-14 rounded-full flex-shrink-0 cursor-pointer overflow-hidden bg-gray-100 border border-gray-300 flex items-center justify-center">
+            {avatarPreview ? (
+              <img src={avatarPreview} alt="Profile preview" className="w-full h-full object-cover" />
+            ) : (
+              <span className="text-gray-400 text-xs text-center px-1">Add photo</span>
+            )}
+            <input
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0]
+                if (!file) return
+                const reader = new FileReader()
+                reader.onload = () => {
+                  if (typeof reader.result === 'string') onAvatarChange(reader.result)
+                }
+                reader.readAsDataURL(file)
+                e.target.value = ''
+              }}
+            />
+          </label>
+          <div>
+            <p className="text-xs font-semibold text-[#304333]">Profile picture</p>
+            <p className="text-[10px] text-gray-400">Optional — for new accounts</p>
+            {avatarPreview && (
+              <button type="button" onClick={() => onAvatarChange(null)}
+                className="text-[10px] text-red-500 underline mt-0.5">
+                Remove
+              </button>
+            )}
+          </div>
+        </div>
+
         <div>
           <p className="text-[10px] text-gray-500 mb-1">Email</p>
           <input
@@ -197,6 +234,7 @@ function LoginInner() {
   const redirect        = searchParams.get('redirect') ?? '/'
 
   const [name, setName]               = useState('')
+  const [avatarDataUrl, setAvatarDataUrl] = useState<string | null>(null)
   const [email, setEmail]             = useState('')
   const [password, setPassword]       = useState('')
   const [phone, setPhone]             = useState('')
@@ -266,7 +304,7 @@ function LoginInner() {
     }
 
     try {
-      await register(name.trim(), email.trim(), password, phone.trim() || undefined)
+      await register(name.trim(), email.trim(), password, phone.trim() || undefined, avatarDataUrl ?? undefined)
       router.push(redirect)
     } catch (err) {
       if (err instanceof ApiError && err.errors) {
@@ -281,6 +319,7 @@ function LoginInner() {
 
   const formProps: LoginFormProps = {
     name, onNameChange: updateName,
+    avatarPreview: avatarDataUrl, onAvatarChange: setAvatarDataUrl,
     email, onEmailChange: updateEmail,
     password, onPasswordChange: updatePassword,
     phone, onPhoneChange: updatePhone,

@@ -11,7 +11,7 @@ type Props = {
 }
 
 export default function BottomNav({ active, onSelect, scrollingDown, scrolled }: Props) {
-  const { isLoggedIn } = useAuth()
+  const { isLoggedIn, user } = useAuth()
   const router = useRouter()
 
   const guestItems = [
@@ -121,10 +121,24 @@ export default function BottomNav({ active, onSelect, scrollingDown, scrolled }:
             }}
           >
             <div style={{ position: 'relative' }}>
-              <Icon
-                size={scrolled ? 18 : 20}
-                color={active === name ? '#EAF98E' : '#ffffff'}
-              />
+              {name === 'Profile' && isLoggedIn && user?.avatar ? (
+                <div
+                  style={{
+                    width: scrolled ? 18 : 20,
+                    height: scrolled ? 18 : 20,
+                    borderRadius: '50%',
+                    overflow: 'hidden',
+                    border: active === name ? '1.5px solid #EAF98E' : '1.5px solid rgba(255,255,255,0.6)',
+                  }}
+                >
+                  <img src={user.avatar} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                </div>
+              ) : (
+                <Icon
+                  size={scrolled ? 18 : 20}
+                  color={active === name ? '#EAF98E' : '#ffffff'}
+                />
+              )}
               {name === 'Profile' && isLoggedIn && (
                 <div
                   style={{

@@ -26,6 +26,9 @@ type ApiBookingDetail = {
     itinerary: { day: number; title: string; description: string | null }[]
     vendor: { id: number; business_name: string; phone: string | null }
   }
+  // Payment plans
+  payment_plan: 'full' | 'instalments'
+  payments: { id: number; amount: string; due_date: string; status: 'pending' | 'paid'; paid_at: string | null }[]
   review: { id: number; rating: number; comment: string } | null
 }
 
@@ -52,6 +55,8 @@ export default function TripDetailPage({ params }: Props) {
   const [error, setError] = useState('')
   const [cancelling, setCancelling] = useState(false)
   const [confirmingCancel, setConfirmingCancel] = useState(false)
+  //Payment plan state
+  const [payingId, setPayingId] = useState<number | null>(null)
 
   useEffect(() => {
     apiFetch<{ booking: ApiBookingDetail }>(`/bookings/${id}`)
@@ -59,6 +64,23 @@ export default function TripDetailPage({ params }: Props) {
       .catch(() => setNotFound(true))
       .finally(() => setLoading(false))
   }, [id])
+
+  // Payment plan
+  async function handlePayInstallment(paymentId: number) {
+    setPayingId(paymentId)
+    setError('')
+    try {
+      await apiFetch(`/bookings/${id}/payments/${paymentId}/pay`, { method: 'POST' })
+      setBooking(b => b ? {
+        ...b,
+        payments: b.payments.map(p => p.id === paymentId ? { ...p, status: 'paid' as const, paid_at: new Date().toISOString() } : p),
+      } : b)
+    } catch (err) {
+      setError(apiErrorMessage(err))
+    } finally {
+      setPayingId(null)
+    }
+  }
 
   async function handleCancel() {
     setCancelling(true)
@@ -147,7 +169,7 @@ export default function TripDetailPage({ params }: Props) {
             <p className="text-sm font-semibold text-[#1a1a1a]">{booking.guests}</p>
           </div>
           <div>
-            <p className="text-xs text-gray-400 mb-0.5">Total paid</p>
+            <p className="text-xs text-gray-400 mb-0.5">{booking.payment_plan === 'instalments' ? 'Total' : 'Total paid'}</p>
             <p className="text-sm font-semibold text-[#1a1a1a]">Ksh {Math.round(Number(booking.total)).toLocaleString()}</p>
           </div>
           <div>
@@ -171,6 +193,48 @@ export default function TripDetailPage({ params }: Props) {
             <p className="text-sm text-gray-600">{booking.special_requests}</p>
           </div>
         )}
+
+        {booking.special_requests && (
+          <div className="mb-5">
+            <p className="text-sm font-bold text-[#1a1a1a] mb-1">Special requests</p>
+            <p className="text-sm text-gray-600">{booking.special_requests}</p>
+          </div>
+        )}
+
+        {booking.payment_plan === 'instalments' && booking.payments.length > 0 && (
+          <div className="mb-5">
+            <p className="text-sm font-bold text-[#1a1a1a] mb-3">Payment schedule</p>
+            <div className="flex flex-col gap-2">
+              {booking.payments.map((payment, i) => (
+                <div key={payment.id} className="flex items-center justify-between p-3 rounded-xl border border-gray-200">
+                  <div>
+                    <p className="text-sm font-semibold text-[#1a1a1a]">Payment {i + 1} of {booking.payments.length}</p>
+                    <p className="text-xs text-gray-500">
+                      {payment.status === 'paid'
+                        ? `Paid ${formatDate(payment.paid_at)}`
+                        : `Due ${formatDate(payment.due_date)}`}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm font-semibold text-[#1a1a1a]">Ksh {Math.round(Number(payment.amount)).toLocaleString()}</p>
+                    {payment.status === 'paid' ? (
+                      <span className="text-xs font-semibold text-[#2c4a1e]">Paid ✓</span>
+                    ) : (
+                      <button
+                        onClick={() => handlePayInstallment(payment.id)}
+                        disabled={payingId === payment.id}
+                        className="text-xs font-semibold text-white bg-[#2c4a1e] px-3 py-1 rounded-full mt-1 hover:bg-[#3d6b28] transition-colors disabled:opacity-40"
+                      >
+                        {payingId === payment.id ? 'Paying…' : 'Pay now'}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
 
         {listing.itinerary.length > 0 && (
           <div className="mb-5">

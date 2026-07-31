@@ -47,7 +47,7 @@ type ApiListingDetail = {
   response_rate: number | null
   avg_response_minutes: number | null
   cohost: { name: string } | null
-  vendor: { business_name: string; languages: string[] | null }
+  vendor: { business_name: string; logo_url: string | null; languages: string[] | null }
 }
 
 type ApiListingSummary = { id: number; title: string; price: string; images: { url: string }[] }
@@ -637,8 +637,11 @@ export default function PackageDetailPage({ params }: Props) {
                   <div className="flex items-center">
                     <div className="w-1/2 flex flex-col items-center">
                       <div className="relative mb-3">
-                        <div className="w-24 h-24 rounded-full flex items-center justify-center text-white text-4xl font-bold" style={{ background: '#2c4a1e' }}>
-                          {pkg.vendor.business_name[0]}
+                        <div className="w-24 h-24 rounded-full flex items-center justify-center text-white text-4xl font-bold"
+                          style={pkg.vendor.logo_url
+                            ? { backgroundImage: `url(${pkg.vendor.logo_url})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+                            : { background: '#2c4a1e' }}>
+                          {!pkg.vendor.logo_url && pkg.vendor.business_name[0]}
                         </div>
                         {pkg.is_superhost && (
                           <div className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-red-500 flex items-center justify-center">
@@ -715,9 +718,13 @@ export default function PackageDetailPage({ params }: Props) {
                 <div className="flex items-center">
                   <div className="w-1/2 flex flex-col items-center">
                     <div className="relative mb-1.5">
-                      <div className="w-24 h-24 rounded-full flex items-center justify-center text-white text-3xl font-bold" style={{ background: '#2c4a1e' }}>
-                        {pkg.vendor.business_name[0]}
+                      <div className="w-24 h-24 rounded-full flex items-center justify-center text-white text-3xl font-bold"
+                        style={pkg.vendor.logo_url
+                          ? { backgroundImage: `url(${pkg.vendor.logo_url})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+                          : { background: '#2c4a1e' }}>
+                        {!pkg.vendor.logo_url && pkg.vendor.business_name[0]}
                       </div>
+
                       {pkg.is_superhost && (
                         <div className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-red-500 flex items-center justify-center">
                           <Award size={12} color="white" />

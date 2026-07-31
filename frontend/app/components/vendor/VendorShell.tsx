@@ -58,11 +58,11 @@ export default function VendorShell({ children }: { children: React.ReactNode })
   useEffect(() => {
     apiFetch<{ bookings: { status: string }[] }>('/vendor/bookings')
       .then(({ bookings }) => setPendingCount(bookings.filter(b => b.status === 'pending').length))
-      .catch(() => {})
+      .catch(() => { })
 
     apiFetch<{ notifications: ApiNotification[] }>('/vendor/notifications')
       .then(({ notifications }) => setNotifications(notifications))
-      .catch(() => {})
+      .catch(() => { })
   }, [])
 
   const unreadCount = notifications.filter(n => !n.read).length
@@ -237,8 +237,9 @@ export default function VendorShell({ children }: { children: React.ReactNode })
         <div className="px-3 py-4 border-t border-white/10">
           <div className="flex items-center gap-3 px-3 py-2 mb-2">
             <div className="w-8 h-8 rounded-full bg-[#EAF98E] flex items-center
-                            justify-center text-[#2c4a1e] text-sm font-bold flex-shrink-0">
-              {user?.name?.[0]?.toUpperCase() ?? 'V'}
+                                justify-center text-[#2c4a1e] text-sm font-bold flex-shrink-0"
+              style={user?.avatar ? { backgroundImage: `url(${user.avatar})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}>
+              {!user?.avatar && (user?.name?.[0]?.toUpperCase() ?? 'V')}
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-white text-sm font-semibold truncate">
@@ -332,8 +333,9 @@ export default function VendorShell({ children }: { children: React.ReactNode })
               )}
             </button>
             <div className="w-9 h-9 rounded-full bg-[#2c4a1e] flex items-center
-                            justify-center text-[#EAF98E] text-sm font-bold">
-              {user?.name?.[0]?.toUpperCase() ?? 'V'}
+                                justify-center text-[#EAF98E] text-sm font-bold"
+              style={user?.avatar ? { backgroundImage: `url(${user.avatar})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}>
+              {!user?.avatar && (user?.name?.[0]?.toUpperCase() ?? 'V')}
             </div>
           </div>
         </div>

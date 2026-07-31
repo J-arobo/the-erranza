@@ -24,7 +24,8 @@ class VendorProfileController extends Controller
             'business_name' => ['sometimes', 'string', 'max:255'],
             'phone' => ['sometimes', 'string', 'max:30'],
             'bio' => ['nullable', 'string'],
-        ]);
+            'logo_url' => ['sometimes', 'nullable', 'string'],
+        ]);        
 
         $vendor->update($validated);
 

@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation'
 import {
   Bell, Settings, HelpCircle, User, Shield,
   ChevronRight, LogOut, Gift, FileText, Users,
-  Menu, MapPin,
+  Menu, MapPin, Camera,
 } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { apiFetch } from '@/lib/api'
@@ -31,19 +31,75 @@ function formatMonthYear(v: string | null) {
   return v ? new Date(v).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : ''
 }
 
-// ── Square profile card — same pattern as "Meet your host"/"Meet your tour operator" ──
-function ProfileCard({ name, stats }: { name?: string; stats: Stat[] }) {
+
+
+
+
+// ── Square profile card " ──
+function ProfileCard({ name, avatar, onEditPhoto, stats }: { name?: string; avatar?: string | null; onEditPhoto: (dataUrl: string) => Promise<void>; stats: Stat[] }) {
+  const [pending, setPending] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
+  const displayAvatar = pending ?? avatar
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = () => {
+      if (typeof reader.result === 'string') setPending(reader.result)
+    }
+    reader.readAsDataURL(file)
+    e.target.value = ''
+  }
+
+  async function handleSave() {
+    if (!pending) return
+    setSaving(true)
+    try {
+      await onEditPhoto(pending)
+      setPending(null)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const SaveRow = (
+    pending && (
+      <div className="flex gap-2 mt-2">
+        <button onClick={handleSave} disabled={saving}
+          className="text-xs font-semibold text-white bg-[#2c4a1e] px-3 py-1.5 rounded-full disabled:opacity-50">
+          {saving ? 'Saving…' : 'Save photo'}
+        </button>
+        <button onClick={() => setPending(null)} disabled={saving}
+          className="text-xs font-semibold text-[#1a1a1a] bg-gray-100 px-3 py-1.5 rounded-full">
+          Cancel
+        </button>
+      </div>
+    )
+  )
+
   return (
     <>
       <div className="sm:hidden bg-white rounded-2xl p-4 mb-5" style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.12)', maxWidth: 380 }}>
         <div className="flex items-center">
           <div className="w-1/2 flex flex-col items-center">
             <div className="relative mb-1.5">
-              <div className="w-20 h-20 rounded-full bg-[#2c4a1e] flex items-center justify-center text-white text-2xl font-bold">
-                {name?.[0]?.toUpperCase() ?? 'E'}
-              </div>
+              {displayAvatar ? (
+                <div className="w-20 h-20 rounded-full overflow-hidden">
+                  <img src={displayAvatar} alt={name ?? 'Profile'} className="w-full h-full object-cover" />
+                </div>
+              ) : (
+                <div className="w-20 h-20 rounded-full bg-[#2c4a1e] flex items-center justify-center text-white text-2xl font-bold">
+                  {name?.[0]?.toUpperCase() ?? 'E'}
+                </div>
+              )}
+              <label className="absolute bottom-0 right-0 w-7 h-7 rounded-full bg-white border border-gray-200 flex items-center justify-center cursor-pointer shadow-sm hover:bg-gray-50 transition-colors">
+                <Camera size={13} color="#1a1a1a" />
+                <input type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
+              </label>
             </div>
             <p className="text-base font-bold text-[#1a1a1a] text-center">{name}</p>
+            {SaveRow}
           </div>
           <div className="w-1/2 pl-3">
             {stats.map(({ value, label }, i, arr) => (
@@ -60,11 +116,22 @@ function ProfileCard({ name, stats }: { name?: string; stats: Stat[] }) {
         <div className="flex items-center">
           <div className="w-1/2 flex flex-col items-center">
             <div className="relative mb-3">
-              <div className="w-24 h-24 rounded-full bg-[#2c4a1e] flex items-center justify-center text-white text-4xl font-bold">
-                {name?.[0]?.toUpperCase() ?? 'E'}
-              </div>
+              {displayAvatar ? (
+                <div className="w-24 h-24 rounded-full overflow-hidden">
+                  <img src={displayAvatar} alt={name ?? 'Profile'} className="w-full h-full object-cover" />
+                </div>
+              ) : (
+                <div className="w-24 h-24 rounded-full bg-[#2c4a1e] flex items-center justify-center text-white text-4xl font-bold">
+                  {name?.[0]?.toUpperCase() ?? 'E'}
+                </div>
+              )}
+              <label className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-white border border-gray-200 flex items-center justify-center cursor-pointer shadow-sm hover:bg-gray-50 transition-colors">
+                <Camera size={14} color="#1a1a1a" />
+                <input type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
+              </label>
             </div>
             <p className="text-xl font-bold text-[#1a1a1a] text-center">{name}</p>
+            {SaveRow}
           </div>
           <div className="w-1/2 pl-4">
             {stats.map(({ value, label }, i, arr) => (
@@ -79,6 +146,7 @@ function ProfileCard({ name, stats }: { name?: string; stats: Stat[] }) {
     </>
   )
 }
+
 
 function VisitedPlaces({ loading, places }: { loading: boolean; places: ApiBooking[] }) {
   return (
@@ -116,7 +184,10 @@ function VisitedPlaces({ loading, places }: { loading: boolean; places: ApiBooki
 }
 
 export default function ProfilePage() {
-  const { isLoggedIn, user, logout, wishlists } = useAuth()
+  const { isLoggedIn, user,updateProfile, logout, wishlists } = useAuth()
+  async function handleAvatarChange(dataUrl: string) {
+    await updateProfile({ avatarUrl: dataUrl })
+  }  
   const router = useRouter()
 
   const [bookings, setBookings] = useState<ApiBooking[]>([])
@@ -264,7 +335,7 @@ export default function ProfilePage() {
             </div>
             <h1 className="text-3xl font-bold text-[#1a1a1a] mb-6 mt-6 lg:hidden">Profile</h1>
 
-            <ProfileCard name={user?.name} stats={stats} />
+            <ProfileCard name={user?.name} avatar={user?.avatar} onEditPhoto={handleAvatarChange} stats={stats} />
 
             {/* Quick tiles — mobile/tablet only; desktop uses the sidebar instead */}
             <div className="grid grid-cols-2 gap-4 mb-5 lg:hidden">
@@ -389,3 +460,4 @@ export default function ProfilePage() {
     </div>
   )
 }
+

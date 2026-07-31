@@ -19,6 +19,7 @@ class AuthController extends Controller
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email'],
             'password' => ['required', 'confirmed', Password::min(8)],
             'phone' => ['nullable', 'string', 'max:30'],
+            'avatar_url' => ['nullable', 'string'],
         ]);
 
         $user = User::create([
@@ -26,6 +27,7 @@ class AuthController extends Controller
             'email' => $validated['email'],
             'password' => Hash::make($validated['password']),
             'phone' => $validated['phone'] ?? null,
+            'avatar_url' => $validated['avatar_url'] ?? null,
             'active_role' => 'traveller',
         ]);
 
@@ -78,6 +80,21 @@ class AuthController extends Controller
 
     public function me(Request $request)
     {
+        return response()->json([
+            'user' => $this->formatUser($request->user()),
+        ]);
+    }
+
+    public function updateProfile(Request $request)
+    {
+        $validated = $request->validate([
+            'name' => ['sometimes', 'string', 'max:255'],
+            'phone' => ['sometimes', 'nullable', 'string', 'max:30'],
+            'avatar_url' => ['sometimes', 'nullable', 'string'],
+        ]);
+
+        $request->user()->update($validated);
+
         return response()->json([
             'user' => $this->formatUser($request->user()),
         ]);

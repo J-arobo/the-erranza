@@ -13,32 +13,32 @@ const MENU_SECTIONS_GUEST = [
   {
     section: null,
     items: [
-      { icon: LogIn,           label: 'Log in',           path: '/login' },
-      { icon: UserPlus,        label: 'Sign up',          path: '/login' },
-      { icon: LayoutDashboard, label: 'Become a vendor',  path: '/partner' },
+      { icon: LogIn, label: 'Log in', path: '/login' },
+      { icon: UserPlus, label: 'Sign up', path: '/login' },
+      { icon: LayoutDashboard, label: 'Become a vendor', path: '/partner' },
     ],
   },
   {
     section: 'Help & support',
     items: [
-      { icon: HelpCircle, label: 'Help Centre',      path: '/help' },
-      { icon: Shield,     label: 'Partner dispute',  path: '/help' },
+      { icon: HelpCircle, label: 'Help Centre', path: '/help' },
+      { icon: Shield, label: 'Partner dispute', path: '/help' },
     ],
   },
   {
     section: 'Inspiration',
     items: [
-      { icon: Star,      label: 'Seasonal deals',   path: '/' },
-      { icon: Newspaper, label: 'Travel articles',  path: '/' },
+      { icon: Star, label: 'Seasonal deals', path: '/' },
+      { icon: Newspaper, label: 'Travel articles', path: '/' },
     ],
   },
   {
     section: 'Settings and legal',
     items: [
-      { icon: Home,      label: 'About Erranza',      path: '/' },
-      { icon: Briefcase, label: 'Careers',            path: '/' },
-      { icon: Globe,     label: 'Language · English', path: '/' },
-      { icon: Shield,    label: 'Privacy Notice',     path: '/' },
+      { icon: Home, label: 'About Erranza', path: '/' },
+      { icon: Briefcase, label: 'Careers', path: '/' },
+      { icon: Globe, label: 'Language · English', path: '/' },
+      { icon: Shield, label: 'Privacy Notice', path: '/' },
     ],
   },
 ]
@@ -47,43 +47,43 @@ const MENU_SECTIONS_LOGGEDIN = [
   {
     section: null,
     items: [
-      { icon: User,            label: 'Profile',          path: '/profile' },
+      { icon: User, label: 'Profile', path: '/profile' },
       { icon: LayoutDashboard, label: 'Vendor dashboard', path: '/vendor' },
     ],
   },
   {
     section: 'Help & support',
     items: [
-      { icon: HelpCircle, label: 'Help Centre',     path: '/help' },
-      { icon: Shield,     label: 'Partner dispute', path: '/help' },
+      { icon: HelpCircle, label: 'Help Centre', path: '/help' },
+      { icon: Shield, label: 'Partner dispute', path: '/help' },
     ],
   },
   {
     section: 'Inspiration',
     items: [
-      { icon: Star,      label: 'Seasonal deals',   path: '/' },
-      { icon: Newspaper, label: 'Travel articles',  path: '/' },
+      { icon: Star, label: 'Seasonal deals', path: '/' },
+      { icon: Newspaper, label: 'Travel articles', path: '/' },
     ],
   },
   {
     section: 'Settings and legal',
     items: [
-      { icon: Home,      label: 'About Erranza',      path: '/' },
-      { icon: Briefcase, label: 'Careers',            path: '/' },
-      { icon: Globe,     label: 'Language · English', path: '/' },
-      { icon: Shield,    label: 'Privacy Notice',     path: '/' },
+      { icon: Home, label: 'About Erranza', path: '/' },
+      { icon: Briefcase, label: 'Careers', path: '/' },
+      { icon: Globe, label: 'Language · English', path: '/' },
+      { icon: Shield, label: 'Privacy Notice', path: '/' },
     ],
   },
 ]
 
-export default function Navbar({categoryBar }: {categoryBar?: React.ReactNode}) {
+export default function Navbar({ categoryBar }: { categoryBar?: React.ReactNode }) {
   const router = useRouter()
   const { isLoggedIn, user, logout, setActiveRole } = useAuth()
-  const [menuOpen, setMenuOpen]     = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
   const [helpTooltip, setHelpTooltip] = useState(false)
   const [profileMenuOpen, setProfileMenuOpen] = useState(false)
   const [profileMenuPos, setProfileMenuPos] = useState({ top: 0, right: 0 })
-  const [mounted, setMounted]       = useState(false)
+  const [mounted, setMounted] = useState(false)
   const helpRef = useRef<HTMLButtonElement>(null)
   const profileBtnRef = useRef<HTMLButtonElement>(null)
 
@@ -191,7 +191,7 @@ export default function Navbar({categoryBar }: {categoryBar?: React.ReactNode}) 
               {group.items.map(({ icon: Icon, label, path }) => {
                 const isVendorItem = label === 'Vendor dashboard'
                 const finalLabel = isVendorItem && !isPartner ? 'Become a vendor' : label
-                const finalPath  = isVendorItem && !isPartner ? '/partner' : path
+                const finalPath = isVendorItem && !isPartner ? '/partner' : path
                 return (
                   <button
                     key={label}
@@ -232,9 +232,11 @@ export default function Navbar({categoryBar }: {categoryBar?: React.ReactNode}) 
       >
         <div className="flex items-center gap-3 px-4 py-3.5 border-b border-gray-100">
           <div className="w-9 h-9 rounded-full bg-[#304333] flex items-center
-                          justify-center text-[#EAF98E] text-sm font-bold flex-shrink-0">
-            {user?.name?.[0]?.toUpperCase() ?? 'E'}
+                          justify-center text-[#EAF98E] text-sm font-bold flex-shrink-0"
+            style={user?.avatar ? { backgroundImage: `url(${user.avatar})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}>
+            {!user?.avatar && (user?.name?.[0]?.toUpperCase() ?? 'E')}
           </div>
+
           <div className="min-w-0">
             <p className="text-sm font-semibold text-[#1a1a1a] truncate">{user?.name}</p>
             <p className="text-xs text-gray-400 truncate">{user?.email}</p>
@@ -354,8 +356,9 @@ export default function Navbar({categoryBar }: {categoryBar?: React.ReactNode}) 
                   className="w-8 h-8 rounded-full bg-[#304333] flex items-center
                              justify-center text-[#EAF98E] text-sm font-bold
                              hover:bg-[#2c4a1e] transition-colors"
+                  style={user?.avatar ? { backgroundImage: `url(${user.avatar})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}
                 >
-                  {user?.name?.[0]?.toUpperCase() ?? 'E'}
+                  {!user?.avatar && (user?.name?.[0]?.toUpperCase() ?? 'E')}
                 </button>
               </>
             ) : (
@@ -413,15 +416,16 @@ export default function Navbar({categoryBar }: {categoryBar?: React.ReactNode}) 
               <button
                 onClick={() => router.push('/profile')}
                 className="w-8 h-8 rounded-full bg-[#304333] flex items-center
-                           justify-center text-[#EAF98E] text-sm font-bold"
+                                       justify-center text-[#EAF98E] text-sm font-bold"
+                style={user?.avatar ? { backgroundImage: `url(${user.avatar})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}
               >
-                {user?.name?.[0]?.toUpperCase() ?? 'E'}
+                {!user?.avatar && (user?.name?.[0]?.toUpperCase() ?? 'E')}
               </button>
             ) : (
               <button
                 onClick={() => router.push('/login')}
                 className="w-8 h-8 rounded-full border border-gray-300 bg-white
-                           flex items-center justify-center hover:border-[#304333] transition-colors"
+                                       flex items-center justify-center hover:border-[#304333] transition-colors"
               >
                 <User size={16} color="#304333" />
               </button>
@@ -429,8 +433,8 @@ export default function Navbar({categoryBar }: {categoryBar?: React.ReactNode}) 
             <button
               onClick={() => setMenuOpen(true)}
               className="w-8 h-8 rounded-full border border-gray-200 bg-white
-                         flex flex-col items-center justify-center gap-1.5
-                         hover:border-[#304333] transition-colors"
+                                     flex flex-col items-center justify-center gap-1.5
+                                     hover:border-[#304333] transition-colors"
             >
               <span className="block w-4 h-[2px] bg-gray-700 rounded" />
               <span className="block w-4 h-[2px] bg-gray-700 rounded" />
@@ -443,10 +447,12 @@ export default function Navbar({categoryBar }: {categoryBar?: React.ReactNode}) 
               <button
                 onClick={() => router.push('/profile')}
                 className="w-8 h-8 rounded-full bg-[#304333] flex items-center
-                           justify-center text-[#EAF98E] text-sm font-bold"
+                                       justify-center text-[#EAF98E] text-sm font-bold"
+                style={user?.avatar ? { backgroundImage: `url(${user.avatar})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}
               >
-                {user?.name?.[0]?.toUpperCase() ?? 'E'}
+                {!user?.avatar && (user?.name?.[0]?.toUpperCase() ?? 'E')}
               </button>
+
             ) : (
               <button
                 onClick={() => router.push('/login')}

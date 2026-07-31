@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { LogOut, Star, TrendingUp, List, Check, ShieldCheck, Users, UserPlus, X, FileClock } from 'lucide-react'
+import { LogOut, Star, TrendingUp, List, Check, ShieldCheck, Users, UserPlus, X, FileClock, Camera } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { apiFetch, apiErrorMessage } from '@/lib/api'
 
@@ -50,6 +50,7 @@ type ApiVendor = {
   business_name: string
   phone: string | null
   bio: string | null
+  logo_url: string | null
   payout_details: string | null
   reviews_count: number
   reviews_avg_rating: string | null
@@ -89,6 +90,10 @@ export default function VendorProfilePage() {
   const [inviteRole, setInviteRole] = useState<Role>('Co-host')
   const [inviteBusy, setInviteBusy] = useState(false)
   const [removingId, setRemovingId] = useState<number | null>(null)
+  // Logo
+  const [pendingLogo, setPendingLogo] = useState<string | null>(null)
+  const [savingLogo, setSavingLogo] = useState(false)
+
 
   useEffect(() => {
     Promise.all([
@@ -124,6 +129,36 @@ export default function VendorProfilePage() {
       setSaving(false)
     }
   }
+
+  function handleLogoFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = () => {
+      if (typeof reader.result === 'string') setPendingLogo(reader.result)
+    }
+    reader.readAsDataURL(file)
+    e.target.value = ''
+  }
+
+  async function saveLogo() {
+    if (!pendingLogo) return
+    setSavingLogo(true)
+    setError('')
+    try {
+      const { vendor: updated } = await apiFetch<{ vendor: ApiVendor }>('/vendor/me', {
+        method: 'PUT',
+        body: JSON.stringify({ logo_url: pendingLogo }),
+      })
+      setVendor(v => v ? { ...v, logo_url: updated.logo_url } : v)
+      setPendingLogo(null)
+    } catch (err) {
+      setError(apiErrorMessage(err))
+    } finally {
+      setSavingLogo(false)
+    }
+  }
+
 
   async function uploadDoc(docType: 'Government ID' | 'Insurance certificate') {
     setUploading(docType)
@@ -206,8 +241,8 @@ export default function VendorProfilePage() {
   ]
 
   const STEPS = [
-    { key: 'email', label: 'Verify email address', done: true, actionLabel: null as string | null, action: () => {} },
-    { key: 'phone', label: 'Verify phone number', done: !!vendor.phone, actionLabel: null as string | null, action: () => {} },
+    { key: 'email', label: 'Verify email address', done: true, actionLabel: null as string | null, action: () => { } },
+    { key: 'phone', label: 'Verify phone number', done: !!vendor.phone, actionLabel: null as string | null, action: () => { } },
     {
       key: 'id', label: 'Upload government ID', done: !!govIdSubmission,
       actionLabel: uploading === 'Government ID' ? 'Uploading…' : 'Upload',
@@ -218,7 +253,7 @@ export default function VendorProfilePage() {
       actionLabel: uploading === 'Insurance certificate' ? 'Uploading…' : 'Upload',
       action: () => uploadDoc('Insurance certificate'),
     },
-    { key: 'payout', label: 'Add payout details', done: !!vendor.payout_details, actionLabel: null as string | null, action: () => {} },
+    { key: 'payout', label: 'Add payout details', done: !!vendor.payout_details, actionLabel: null as string | null, action: () => { } },
     {
       key: 'listing', label: 'Publish your first listing', done: hasActiveListing, actionLabel: 'Add listing',
       action: () => router.push('/vendor/listings/new'),
@@ -250,23 +285,50 @@ export default function VendorProfilePage() {
       )}
 
       <div className="bg-white rounded-2xl border border-[#e0d9cc] shadow-sm p-5 mb-5">
+        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Business</p>
         <div className="flex items-center gap-4 mb-5">
-          <div className="w-16 h-16 rounded-full bg-[#2c4a1e] flex items-center
-                          justify-center text-white text-2xl font-bold flex-shrink-0">
-            {user?.name?.[0]?.toUpperCase() ?? 'V'}
+          <div className="relative flex-shrink-0">
+            {(pendingLogo ?? vendor.logo_url) ? (
+              <div className="w-16 h-16 rounded-full overflow-hidden">
+                <img src={pendingLogo ?? vendor.logo_url!} alt={vendor.business_name} className="w-full h-full object-cover" />
+              </div>
+            ) : (
+              <div className="w-16 h-16 rounded-full bg-[#2c4a1e] flex items-center
+                        justify-center text-white text-2xl font-bold">
+                {vendor.business_name?.[0]?.toUpperCase() ?? 'V'}
+              </div>
+            )}
+            <label className="absolute bottom-0 right-0 w-6 h-6 rounded-full bg-white border border-gray-200
+                        flex items-center justify-center cursor-pointer shadow-sm hover:bg-gray-50 transition-colors">
+              <Camera size={12} color="#1a1a1a" />
+              <input type="file" accept="image/*" className="hidden" onChange={handleLogoFileChange} />
+            </label>
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-lg font-bold text-[#1a1a1a] truncate">{vendor.business_name}</p>
-            <p className="text-sm text-gray-400 truncate">{user?.email}</p>
+            <p className="text-xs text-gray-400 truncate">{vendor.bio || 'No description yet'}</p>
           </div>
           <button
             onClick={() => setEditing(e => !e)}
             className="px-4 py-2 rounded-xl text-sm font-semibold bg-gray-100
-                       hover:bg-gray-200 transition-colors flex-shrink-0"
+                 hover:bg-gray-200 transition-colors flex-shrink-0"
           >
             {editing ? 'Cancel' : 'Edit'}
           </button>
         </div>
+
+        {pendingLogo && (
+          <div className="flex gap-2 mb-4">
+            <button onClick={saveLogo} disabled={savingLogo}
+              className="text-xs font-semibold text-white bg-[#2c4a1e] px-3 py-1.5 rounded-full disabled:opacity-50">
+              {savingLogo ? 'Saving…' : 'Save logo'}
+            </button>
+            <button onClick={() => setPendingLogo(null)} disabled={savingLogo}
+              className="text-xs font-semibold text-[#1a1a1a] bg-gray-100 px-3 py-1.5 rounded-full">
+              Cancel
+            </button>
+          </div>
+        )}
 
         <div className="grid grid-cols-3 gap-3">
           {STATS.map(({ label, value, Icon }) => (
@@ -278,6 +340,27 @@ export default function VendorProfilePage() {
           ))}
         </div>
       </div>
+
+      <div className="bg-white rounded-2xl border border-[#e0d9cc] shadow-sm p-5 mb-5">
+        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Managed by</p>
+        <div className="flex items-center gap-4">
+          <div className="w-14 h-14 rounded-full overflow-hidden bg-[#2c4a1e] flex-shrink-0
+                    flex items-center justify-center text-white text-xl font-bold"
+            style={user?.avatar ? { backgroundImage: `url(${user.avatar})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}>
+            {!user?.avatar && (user?.name?.[0]?.toUpperCase() ?? 'V')}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold text-[#1a1a1a] truncate">{user?.name ?? 'You'}</p>
+            <p className="text-xs text-gray-400 truncate">{user?.email}</p>
+            {vendor.phone && <p className="text-xs text-gray-400 truncate">{vendor.phone}</p>}
+          </div>
+          <button onClick={() => router.push('/profile')}
+            className="text-xs font-semibold text-[#2c4a1e] flex-shrink-0">
+            Edit photo
+          </button>
+        </div>
+      </div>
+
 
       {/* Verification / onboarding */}
       <div className="bg-white rounded-2xl border border-[#e0d9cc] shadow-sm p-5 mb-5">
@@ -476,9 +559,10 @@ export default function VendorProfilePage() {
 
         <div className="flex flex-col divide-y divide-gray-100">
           <div className="flex items-center gap-3 py-3">
-            <div className="w-9 h-9 rounded-full bg-[#2c4a1e] flex items-center justify-center
-                            text-white text-sm font-bold flex-shrink-0">
-              {user?.name?.[0]?.toUpperCase() ?? 'V'}
+          <div className="w-9 h-9 rounded-full bg-[#2c4a1e] flex items-center justify-center
+                            text-white text-sm font-bold flex-shrink-0"
+              style={user?.avatar ? { backgroundImage: `url(${user.avatar})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}>
+              {!user?.avatar && (user?.name?.[0]?.toUpperCase() ?? 'V')}
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-[#1a1a1a] truncate">{user?.name ?? 'You'}</p>

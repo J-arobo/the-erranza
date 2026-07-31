@@ -102,6 +102,7 @@ type ApiListingDetail = {
     id: number
     business_name: string
     bio: string | null
+    logo_url: string | null
     languages: string[] | null
     verification_status: string
   }
@@ -462,6 +463,7 @@ export default function StayDetailPage({ params }: Props) {
     beds: listing.beds ?? 1,
     baths: listing.bathrooms ?? 1,
     hostName: listing.vendor.business_name,
+    hostLogo: listing.vendor.logo_url,
     isSuperhost: listing.is_superhost,
     yearsHosting: listing.years_hosting,
     hostSpeaks: listing.vendor.languages?.length ? listing.vendor.languages.join(', ') : null,
@@ -1239,8 +1241,9 @@ export default function StayDetailPage({ params }: Props) {
 
                     <div className="w-1/2 flex flex-col items-center">
                       <div className="relative mb-3">
-                        <div className="w-24 h-24 rounded-full bg-[#2c4a1e] flex items-center justify-center text-white text-4xl font-bold">
-                          {detail.hostName[0]}
+                        <div className="w-24 h-24 rounded-full bg-[#2c4a1e] flex items-center justify-center text-white text-4xl font-bold"
+                          style={detail.hostLogo ? { backgroundImage: `url(${detail.hostLogo})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}>
+                          {!detail.hostLogo && detail.hostName[0]}
                         </div>
                         {detail.isSuperhost && (
                           <div className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-red-500 flex items-center justify-center">
@@ -1318,8 +1321,9 @@ export default function StayDetailPage({ params }: Props) {
 
                   <div className="w-1/2 flex flex-col items-center">
                     <div className="relative mb-1.5">
-                      <div className="w-24 h-24 rounded-full bg-[#2c4a1e] flex items-center justify-center text-white text-3xl font-bold">
-                        {detail.hostName[0]}
+                    <div className="w-24 h-24 rounded-full bg-[#2c4a1e] flex items-center justify-center text-white text-3xl font-bold"
+                        style={detail.hostLogo ? { backgroundImage: `url(${detail.hostLogo})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}>
+                        {!detail.hostLogo && detail.hostName[0]}
                       </div>
                       {detail.isSuperhost && (
                         <div className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-red-500 flex items-center justify-center">

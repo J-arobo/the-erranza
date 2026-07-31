@@ -9,8 +9,8 @@ import { ArrowLeft, X, ChevronRight, Shield, Star, ChevronLeft } from 'lucide-re
 import { apiFetch, apiErrorMessage } from '@/lib/api'
 
 type Props = { params: Promise<{ id: string }> }
-type Step = 'review' | 'message' | 'confirm'
-const STEPS: Step[] = ['review', 'message', 'confirm']
+type Step = 'review' | 'message' | 'confirm' | 'payment'
+const STEPS: Step[] = ['review', 'message', 'confirm', 'payment']
 
 const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?w=400&q=80'
 
@@ -204,6 +204,14 @@ function StayBookingPageContent({ params }: Props) {
 
   const [step, setStep] = useState<Step>('review')
   const [payMode, setPayMode] = useState<'full' | 'instalments'>('full')
+  const [showPayModeSheet, setShowPayModeSheet] = useState(false)
+  const [showPaymentMethodSheet, setShowPaymentMethodSheet] = useState(false)
+  const [paymentMethod, setPaymentMethod] = useState<'card' | 'mpesa'>('card')
+  const [cardNumber, setCardNumber] = useState('')
+  const [cardExpiry, setCardExpiry] = useState('')
+  const [cardCvv, setCardCvv] = useState('')
+  const [cardName, setCardName] = useState('')
+  const [mpesaPhone, setMpesaPhone] = useState('')
   const [message, setMessage] = useState('')
   const [insurance, setInsurance] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -258,6 +266,9 @@ function StayBookingPageContent({ params }: Props) {
   const weeklyDiscount = effectiveNights >= 7 ? Math.round(total * 0.02) : 0
   const insureFee = Math.round(total * 0.08)
   const grandTotal = total + fee + (insurance ? insureFee : 0)
+  const paymentDetailsValid = paymentMethod === 'card'
+    ? cardNumber.replace(/\s/g, '').length >= 15 && cardExpiry.trim().length >= 4 && cardCvv.trim().length >= 3 && cardName.trim().length > 0
+    : mpesaPhone.trim().length >= 9
   const stayImage = listing.images[0]?.url ?? FALLBACK_IMAGE
   const hostName = listing.vendor.business_name
   const datesReady = !!(localCheckIn && localCheckOut)
@@ -273,6 +284,11 @@ function StayBookingPageContent({ params }: Props) {
         setSubmitError('Please select your check-in and check-out dates first.')
         return
       }
+      setStep('payment')
+      return
+    }
+    if (step === 'payment') {
+      if (!paymentDetailsValid) return
 
       setSubmitting(true)
       setSubmitError('')
@@ -282,8 +298,9 @@ function StayBookingPageContent({ params }: Props) {
           body: JSON.stringify({
             listing_id: listing!.id,
             guests,
-            check_in: toDateStr(localCheckIn),
-            check_out: toDateStr(localCheckOut),
+            check_in: toDateStr(localCheckIn!),
+            check_out: toDateStr(localCheckOut!),
+            payment_plan: payMode,
           }),
         })
 
@@ -303,9 +320,10 @@ function StayBookingPageContent({ params }: Props) {
     }
   }
   function goBack() {
-    if (step === 'review') { router.back(); return }
-    if (step === 'message') { setStep('review'); return }
-    if (step === 'confirm') { setStep('message'); return }
+    if (step === 'review') router.back()
+    if (step === 'message') setStep('review')
+    if (step === 'confirm') setStep('message')
+    if (step === 'payment') setStep('confirm')
   }
   function handleContentScroll(e: React.UIEvent<HTMLDivElement>) {
     if (step !== 'confirm' || reachedBottom) return
@@ -492,6 +510,7 @@ function StayBookingPageContent({ params }: Props) {
           {step === 'review' && 'Review your trip'}
           {step === 'message' && 'Message the host'}
           {step === 'confirm' && 'Confirm and pay'}
+          {step === 'payment' && 'Payment details'}
         </h1>
         <button
           onClick={() => router.back()}
@@ -585,7 +604,8 @@ function StayBookingPageContent({ params }: Props) {
             )}
 
             {/* Payment method */}
-            <button className="w-full flex items-center justify-between p-4 border
+            <button onClick={() => setShowPayModeSheet(true)}
+              className="w-full flex items-center justify-between p-4 border
                                border-gray-200 rounded-2xl mb-3 hover:bg-gray-50
                                transition-colors text-left">
               <div>
@@ -599,15 +619,17 @@ function StayBookingPageContent({ params }: Props) {
               <ChevronRight size={16} color="#aaa" />
             </button>
 
-            <button className="w-full flex items-center justify-between p-4 border
+            <button onClick={() => setShowPaymentMethodSheet(true)}
+              className="w-full flex items-center justify-between p-4 border
                                border-gray-200 rounded-2xl mb-5 hover:bg-gray-50
                                transition-colors text-left">
               <div>
                 <p className="text-sm font-semibold text-[#1a1a1a]">Payment method</p>
-                <p className="text-sm text-gray-400">Credit or Debit Card</p>
+                <p className="text-sm text-gray-400">{paymentMethod === 'card' ? 'Credit or Debit Card' : 'M-Pesa'}</p>
               </div>
               <ChevronRight size={16} color="#aaa" />
             </button>
+
 
             {/* Travel insurance */}
             <div className="mb-5">
@@ -681,6 +703,88 @@ function StayBookingPageContent({ params }: Props) {
             </div>
           </>
         )}
+
+        {/* STEP 4 — Payment details */}
+        {step === 'payment' && (
+          <>
+            <SummaryCard highlighted />
+
+            {submitError && (
+              <div className="mb-4 px-4 py-3 rounded-xl bg-red-50 text-red-600 text-sm">
+                {submitError}
+              </div>
+            )}
+
+            <div className="flex gap-2 mb-5">
+              <button onClick={() => setPaymentMethod('card')}
+                className={`flex-1 py-3 rounded-xl text-sm font-semibold border transition-colors
+                  ${paymentMethod === 'card' ? 'bg-[#2c4a1e] text-white border-[#2c4a1e]' : 'bg-white text-[#1a1a1a] border-gray-200'}`}>
+                Card
+              </button>
+              <button onClick={() => setPaymentMethod('mpesa')}
+                className={`flex-1 py-3 rounded-xl text-sm font-semibold border transition-colors
+                  ${paymentMethod === 'mpesa' ? 'bg-[#2c4a1e] text-white border-[#2c4a1e]' : 'bg-white text-[#1a1a1a] border-gray-200'}`}>
+                M-Pesa
+              </button>
+            </div>
+
+            {paymentMethod === 'card' ? (
+              <div className="flex flex-col gap-3 mb-5">
+                <div>
+                  <p className="text-xs text-gray-500 mb-1">Name on card</p>
+                  <input value={cardName} onChange={(e) => setCardName(e.target.value)}
+                    placeholder="Jane Traveller"
+                    className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm
+                               text-[#1a1a1a] outline-none focus:border-[#2c4a1e] transition-colors" />
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 mb-1">Card number</p>
+                  <input value={cardNumber} onChange={(e) => setCardNumber(e.target.value)}
+                    placeholder="4242 4242 4242 4242" inputMode="numeric"
+                    className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm
+                               text-[#1a1a1a] outline-none focus:border-[#2c4a1e] transition-colors" />
+                </div>
+                <div className="flex gap-3">
+                  <div className="flex-1">
+                    <p className="text-xs text-gray-500 mb-1">Expiry</p>
+                    <input value={cardExpiry} onChange={(e) => setCardExpiry(e.target.value)}
+                      placeholder="MM/YY"
+                      className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm
+                                 text-[#1a1a1a] outline-none focus:border-[#2c4a1e] transition-colors" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-xs text-gray-500 mb-1">CVV</p>
+                    <input value={cardCvv} onChange={(e) => setCardCvv(e.target.value)}
+                      placeholder="123" inputMode="numeric"
+                      className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm
+                                 text-[#1a1a1a] outline-none focus:border-[#2c4a1e] transition-colors" />
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-3 mb-5">
+                <div>
+                  <p className="text-xs text-gray-500 mb-1">M-Pesa phone number</p>
+                  <input value={mpesaPhone} onChange={(e) => setMpesaPhone(e.target.value)}
+                    placeholder="07XX XXX XXX" inputMode="tel"
+                    className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm
+                               text-[#1a1a1a] outline-none focus:border-[#2c4a1e] transition-colors" />
+                </div>
+                <p className="text-xs text-gray-500">
+                  You&apos;ll receive an M-Pesa prompt on this number to complete the payment.
+                </p>
+              </div>
+            )}
+
+            <div className="flex items-center gap-2 mb-4 p-3 bg-gray-50 rounded-xl">
+              <Shield size={16} color="#2c4a1e" />
+              <p className="text-xs text-gray-500">
+                To protect your payment, always book through Erranza.
+              </p>
+            </div>
+          </>
+        )}
+
       </div>
 
       {/* Progress + CTA */}
@@ -699,13 +803,39 @@ function StayBookingPageContent({ params }: Props) {
             <>
               <button
                 onClick={goNext}
-                disabled={submitting || !datesReady || !reachedBottom}
+                disabled={!datesReady || !reachedBottom}
                 className="w-full bg-[#2c4a1e] text-white py-4 rounded-2xl font-bold
                            text-sm hover:bg-[#3d6b28] transition-colors
                            disabled:opacity-40 disabled:cursor-not-allowed"
                 style={{ WebkitTapHighlightColor: 'transparent' }}
               >
-                {submitting ? 'Booking…' : `Confirm and pay · Ksh ${grandTotal.toLocaleString()}`}
+                {`Continue to payment · Ksh ${grandTotal.toLocaleString()}`}
+              </button>
+              <p className="text-xs text-gray-400 text-center mt-3 leading-relaxed">
+                By tapping, I agree to the{' '}
+                <button className="underline text-[#1a1a1a]">booking terms</button>
+                {', '}
+                <button className="underline text-[#1a1a1a]">Terms of Service</button>
+                {' and '}
+                <button className="underline text-[#1a1a1a]">Privacy Policy</button>.
+              </p>
+            </>
+          ) : step === 'payment' ? (
+            <>
+              <button
+                onClick={goNext}
+                disabled={submitting || !paymentDetailsValid}
+                className="w-full bg-[#2c4a1e] text-white py-4 rounded-2xl font-bold
+                           text-sm hover:bg-[#3d6b28] transition-colors
+                           disabled:opacity-40 disabled:cursor-not-allowed"
+                style={{ WebkitTapHighlightColor: 'transparent' }}
+              >
+                {submitting
+                  ? 'Processing…'
+                  : payMode === 'instalments'
+                    ? `Pay first instalment · Ksh ${Math.round(total / 3).toLocaleString()}`
+                    : `Pay Ksh ${grandTotal.toLocaleString()}`}
+
               </button>
               <p className="text-xs text-gray-400 text-center mt-3 leading-relaxed">
                 By tapping, I agree to the{' '}
@@ -717,6 +847,7 @@ function StayBookingPageContent({ params }: Props) {
               </p>
             </>
           ) : (
+
             <button
               onClick={goNext}
               disabled={step === 'message' && message.trim().length < 10}
@@ -834,6 +965,66 @@ function StayBookingPageContent({ params }: Props) {
                 Save
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* How you'll pay sheet */}
+      {showPayModeSheet && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
+          style={{ background: 'rgba(0,0,0,0.4)' }}
+          onClick={(e) => { if (e.target === e.currentTarget) setShowPayModeSheet(false) }}>
+          <div className="bg-white w-full sm:max-w-sm rounded-t-3xl sm:rounded-2xl p-6">
+            <h2 className="text-lg font-bold text-[#1a1a1a] mb-4">How you&apos;ll pay</h2>
+            <div className="flex flex-col gap-2 mb-5">
+              <label className={`flex items-center justify-between p-4 rounded-xl border cursor-pointer
+                ${payMode === 'full' ? 'border-[#2c4a1e] bg-[#eaf5e4]' : 'border-gray-200'}`}>
+                <div>
+                  <p className="text-sm font-semibold text-[#1a1a1a]">Pay in full</p>
+                  <p className="text-xs text-gray-500">Ksh {total.toLocaleString()} now</p>
+                </div>
+                <input type="radio" name="payMode" checked={payMode === 'full'} onChange={() => setPayMode('full')} className="w-4 h-4 accent-[#2c4a1e]" />
+              </label>
+              <label className={`flex items-center justify-between p-4 rounded-xl border cursor-pointer
+                ${payMode === 'instalments' ? 'border-[#2c4a1e] bg-[#eaf5e4]' : 'border-gray-200'}`}>
+                <div>
+                  <p className="text-sm font-semibold text-[#1a1a1a]">Pay in 3 instalments</p>
+                  <p className="text-xs text-gray-500">3 × Ksh {Math.round(total / 3).toLocaleString()}</p>
+                </div>
+                <input type="radio" name="payMode" checked={payMode === 'instalments'} onChange={() => setPayMode('instalments')} className="w-4 h-4 accent-[#2c4a1e]" />
+              </label>
+            </div>
+            <button onClick={() => setShowPayModeSheet(false)}
+              className="w-full py-3 rounded-xl bg-[#2c4a1e] text-white text-sm font-semibold hover:bg-[#3d6b28] transition-colors">
+              Done
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Payment method sheet */}
+      {showPaymentMethodSheet && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
+          style={{ background: 'rgba(0,0,0,0.4)' }}
+          onClick={(e) => { if (e.target === e.currentTarget) setShowPaymentMethodSheet(false) }}>
+          <div className="bg-white w-full sm:max-w-sm rounded-t-3xl sm:rounded-2xl p-6">
+            <h2 className="text-lg font-bold text-[#1a1a1a] mb-4">Payment method</h2>
+            <div className="flex flex-col gap-2 mb-5">
+              <label className={`flex items-center justify-between p-4 rounded-xl border cursor-pointer
+                ${paymentMethod === 'card' ? 'border-[#2c4a1e] bg-[#eaf5e4]' : 'border-gray-200'}`}>
+                <p className="text-sm font-semibold text-[#1a1a1a]">Credit or Debit Card</p>
+                <input type="radio" name="paymentMethod" checked={paymentMethod === 'card'} onChange={() => setPaymentMethod('card')} className="w-4 h-4 accent-[#2c4a1e]" />
+              </label>
+              <label className={`flex items-center justify-between p-4 rounded-xl border cursor-pointer
+                ${paymentMethod === 'mpesa' ? 'border-[#2c4a1e] bg-[#eaf5e4]' : 'border-gray-200'}`}>
+                <p className="text-sm font-semibold text-[#1a1a1a]">M-Pesa</p>
+                <input type="radio" name="paymentMethod" checked={paymentMethod === 'mpesa'} onChange={() => setPaymentMethod('mpesa')} className="w-4 h-4 accent-[#2c4a1e]" />
+              </label>
+            </div>
+            <button onClick={() => setShowPaymentMethodSheet(false)}
+              className="w-full py-3 rounded-xl bg-[#2c4a1e] text-white text-sm font-semibold hover:bg-[#3d6b28] transition-colors">
+              Done
+            </button>
           </div>
         </div>
       )}

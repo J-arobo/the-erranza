@@ -54,7 +54,7 @@ type ApiListingDetail = {
   years_hosting: number
   response_rate: number | null
   avg_response_minutes: number | null
-  vendor: { business_name: string }
+  vendor: { business_name: string; logo_url: string | null }
 }
 
 type ApiListingSummary = { id: number; title: string; price: string; images: { url: string }[] }
@@ -628,9 +628,13 @@ export default function VendorDetailPage({ params }: Props) {
               {/* Host mini-row */}
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 rounded-full flex items-center justify-center
-                              flex-shrink-0 text-white text-lg font-semibold" style={{ background: '#2c4a1e' }}>
-                  {listing.vendor.business_name[0]}
+                              flex-shrink-0 text-white text-lg font-semibold"
+                  style={listing.vendor.logo_url
+                    ? { backgroundImage: `url(${listing.vendor.logo_url})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+                    : { background: '#2c4a1e' }}>
+                  {!listing.vendor.logo_url && listing.vendor.business_name[0]}
                 </div>
+
                 <div>
                   <p className="text-base font-semibold text-[#304333]">
                     Toured by {listing.vendor.business_name}
@@ -1002,8 +1006,11 @@ export default function VendorDetailPage({ params }: Props) {
                   <div className="flex items-center">
                     <div className="w-1/2 flex flex-col items-center">
                       <div className="relative mb-3">
-                        <div className="w-24 h-24 rounded-full flex items-center justify-center text-white text-4xl font-bold" style={{ background: '#2c4a1e' }}>
-                          {listing.vendor.business_name[0]}
+                        <div className="w-24 h-24 rounded-full flex items-center justify-center text-white text-4xl font-bold"
+                          style={listing.vendor.logo_url
+                            ? { backgroundImage: `url(${listing.vendor.logo_url})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+                            : { background: '#2c4a1e' }}>
+                          {!listing.vendor.logo_url && listing.vendor.business_name[0]}
                         </div>
                         <div className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-white border border-gray-200 flex items-center justify-center">
                           <Shield size={12} color="#2c4a1e" />
@@ -1059,9 +1066,13 @@ export default function VendorDetailPage({ params }: Props) {
                 <div className="flex items-center">
                   <div className="w-1/2 flex flex-col items-center">
                     <div className="relative mb-1.5">
-                      <div className="w-24 h-24 rounded-full flex items-center justify-center text-white text-3xl font-bold" style={{ background: '#2c4a1e' }}>
-                        {listing.vendor.business_name[0]}
+                      <div className="w-24 h-24 rounded-full flex items-center justify-center text-white text-3xl font-bold"
+                        style={listing.vendor.logo_url
+                          ? { backgroundImage: `url(${listing.vendor.logo_url})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+                          : { background: '#2c4a1e' }}>
+                        {!listing.vendor.logo_url && listing.vendor.business_name[0]}
                       </div>
+
                       <div className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-white border border-gray-200 flex items-center justify-center">
                         <Shield size={10} color="#2c4a1e" />
                       </div>
@@ -1257,7 +1268,7 @@ export default function VendorDetailPage({ params }: Props) {
               </div>
               <button onClick={() => setShowAllReviewsPage(false)}
                 className="w-9 h-9 rounded-full flex items-center justify-center"
-                style={{ background: '#f5f0e6', border: 'none', cursor: 'pointer' }}>
+                style={{ background: '#f5f5f5', border: 'none', cursor: 'pointer' }}>
                 <X size={18} color="#304333" />
               </button>
             </div>
@@ -1266,7 +1277,8 @@ export default function VendorDetailPage({ params }: Props) {
                 <p className="text-sm font-semibold text-[#304333]">No reviews yet</p>
               </div>
             ) : (
-              <div className="grid sm:grid-cols-2 gap-6">
+              <div className="flex flex-col gap-6">
+
                 {reviews.map((review) => (
                   <div key={review.id} className="flex flex-col gap-3">
                     <div className="flex items-center gap-3">

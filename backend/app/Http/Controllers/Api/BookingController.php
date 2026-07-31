@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Booking;
+use App\Models\BookingPayment;
 use App\Models\Listing;
 use App\Models\ListingDeparture;
 use Carbon\Carbon;
@@ -32,6 +33,7 @@ class BookingController extends Controller
             'check_out' => ['nullable', 'date', 'after:check_in'],
             'departure_id' => ['nullable', 'exists:listing_departures,id'],
             'special_requests' => ['nullable', 'string'],
+            'payment_plan' => ['nullable', 'in:full,instalments'],
         ]);
 
         $listing = Listing::findOrFail($validated['listing_id']);
@@ -110,8 +112,9 @@ class BookingController extends Controller
             : 1;
 
         $total = $listing->price * $validated['guests'] * $nights;
+        $paymentPlan = $validated['payment_plan'] ?? 'full';
 
-        $booking = DB::transaction(function () use ($request, $listing, $departure, $effectiveCheckIn, $validated, $total) {
+        $booking = DB::transaction(function () use ($request, $listing, $departure, $effectiveCheckIn, $validated, $total, $paymentPlan) {
             if ($departure) {
                 $locked = ListingDeparture::where('id', $departure->id)->lockForUpdate()->first();
 
@@ -124,16 +127,41 @@ class BookingController extends Controller
                 $locked->increment('booked');
             }
 
-            return $request->user()->bookings()->create([
+            $booking = $request->user()->bookings()->create([
                 'listing_id' => $listing->id,
                 'departure_id' => $departure?->id,
                 'status' => 'pending',
                 'guests' => $validated['guests'],
                 'total' => $total,
+                'payment_plan' => $paymentPlan,
                 'check_in' => $effectiveCheckIn,
                 'check_out' => $validated['check_out'] ?? null,
                 'special_requests' => $validated['special_requests'] ?? null,
             ]);
+
+            if ($paymentPlan === 'instalments') {
+                $installmentAmount = round($total / 3, 2);
+                $lastAmount = round($total - ($installmentAmount * 2), 2);
+
+                $booking->payments()->create([
+                    'amount' => $installmentAmount,
+                    'due_date' => now()->toDateString(),
+                    'status' => 'paid',
+                    'paid_at' => now(),
+                ]);
+                $booking->payments()->create([
+                    'amount' => $installmentAmount,
+                    'due_date' => now()->addDays(30)->toDateString(),
+                    'status' => 'pending',
+                ]);
+                $booking->payments()->create([
+                    'amount' => $lastAmount,
+                    'due_date' => now()->addDays(60)->toDateString(),
+                    'status' => 'pending',
+                ]);
+            }
+
+            return $booking;
         });
 
         $listing->vendor->notifications()->create([
@@ -143,6 +171,8 @@ class BookingController extends Controller
             'link' => "/vendor/bookings/{$booking->id}",
         ]);
 
+        $booking->load('payments');
+
         return response()->json(['booking' => $booking], 201);
     }
 
@@ -150,9 +180,21 @@ class BookingController extends Controller
     {
         $this->authorizeOwnership($request, $booking);
 
-        $booking->load(['listing.images', 'listing.itinerary', 'listing.vendor:id,business_name,phone', 'messages.sender:id,name', 'review']);
+        $booking->load(['listing.images', 'listing.itinerary', 'listing.vendor:id,business_name,phone', 'messages.sender:id,name', 'review', 'payments']);
 
         return response()->json(['booking' => $booking]);
+    }
+
+    public function payInstallment(Request $request, Booking $booking, BookingPayment $payment)
+    {
+        $this->authorizeOwnership($request, $booking);
+
+        abort_unless($payment->booking_id === $booking->id, 404);
+        abort_unless($payment->status === 'pending', 422, 'This payment has already been made.');
+
+        $payment->update(['status' => 'paid', 'paid_at' => now()]);
+
+        return response()->json(['payment' => $payment]);
     }
 
     public function cancel(Request $request, Booking $booking)
