@@ -778,9 +778,10 @@ export default function StayDetailPage({ params }: Props) {
 
               {/* ── Host row ── */}
               <div className="flex items-center gap-4 pb-1 sm:px-0" style={{ ...MOB_PAD }}>
-                <div className="relative flex-shrink-0">
-                  <div className="w-12 h-12 rounded-full bg-[#2c4a1e] flex items-center justify-center text-white text-lg font-semibold">
-                    {detail.hostName[0]}
+              <div className="relative flex-shrink-0">
+                  <div className="w-12 h-12 rounded-full bg-[#2c4a1e] flex items-center justify-center text-white text-lg font-semibold"
+                    style={detail.hostLogo ? { backgroundImage: `url(${detail.hostLogo})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}>
+                    {!detail.hostLogo && detail.hostName[0]}
                   </div>
                   {detail.isSuperhost && (
                     <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-red-500 flex items-center justify-center">
