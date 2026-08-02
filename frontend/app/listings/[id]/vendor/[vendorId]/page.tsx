@@ -6,6 +6,7 @@ import {
   ArrowLeft, Share2, Heart, Star, X, Camera, Grid2X2,
   ChevronRight, ChevronLeft, Flag, Shield, Calendar, CalendarX2, Key, ShieldHalf,
   MessageCircle, Check, MapPin,
+  Clock, Users, FileText, ShieldAlert,
 } from 'lucide-react'
 import { apiFetch, apiErrorMessage } from '@/lib/api'
 import FooterSection from '@/components/FooterSection'
@@ -26,6 +27,58 @@ const SAFARI_VIDEOS = [
   'https://assets.mixkit.co/videos/11165/11165-720.mp4',
 ]
 
+const CANCELLATION_POLICIES: Record<string, { label: string; description: string }> = {
+  flexible: { label: 'Flexible', description: 'Full refund up to 24 hours before the trip starts.' },
+  moderate: { label: 'Moderate', description: 'Full refund up to 5 days before the trip starts, 50% refund after that.' },
+  strict: { label: 'Strict', description: 'Full refund up to 14 days before the trip starts. No refund after that.' },
+  custom: { label: 'Custom', description: 'Refund terms set by the tour operator.' },
+}
+
+function formatCutoffDate(d: Date): string {
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+}
+
+// Cutoffs are computed from the real selected tour date (when one's picked),
+// same reasoning as the Stays page — no date means nothing to compute yet.
+function getCancellationRows(
+  tier: string, policyLabel: string, description: string, customText: string | null, tourDate: Date | null
+) {
+  if (tier === 'custom') {
+    return [{ prefix: '', date: '', time: '', label: 'Custom policy', text: customText || description }]
+  }
+  if (!tourDate) {
+    return [{ prefix: '', date: '', time: '', label: policyLabel, text: description }]
+  }
+
+  const days = tier === 'flexible' ? 1 : tier === 'strict' ? 14 : 5
+  const cutoff = new Date(tourDate)
+  cutoff.setDate(cutoff.getDate() - days)
+  const cutoffDate = formatCutoffDate(cutoff)
+
+  if (tier === 'moderate') {
+    return [
+      { prefix: 'Before', date: cutoffDate, time: '2:00 PM', label: 'Full refund', text: 'Get back 100% of what you paid.' },
+      { prefix: 'Before', date: formatCutoffDate(tourDate), time: '2:00 PM', label: 'Partial refund', text: "Get back 50%. No refund of the service fee." },
+    ]
+  }
+
+  return [
+    { prefix: 'Before', date: cutoffDate, time: '2:00 PM', label: 'Full refund', text: 'Get back 100% of what you paid.' },
+    { prefix: 'After', date: cutoffDate, time: '2:00 PM', label: 'No refund', text: 'This reservation is non-refundable after that.' },
+  ]
+}
+
+function InfoRow({ icon, label, sublabel }: { icon: React.ReactNode; label: string; sublabel?: string }) {
+  return (
+    <div className="flex items-start gap-3 py-3" style={{ borderBottom: '1px solid #f0ede8' }}>
+      <span className="text-[#304333] flex-shrink-0 mt-0.5">{icon}</span>
+      <div>
+        <p className="text-sm font-semibold text-[#304333]">{label}</p>
+        {sublabel && <p className="text-xs text-[#78716c] mt-0.5">{sublabel}</p>}
+      </div>
+    </div>
+  )
+}
 
 function formatDuration(minutes: number): string {
   if (minutes < 60) return `within ${Math.round(minutes)}m`
@@ -55,6 +108,8 @@ type ApiListingDetail = {
   response_rate: number | null
   avg_response_minutes: number | null
   vendor: { business_name: string; logo_url: string | null }
+  cancellation_policy: 'flexible' | 'moderate' | 'strict' | 'custom'
+  custom_cancellation_text: string | null
 }
 
 type ApiListingSummary = { id: number; title: string; price: string; images: { url: string }[] }
@@ -275,6 +330,7 @@ export default function VendorDetailPage({ params }: Props) {
   const [wishlisted, setWishlisted] = useState(false)
   const [showFullDesc, setShowFullDesc] = useState(false)
   const [showAmenitiesModal, setShowAmenitiesModal] = useState(false)
+  const [activeInfo, setActiveInfo] = useState<{ title: string; body: React.ReactNode } | null>(null)
   const [showAllReviewsPage, setShowAllReviewsPage] = useState(false)
   const [expandedReview, setExpandedReview] = useState<number | null>(null)
   const [activeImage, setActiveImage] = useState(0)
@@ -282,6 +338,8 @@ export default function VendorDetailPage({ params }: Props) {
 
   const touchStartX = useRef<number>(0)
   const touchEndX = useRef<number>(0)
+
+  const dateSectionRef = useRef<HTMLDivElement>(null) // scroll target for "Add dates"
 
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
   const [adults, setAdults] = useState(1)
@@ -343,7 +401,69 @@ export default function VendorDetailPage({ params }: Props) {
   const lng = listing.lng != null && isFinite(Number(listing.lng)) ? Number(listing.lng) : null
   const responseTime = listing.avg_response_minutes !== null ? formatDuration(listing.avg_response_minutes) : null
 
+  const cancellationPolicy = CANCELLATION_POLICIES[listing.cancellation_policy] ?? CANCELLATION_POLICIES.moderate
+  const cancellationDescription = listing.cancellation_policy === 'custom'
+    ? (listing.custom_cancellation_text || cancellationPolicy.description)
+    : cancellationPolicy.description
+
+  const scrollToDates = () => dateSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+
+  const cancellationModalBody = (
+    <div className="flex flex-col gap-6">
+      {getCancellationRows(listing.cancellation_policy, cancellationPolicy.label, cancellationDescription, listing.custom_cancellation_text, selectedDate).map((r, i) => (
+        <div key={i} className="flex gap-4 pb-4" style={{ borderBottom: '1px solid #f0ede8' }}>
+          {(r.prefix || r.date || r.time) && (
+            <div className="flex-shrink-0" style={{ width: 110 }}>
+              {r.prefix && <p className="text-sm font-bold text-[#304333]">{r.prefix}</p>}
+              {r.date && <p className="text-sm text-[#304333]">{r.date}</p>}
+              {r.time && <p className="text-sm text-[#304333]">{r.time}</p>}
+            </div>
+          )}
+          <div>
+            <p className="text-sm font-bold text-[#304333]">{r.label}</p>
+            <p className="text-sm text-[#78716c] mt-0.5">{r.text}</p>
+          </div>
+        </div>
+      ))}
+      <div>
+        <p className="text-sm font-bold text-[#304333] mb-1">Refund eligibility</p>
+        <p className="text-sm text-[#78716c]">If you're paying in instalments, your refund or amount due depends on how much you've already paid at the time of cancellation.</p>
+      </div>
+    </div>
+  )
+
+  const rulesModalBody = (
+    <div className="flex flex-col">
+      <p className="text-sm font-bold text-[#304333] mb-1">Before the tour</p>
+      <InfoRow icon={<Clock size={18} strokeWidth={1.5} />} label="Arrive 15 minutes before departure" />
+      <InfoRow icon={<FileText size={18} strokeWidth={1.5} />} label="Bring a valid ID or passport" />
+      <p className="text-sm font-bold text-[#304333] mt-5 mb-1">During the tour</p>
+      <InfoRow icon={<Users size={18} strokeWidth={1.5} />} label="Follow your guide's instructions at all times" />
+      <InfoRow icon={<Camera size={18} strokeWidth={1.5} />} label="Respect wildlife — no flash photography" />
+      <InfoRow icon={<ShieldAlert size={18} strokeWidth={1.5} />} label="Stay inside the vehicle during game drives" />
+      <p className="text-sm font-bold text-[#304333] mt-5 mb-1">After the tour</p>
+      <InfoRow icon={<Key size={18} strokeWidth={1.5} />} label="Settle any outstanding balance with your operator" />
+    </div>
+  )
+
+  const safetyModalBody = (
+    <div className="flex flex-col">
+      <p className="text-sm text-[#78716c] mb-4">Avoid surprises by looking over these important safety details for this tour.</p>
+      <p className="text-sm font-bold text-[#304333] mb-1">On this tour</p>
+      <InfoRow icon={<ShieldAlert size={18} strokeWidth={1.5} />} label="Trained, licensed guide on every trip" />
+      <InfoRow icon={<Shield size={18} strokeWidth={1.5} />} label="First-aid kit carried on all vehicles" />
+      <InfoRow icon={<ShieldAlert size={18} strokeWidth={1.5} />} label="Vehicle safety-checked before departure" />
+    </div>
+  )
+
+  const infoModals = {
+    cancellation: { title: 'Cancellation policy', body: cancellationModalBody },
+    rules: { title: 'Tour rules', body: rulesModalBody },
+    safety: { title: 'Safety information', body: safetyModalBody },
+  }
+
   function handleTouchStart(e: React.TouchEvent) {
+
     touchStartX.current = e.changedTouches[0].clientX
   }
   function handleTouchEnd(e: React.TouchEvent) {
@@ -864,7 +984,7 @@ export default function VendorDetailPage({ params }: Props) {
 
           <Divider />
           {/* Select tour date */}
-          <div>
+          <div ref={dateSectionRef}>
             <h2 className="text-xl font-semibold text-[#304333] mb-1">
               {selectedDate ? `Selected: ${selectedDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}` : 'Select a date'}
             </h2>
@@ -924,7 +1044,7 @@ export default function VendorDetailPage({ params }: Props) {
                   {visibleReviewsDesktop.map((review) => (
                     <div key={review.id} className="flex flex-col gap-3">
                       <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full flex items-center justify-center
+                        <div className="w-10 h-10 rounded-full flex items-center justify-center
                                                         text-sm font-semibold flex-shrink-0 text-white"
                           style={review.traveller.avatar_url
                             ? { backgroundImage: `url(${review.traveller.avatar_url})`, backgroundSize: 'cover', backgroundPosition: 'center' }
@@ -1130,25 +1250,33 @@ export default function VendorDetailPage({ params }: Props) {
 
             <div className="hidden sm:grid grid-cols-3 gap-8">
               {[
-                { icon: <CalendarX2 size={32} strokeWidth={1.5} />, title: 'Cancellation policy', items: ['This reservation is non-refundable.', 'Review the full policy for details.'] },
-                { icon: <Key size={32} strokeWidth={1.5} />, title: 'Tour rules', items: ['Respect wildlife, no flash photography.', 'Follow guide instructions at all times.'] },
-                { icon: <ShieldHalf size={32} strokeWidth={1.5} />, title: 'Safety information', items: ['Stay inside the vehicle during game drives.', 'Emergency protocols briefed on arrival.'] },
-              ].map(({ icon, title: st, items }) => (
+                { icon: <CalendarX2 size={32} strokeWidth={1.5} />, title: 'Cancellation policy', items: [`${cancellationPolicy.label}: ${cancellationDescription}`], modalKey: 'cancellation' as const },
+                { icon: <Key size={32} strokeWidth={1.5} />, title: 'Tour rules', items: ['Respect wildlife, no flash photography.', 'Follow guide instructions at all times.'], modalKey: 'rules' as const },
+                { icon: <ShieldHalf size={32} strokeWidth={1.5} />, title: 'Safety information', items: ['Stay inside the vehicle during game drives.', 'Emergency protocols briefed on arrival.'], modalKey: 'safety' as const },
+              ].map(({ icon, title: st, items, modalKey }) => (
                 <div key={st}>
                   <div className="mb-4 text-[#304333]">{icon}</div>
                   <p className="text-base font-semibold text-[#304333] mb-3">{st}</p>
                   {items.map(item => <p key={item} className="text-sm text-[#78716c] mb-0.5">{item}</p>)}
+                  <button onClick={() => setActiveInfo(infoModals[modalKey])}
+                    className="text-sm text-[#78716c] underline mt-2"
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                    Learn more
+                  </button>
+
                 </div>
               ))}
             </div>
 
             <div className="sm:hidden">
+
               {[
-                { icon: <Calendar size={22} strokeWidth={1.5} />, title: 'Cancellation policy', items: ['This reservation is non-refundable.', 'Review the full policy for details.'] },
-                { icon: <Key size={22} strokeWidth={1.5} />, title: 'Tour rules', items: ['Respect wildlife, no flash photography.', 'Follow guide instructions at all times.'] },
-                { icon: <ShieldHalf size={22} strokeWidth={1.5} />, title: 'Safety information', items: ['Stay inside the vehicle during game drives.', 'Emergency protocols briefed on arrival.'] },
-              ].map(({ icon, title: st, items }, idx, arr) => (
-                <div key={st} className="flex items-start gap-4 py-4" style={idx < arr.length - 1 ? { borderBottom: '1px solid #e8e0d0' } : {}}>
+                { icon: <Calendar size={22} strokeWidth={1.5} />, title: 'Cancellation policy', items: [`${cancellationPolicy.label}: ${cancellationDescription}`], modalKey: 'cancellation' as const },
+                { icon: <Key size={22} strokeWidth={1.5} />, title: 'Tour rules', items: ['Respect wildlife, no flash photography.', 'Follow guide instructions at all times.'], modalKey: 'rules' as const },
+                { icon: <ShieldHalf size={22} strokeWidth={1.5} />, title: 'Safety information', items: ['Stay inside the vehicle during game drives.', 'Emergency protocols briefed on arrival.'], modalKey: 'safety' as const },
+              ].map(({ icon, title: st, items, modalKey }, idx, arr) => (
+                <div key={st} onClick={() => setActiveInfo(infoModals[modalKey])}
+                  className="flex items-start gap-4 py-4 cursor-pointer" style={idx < arr.length - 1 ? { borderBottom: '1px solid #e8e0d0' } : {}}>
                   <span className="text-[#304333] flex-shrink-0 mt-0.5">{icon}</span>
                   <div className="flex-1">
                     <p className="text-sm font-semibold text-[#304333] mb-1">{st}</p>
@@ -1160,6 +1288,7 @@ export default function VendorDetailPage({ params }: Props) {
             </div>
 
             <button className="flex items-center gap-2 mt-5">
+
               <Flag size={14} color="#78716c" />
               <span className="text-sm text-[#304333] underline">Report this listing</span>
             </button>
@@ -1309,6 +1438,34 @@ export default function VendorDetailPage({ params }: Props) {
         </div>
       )}
 
+      {/* Active info modal */}
+      {activeInfo && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
+          style={{ background: 'rgba(0,0,0,0.4)' }}
+          onClick={(e) => { if (e.target === e.currentTarget) setActiveInfo(null) }}>
+          <div className="bg-white w-full sm:max-w-xl rounded-t-3xl sm:rounded-2xl h-[92vh] sm:h-auto sm:max-h-[85vh] overflow-y-auto flex flex-col">
+            <div className="sm:hidden flex items-center px-5 pt-6 pb-2 sticky top-0 bg-white z-10">
+              <button onClick={() => setActiveInfo(null)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                <ArrowLeft size={20} color="#304333" />
+              </button>
+            </div>
+            <div className="hidden sm:flex items-center justify-between px-8 pt-8">
+              <h2 className="text-2xl font-bold text-[#304333]">{activeInfo.title}</h2>
+              <button onClick={() => setActiveInfo(null)}
+                className="w-9 h-9 flex items-center justify-center rounded-full"
+                style={{ background: '#f5f5f5', border: 'none', cursor: 'pointer' }}>
+                <X size={18} color="#304333" />
+              </button>
+            </div>
+            <div className="px-5 sm:px-8 pb-8 sm:pb-10 pt-2 sm:pt-6">
+              <h2 className="text-2xl sm:hidden font-bold text-[#304333] mb-4">{activeInfo.title}</h2>
+              {activeInfo.body}
+            </div>
+          </div>
+
+        </div>
+      )}
     </div>
   )
 }

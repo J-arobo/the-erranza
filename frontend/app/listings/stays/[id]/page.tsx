@@ -11,6 +11,7 @@ import {
   ShowerHead, Dumbbell, Coffee, Snowflake, Home,
   MapPin, Camera, Globe, Calendar,
   CalendarX2, Key, ShieldHalf,
+  Clock, DoorOpen, Users, PawPrint, Moon, VolumeX, Power, ShieldAlert,
 } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { apiFetch, apiErrorMessage } from '@/lib/api'
@@ -54,6 +55,56 @@ const CANCELLATION_POLICIES: Record<string, { label: string; description: string
   strict: { label: 'Strict', description: 'Full refund up to 14 days before check-in. No refund after that.' },
   custom: { label: 'Custom', description: 'Refund terms set by the host.' },
 }
+
+function formatCutoffDate(d: Date): string {
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+}
+
+// Cutoffs are computed from the real check-in date (when one's picked) so the
+// modal can show "Before Sep 17, 2:00 PM", instead of vague
+// "5 days before check-in" language. Without a check-in date there's nothing
+// to compute, so callers fall back to the generic tier description.
+function getCancellationRows(
+  tier: string, policyLabel: string, description: string, customText: string | null, checkIn: Date | null
+) {
+  if (tier === 'custom') {
+    return [{ prefix: '', date: '', time: '', label: 'Custom policy', text: customText || description }]
+  }
+  if (!checkIn) {
+    return [{ prefix: '', date: '', time: '', label: policyLabel, text: description }]
+  }
+
+  const days = tier === 'flexible' ? 1 : tier === 'strict' ? 14 : 5 // moderate default
+  const cutoff = new Date(checkIn)
+  cutoff.setDate(cutoff.getDate() - days)
+  const cutoffDate = formatCutoffDate(cutoff)
+
+  if (tier === 'moderate') {
+    return [
+      { prefix: 'Before', date: cutoffDate, time: '2:00 PM', label: 'Full refund', text: 'Get back 100% of what you paid.' },
+      { prefix: 'Before', date: formatCutoffDate(checkIn), time: '2:00 PM', label: 'Partial refund', text: 'Get back 50% of the remaining nights. No refund of the first night or the service fee.' },
+    ]
+  }
+
+  return [
+    { prefix: 'Before', date: cutoffDate, time: '2:00 PM', label: 'Full refund', text: 'Get back 100% of what you paid.' },
+    { prefix: 'After', date: cutoffDate, time: '2:00 PM', label: 'No refund', text: 'This reservation is non-refundable after that.' },
+  ]
+}
+
+
+function InfoRow({ icon, label, sublabel }: { icon: React.ReactNode; label: string; sublabel?: string }) {
+  return (
+    <div className="flex items-start gap-3 py-3" style={{ borderBottom: '1px solid #f0ede8' }}>
+      <span className="text-[#304333] flex-shrink-0 mt-0.5">{icon}</span>
+      <div>
+        <p className="text-sm font-semibold text-[#304333]">{label}</p>
+        {sublabel && <p className="text-xs text-[#78716c] mt-0.5">{sublabel}</p>}
+      </div>
+    </div>
+  )
+}
+
 
 function formatDuration(minutes: number): string {
   if (minutes < 60) return `${Math.round(minutes)}m`
@@ -372,6 +423,7 @@ export default function StayDetailPage({ params }: Props) {
   const [showAllReviewsPage, setShowAllReviewsPage] = useState(false)
   const [showDescModal, setShowDescModal] = useState(false)
   const [showAmenitiesModal, setShowAmenitiesModal] = useState(false)
+  const [activeInfo, setActiveInfo] = useState<{ title: string; body: React.ReactNode } | null>(null)
   const [showFullDesc, setShowFullDesc] = useState(false)
   const [nights, setNights] = useState(2)
   const [checkIn, setCheckIn] = useState<Date | null>(null)
@@ -386,6 +438,7 @@ export default function StayDetailPage({ params }: Props) {
   const [pets, setPets] = useState(0)
   const scrollRef = useRef<HTMLDivElement>(null)
   const photoGridRef = useRef<HTMLDivElement>(null)
+  const calendarSectionRef = useRef<HTMLDivElement>(null) // scroll target for "Add dates"
   const [messaging, setMessaging] = useState(false)
 
 
@@ -490,6 +543,69 @@ export default function StayDetailPage({ params }: Props) {
   const cancellationDescription = listing.cancellation_policy === 'custom'
     ? (listing.custom_cancellation_text || cancellationPolicy.description)
     : cancellationPolicy.description
+
+  // "Add dates" scrolls to the inline calendar instead of opening the modal,
+  // since there's nothing real to show in the cancellation table until a
+  // check-in date exists.
+  const scrollToDates = () => calendarSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+
+  const cancellationModalBody = (
+    <div className="flex flex-col gap-6">
+      {getCancellationRows(listing.cancellation_policy, cancellationPolicy.label, cancellationDescription, listing.custom_cancellation_text, checkIn).map((r, i) => (
+        <div key={i} className="flex gap-4 pb-4" style={{ borderBottom: '1px solid #f0ede8' }}>
+          {(r.prefix || r.date || r.time) && (
+            <div className="flex-shrink-0" style={{ width: 110 }}>
+              {r.prefix && <p className="text-sm font-bold text-[#304333]">{r.prefix}</p>}
+              {r.date && <p className="text-sm text-[#304333]">{r.date}</p>}
+              {r.time && <p className="text-sm text-[#304333]">{r.time}</p>}
+            </div>
+          )}
+          <div>
+            <p className="text-sm font-bold text-[#304333]">{r.label}</p>
+            <p className="text-sm text-[#78716c] mt-0.5">{r.text}</p>
+          </div>
+        </div>
+      ))}
+      <div>
+        <p className="text-sm font-bold text-[#304333] mb-1">Refund eligibility</p>
+        <p className="text-sm text-[#78716c]">If you're paying in instalments, your refund or amount due depends on how much you've already paid at the time of cancellation.</p>
+      </div>
+    </div>
+  )
+
+  const rulesModalBody = (
+    <div className="flex flex-col">
+      <p className="text-sm font-bold text-[#304333] mb-1">Checking in and out</p>
+      <InfoRow icon={<Clock size={18} strokeWidth={1.5} />} label="Check-in after 2:00 PM" />
+      <InfoRow icon={<Clock size={18} strokeWidth={1.5} />} label="Checkout before 11:00 AM" />
+      <InfoRow icon={<DoorOpen size={18} strokeWidth={1.5} />} label="Self check-in with keypad" />
+      <p className="text-sm font-bold text-[#304333] mt-5 mb-1">During your stay</p>
+      <InfoRow icon={<Users size={18} strokeWidth={1.5} />} label={`${detail.guests} guests maximum`} />
+      <InfoRow icon={<PawPrint size={18} strokeWidth={1.5} />} label="No pets" />
+      <InfoRow icon={<Moon size={18} strokeWidth={1.5} />} label="Quiet hours" sublabel="10:00 PM – 7:00 AM" />
+      <InfoRow icon={<VolumeX size={18} strokeWidth={1.5} />} label="No parties or events" />
+      <p className="text-sm font-bold text-[#304333] mt-5 mb-1">Before you leave</p>
+      <InfoRow icon={<Power size={18} strokeWidth={1.5} />} label="Turn things off" />
+      <InfoRow icon={<Key size={18} strokeWidth={1.5} />} label="Return keys" />
+    </div>
+  )
+
+  const safetyModalBody = (
+    <div className="flex flex-col">
+      <p className="text-sm text-[#78716c] mb-4">Avoid surprises by looking over these important details about the host's property.</p>
+      <p className="text-sm font-bold text-[#304333] mb-1">Safety devices</p>
+      <InfoRow icon={<ShieldAlert size={18} strokeWidth={1.5} />} label="Carbon monoxide alarm not reported" sublabel="We suggest bringing a portable detector for your trip." />
+      <InfoRow icon={<ShieldAlert size={18} strokeWidth={1.5} />} label="Smoke alarm not reported" sublabel="We suggest bringing a portable detector for your trip." />
+      <InfoRow icon={<Shield size={18} strokeWidth={1.5} />} label="Exterior security cameras on the property" sublabel="The host has exterior cameras. They don't monitor indoor spaces." />
+    </div>
+  )
+
+  const infoModals = {
+    cancellation: { title: 'Cancellation policy', body: cancellationModalBody },
+    rules: { title: 'House rules', body: rulesModalBody },
+    safety: { title: 'Safety & property', body: safetyModalBody },
+  }
+
 
   const wishlisted = isWishlisted(id)
   const disabledRanges = parseUnavailable(listing.unavailable_dates ?? [])
@@ -778,7 +894,7 @@ export default function StayDetailPage({ params }: Props) {
 
               {/* ── Host row ── */}
               <div className="flex items-center gap-4 pb-1 sm:px-0" style={{ ...MOB_PAD }}>
-              <div className="relative flex-shrink-0">
+                <div className="relative flex-shrink-0">
                   <div className="w-12 h-12 rounded-full bg-[#2c4a1e] flex items-center justify-center text-white text-lg font-semibold"
                     style={detail.hostLogo ? { backgroundImage: `url(${detail.hostLogo})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}>
                     {!detail.hostLogo && detail.hostName[0]}
@@ -898,6 +1014,33 @@ export default function StayDetailPage({ params }: Props) {
                 </div>
               )}
 
+              {/* ── Active info modal ── */}
+              {activeInfo && (
+                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
+                  style={{ background: 'rgba(0,0,0,0.4)' }}
+                  onClick={(e) => { if (e.target === e.currentTarget) setActiveInfo(null) }}>
+                  <div className="bg-white w-full sm:max-w-xl rounded-t-3xl sm:rounded-2xl h-[92vh] sm:h-auto sm:max-h-[85vh] overflow-y-auto flex flex-col">
+                    <div className="sm:hidden flex items-center px-5 pt-6 pb-2 sticky top-0 bg-white z-10">
+                      <button onClick={() => setActiveInfo(null)}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                        <ArrowLeft size={20} color="#304333" />
+                      </button>
+                    </div>
+                    <div className="hidden sm:flex items-center justify-between px-8 pt-8">
+                      <h2 className="text-2xl font-bold text-[#304333]">{activeInfo.title}</h2>
+                      <button onClick={() => setActiveInfo(null)}
+                        className="w-9 h-9 flex items-center justify-center rounded-full"
+                        style={{ background: '#f5f5f5', border: 'none', cursor: 'pointer' }}>
+                        <X size={18} color="#304333" />
+                      </button>
+                    </div>
+                    <div className="px-5 sm:px-8 pb-8 sm:pb-10 pt-2 sm:pt-6">
+                      <h2 className="text-2xl sm:hidden font-bold text-[#304333] mb-4">{activeInfo.title}</h2>
+                      {activeInfo.body}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* ══ DESKTOP BOOKING SIDEBAR ══ */}
@@ -1095,7 +1238,7 @@ export default function StayDetailPage({ params }: Props) {
         <div className="sm:px-6 md:px-8 xl:px-20 max-w-7xl mx-auto">
 
           {/* ── Calendar ── */}
-          <div className="pb-1 sm:px-0" style={{ ...MOB_PAD }}>
+          <div ref={calendarSectionRef} className="pb-1 sm:px-0" style={{ ...MOB_PAD }}>
             <h2 className="text-xl font-semibold text-[#304333] mb-1">
               {checkIn && checkOut
                 ? `${calNights} night${calNights !== 1 ? 's' : ''} in ${location.split(',')[0]}`
@@ -1166,7 +1309,7 @@ export default function StayDetailPage({ params }: Props) {
                 {detail.reviews.map((rev, i: number) => (
                   <div key={i} className="flex flex-col gap-3">
                     <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-[#2c4a1e] flex items-center justify-center text-white text-sm font-semibold flex-shrink-0"
+                      <div className="w-10 h-10 rounded-full bg-[#2c4a1e] flex items-center justify-center text-white text-sm font-semibold flex-shrink-0"
                         style={rev.avatarUrl ? { backgroundImage: `url(${rev.avatarUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}>
                         {!rev.avatarUrl && rev.avatar}
                       </div>
@@ -1324,7 +1467,7 @@ export default function StayDetailPage({ params }: Props) {
 
                   <div className="w-1/2 flex flex-col items-center">
                     <div className="relative mb-1.5">
-                    <div className="w-24 h-24 rounded-full bg-[#2c4a1e] flex items-center justify-center text-white text-3xl font-bold"
+                      <div className="w-24 h-24 rounded-full bg-[#2c4a1e] flex items-center justify-center text-white text-3xl font-bold"
                         style={detail.hostLogo ? { backgroundImage: `url(${detail.hostLogo})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}>
                         {!detail.hostLogo && detail.hostName[0]}
                       </div>
@@ -1407,25 +1550,40 @@ export default function StayDetailPage({ params }: Props) {
 
             <div className="hidden sm:grid grid-cols-3 gap-8">
               {[
-                { icon: <CalendarX2 size={32} strokeWidth={1.5} />, title: 'Cancellation policy', items: [`${cancellationPolicy.label}: ${cancellationDescription}`] },
-                { icon: <Key size={32} strokeWidth={1.5} />, title: 'House rules', items: ['Check-in after 2:00 PM', 'Checkout before 11:00 AM', `${detail.guests} guests maximum`] },
-                { icon: <ShieldHalf size={32} strokeWidth={1.5} />, title: 'Safety & property', items: ['Smoke alarm not reported', 'Exterior security cameras on property', 'Carbon monoxide alarm'] },
-              ].map(({ icon, title: st, items }) => (
+                {
+                  icon: <CalendarX2 size={32} strokeWidth={1.5} />, title: 'Cancellation policy',
+                  items: checkIn ? [`${cancellationPolicy.label}: ${cancellationDescription}`] : ['Add your dates to see the cancellation policy for your trip.'],
+                  modalKey: 'cancellation' as const, needsDates: !checkIn,
+                },
+                { icon: <Key size={32} strokeWidth={1.5} />, title: 'House rules', items: ['Check-in after 2:00 PM', 'Checkout before 11:00 AM', `${detail.guests} guests maximum`], modalKey: 'rules' as const, needsDates: false },
+                { icon: <ShieldHalf size={32} strokeWidth={1.5} />, title: 'Safety & property', items: ['Smoke alarm not reported', 'Exterior security cameras on property', 'Carbon monoxide alarm'], modalKey: 'safety' as const, needsDates: false },
+              ].map(({ icon, title: st, items, modalKey, needsDates }) => (
                 <div key={st}>
                   <div className="mb-4 text-[#222]">{icon}</div>
                   <p className="text-base font-semibold text-[#222] mb-3">{st}</p>
                   {items.map(item => <p key={item} className="text-sm text-[#78716c] mb-0.5">{item}</p>)}
+                  <button onClick={() => needsDates ? scrollToDates() : setActiveInfo(infoModals[modalKey])}
+                    className="text-sm text-[#78716c] underline mt-2"
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                    {needsDates ? 'Add dates' : 'Learn more'}
+                  </button>
                 </div>
               ))}
             </div>
 
             <div className="sm:hidden">
               {[
-                { icon: <Calendar size={22} strokeWidth={1.5} />, title: 'Cancellation policy', items: [`${cancellationPolicy.label}: ${cancellationDescription}`] },
-                { icon: <Home size={22} strokeWidth={1.5} />, title: 'House rules', items: ['Check-in after 2:00 PM', 'Checkout before 11:00 AM', `${detail.guests} guests maximum`] },
-                { icon: <Shield size={22} strokeWidth={1.5} />, title: 'Safety & property', items: ['Smoke alarm not reported', 'Exterior security cameras on property', 'Carbon monoxide alarm'] },
-              ].map(({ icon, title: st, items }, idx, arr) => (
-                <div key={st} className="flex items-start gap-4 py-4" style={idx < arr.length - 1 ? { borderBottom: '1px solid #e8e0d0' } : {}}>
+                {
+                  icon: <Calendar size={22} strokeWidth={1.5} />, title: 'Cancellation policy',
+                  items: checkIn ? [`${cancellationPolicy.label}: ${cancellationDescription}`] : ['Add your dates to see the cancellation policy for your trip.'],
+                  modalKey: 'cancellation' as const, needsDates: !checkIn,
+                },
+                { icon: <Home size={22} strokeWidth={1.5} />, title: 'House rules', items: ['Check-in after 2:00 PM', 'Checkout before 11:00 AM', `${detail.guests} guests maximum`], modalKey: 'rules' as const, needsDates: false },
+                { icon: <Shield size={22} strokeWidth={1.5} />, title: 'Safety & property', items: ['Smoke alarm not reported', 'Exterior security cameras on property', 'Carbon monoxide alarm'], modalKey: 'safety' as const, needsDates: false },
+              ].map(({ icon, title: st, items, modalKey, needsDates }, idx, arr) => (
+                <div key={st} onClick={() => needsDates ? scrollToDates() : setActiveInfo(infoModals[modalKey])}
+                  className="flex items-start gap-4 py-4 cursor-pointer" style={idx < arr.length - 1 ? { borderBottom: '1px solid #e8e0d0' } : {}}>
+
                   <span className="text-[#304333] flex-shrink-0 mt-0.5">{icon}</span>
                   <div className="flex-1">
                     <p className="text-sm font-semibold text-[#304333] mb-1">{st}</p>
