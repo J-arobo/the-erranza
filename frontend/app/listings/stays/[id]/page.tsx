@@ -12,6 +12,7 @@ import {
   MapPin, Camera, Globe, Calendar,
   CalendarX2, Key, ShieldHalf,
   Clock, DoorOpen, Users, PawPrint, Moon, VolumeX, Power, ShieldAlert,
+  Cigarette, Ban, AlertTriangle, Volume2,
 } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { apiFetch, apiErrorMessage } from '@/lib/api'
@@ -157,6 +158,8 @@ type ApiListingDetail = {
     languages: string[] | null
     verification_status: string
   }
+  house_rules: { selected: string[]; additional_rules: string | null; additional_requests: string | null } | null
+  safety_info: { key: string; note: string | null }[] | null
   // Unavailable dates
   unavailable_dates: { start: string; end: string }[]
 }
@@ -573,7 +576,51 @@ export default function StayDetailPage({ params }: Props) {
     </div>
   )
 
-  const rulesModalBody = (
+  const HOUSE_RULES_CATALOG: Record<string, { label: string; icon: React.ReactNode }> = {
+    no_pets: { label: 'No pets', icon: <PawPrint size={18} strokeWidth={1.5} /> },
+    no_parties: { label: 'No parties or events', icon: <VolumeX size={18} strokeWidth={1.5} /> },
+    no_commercial_photography: { label: 'No commercial photography', icon: <Camera size={18} strokeWidth={1.5} /> },
+    smoking_allowed: { label: 'Smoking is allowed', icon: <Cigarette size={18} strokeWidth={1.5} /> },
+    quiet_hours: { label: 'Quiet hours (10:00 PM – 7:00 AM)', icon: <Moon size={18} strokeWidth={1.5} /> },
+    self_check_in: { label: 'Self check-in with keypad', icon: <DoorOpen size={18} strokeWidth={1.5} /> },
+  }
+
+  const SAFETY_CATALOG: Record<string, { label: string; icon: React.ReactNode }> = {
+    no_carbon_monoxide_alarm: { label: 'No carbon monoxide alarm', icon: <ShieldAlert size={18} strokeWidth={1.5} /> },
+    no_smoke_alarm: { label: 'No smoke alarm', icon: <ShieldAlert size={18} strokeWidth={1.5} /> },
+    exterior_cameras: { label: 'Exterior security cameras on property', icon: <Shield size={18} strokeWidth={1.5} /> },
+    not_suitable_children: { label: 'Not suitable for children (2–12 years)', icon: <Ban size={18} strokeWidth={1.5} /> },
+    must_climb_stairs: { label: 'Must climb stairs', icon: <AlertTriangle size={18} strokeWidth={1.5} /> },
+    no_parking: { label: 'No parking on property', icon: <Ban size={18} strokeWidth={1.5} /> },
+    dangerous_animals: { label: 'May encounter potentially dangerous animal', icon: <AlertTriangle size={18} strokeWidth={1.5} /> },
+    pets_on_property: { label: 'Pet(s) live on property', icon: <PawPrint size={18} strokeWidth={1.5} /> },
+    noise_potential: { label: 'Potential for noise', icon: <Volume2 size={18} strokeWidth={1.5} /> },
+    amenity_limitations: { label: 'Amenity limitations', icon: <Wifi size={18} strokeWidth={1.5} /> },
+  }
+
+  // Vendors pick from a fixed catalog in the listing editor; travellers see
+  // exactly what was picked. Listings that predate this feature (or just
+  // haven't been edited yet) fall back to the original generic copy.
+  const rulesModalBody = (listing.house_rules && listing.house_rules.selected.length > 0) ? (
+    <div className="flex flex-col">
+      {listing.house_rules.selected.map(key => {
+        const item = HOUSE_RULES_CATALOG[key]
+        return item ? <InfoRow key={key} icon={item.icon} label={item.label} /> : null
+      })}
+      {listing.house_rules.additional_rules && (
+        <>
+          <p className="text-sm font-bold text-[#304333] mt-5 mb-1">Additional rules</p>
+          <p className="text-sm text-[#78716c]">{listing.house_rules.additional_rules}</p>
+        </>
+      )}
+      {listing.house_rules.additional_requests && (
+        <>
+          <p className="text-sm font-bold text-[#304333] mt-5 mb-1">Before you leave</p>
+          <p className="text-sm text-[#78716c]">{listing.house_rules.additional_requests}</p>
+        </>
+      )}
+    </div>
+  ) : (
     <div className="flex flex-col">
       <p className="text-sm font-bold text-[#304333] mb-1">Checking in and out</p>
       <InfoRow icon={<Clock size={18} strokeWidth={1.5} />} label="Check-in after 2:00 PM" />
@@ -590,7 +637,15 @@ export default function StayDetailPage({ params }: Props) {
     </div>
   )
 
-  const safetyModalBody = (
+  const safetyModalBody = (listing.safety_info && listing.safety_info.length > 0) ? (
+    <div className="flex flex-col">
+      <p className="text-sm text-[#78716c] mb-4">Avoid surprises by looking over these important details about the host's property.</p>
+      {listing.safety_info.map(({ key, note }) => {
+        const item = SAFETY_CATALOG[key]
+        return item ? <InfoRow key={key} icon={item.icon} label={item.label} sublabel={note ?? undefined} /> : null
+      })}
+    </div>
+  ) : (
     <div className="flex flex-col">
       <p className="text-sm text-[#78716c] mb-4">Avoid surprises by looking over these important details about the host's property.</p>
       <p className="text-sm font-bold text-[#304333] mb-1">Safety devices</p>
@@ -1555,8 +1610,20 @@ export default function StayDetailPage({ params }: Props) {
                   items: checkIn ? [`${cancellationPolicy.label}: ${cancellationDescription}`] : ['Add your dates to see the cancellation policy for your trip.'],
                   modalKey: 'cancellation' as const, needsDates: !checkIn,
                 },
-                { icon: <Key size={32} strokeWidth={1.5} />, title: 'House rules', items: ['Check-in after 2:00 PM', 'Checkout before 11:00 AM', `${detail.guests} guests maximum`], modalKey: 'rules' as const, needsDates: false },
-                { icon: <ShieldHalf size={32} strokeWidth={1.5} />, title: 'Safety & property', items: ['Smoke alarm not reported', 'Exterior security cameras on property', 'Carbon monoxide alarm'], modalKey: 'safety' as const, needsDates: false },
+                {
+                  icon: <Key size={32} strokeWidth={1.5} />, title: 'House rules',
+                  items: listing.house_rules && listing.house_rules.selected.length > 0
+                    ? listing.house_rules.selected.slice(0, 3).map(k => HOUSE_RULES_CATALOG[k]?.label).filter((v): v is string => !!v)
+                    : ['Check-in after 2:00 PM', 'Checkout before 11:00 AM', `${detail.guests} guests maximum`],
+                  modalKey: 'rules' as const, needsDates: false,
+                },
+                {
+                  icon: <ShieldHalf size={32} strokeWidth={1.5} />, title: 'Safety & property',
+                  items: listing.safety_info && listing.safety_info.length > 0
+                    ? listing.safety_info.slice(0, 3).map(({ key }) => SAFETY_CATALOG[key]?.label).filter((v): v is string => !!v)
+                    : ['Smoke alarm not reported', 'Exterior security cameras on property', 'Carbon monoxide alarm'],
+                  modalKey: 'safety' as const, needsDates: false,
+                },
               ].map(({ icon, title: st, items, modalKey, needsDates }) => (
                 <div key={st}>
                   <div className="mb-4 text-[#222]">{icon}</div>
@@ -1578,8 +1645,21 @@ export default function StayDetailPage({ params }: Props) {
                   items: checkIn ? [`${cancellationPolicy.label}: ${cancellationDescription}`] : ['Add your dates to see the cancellation policy for your trip.'],
                   modalKey: 'cancellation' as const, needsDates: !checkIn,
                 },
-                { icon: <Home size={22} strokeWidth={1.5} />, title: 'House rules', items: ['Check-in after 2:00 PM', 'Checkout before 11:00 AM', `${detail.guests} guests maximum`], modalKey: 'rules' as const, needsDates: false },
-                { icon: <Shield size={22} strokeWidth={1.5} />, title: 'Safety & property', items: ['Smoke alarm not reported', 'Exterior security cameras on property', 'Carbon monoxide alarm'], modalKey: 'safety' as const, needsDates: false },
+                {
+                  icon: <Home size={22} strokeWidth={1.5} />, title: 'House rules',
+                  items: listing.house_rules && listing.house_rules.selected.length > 0
+                    ? listing.house_rules.selected.slice(0, 3).map(k => HOUSE_RULES_CATALOG[k]?.label).filter((v): v is string => !!v)
+                    : ['Check-in after 2:00 PM', 'Checkout before 11:00 AM', `${detail.guests} guests maximum`],
+                  modalKey: 'rules' as const, needsDates: false,
+                },
+                {
+                  icon: <Shield size={22} strokeWidth={1.5} />, title: 'Safety & property',
+                  items: listing.safety_info && listing.safety_info.length > 0
+                    ? listing.safety_info.slice(0, 3).map(({ key }) => SAFETY_CATALOG[key]?.label).filter((v): v is string => !!v)
+                    : ['Smoke alarm not reported', 'Exterior security cameras on property', 'Carbon monoxide alarm'],
+                  modalKey: 'safety' as const, needsDates: false,
+                },
+
               ].map(({ icon, title: st, items, modalKey, needsDates }, idx, arr) => (
                 <div key={st} onClick={() => needsDates ? scrollToDates() : setActiveInfo(infoModals[modalKey])}
                   className="flex items-start gap-4 py-4 cursor-pointer" style={idx < arr.length - 1 ? { borderBottom: '1px solid #e8e0d0' } : {}}>

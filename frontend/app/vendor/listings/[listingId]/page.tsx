@@ -1,7 +1,11 @@
 'use client'
 import { use, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Plus, X, Check, Trash2 } from 'lucide-react'
+import {
+  ArrowLeft, Plus, X, Check, Trash2,
+  PawPrint, VolumeX, Camera, Cigarette, Moon, DoorOpen,
+  ShieldAlert, Shield, Ban, AlertTriangle, Volume2, Wifi,
+} from 'lucide-react'
 import { apiFetch, apiErrorMessage } from '@/lib/api'
 import PhotoManager from '@/components/vendor/PhotoManager'
 
@@ -21,6 +25,34 @@ const AMENITY_CATALOG = [
 ]
 
 const FIELD_CARD = 'bg-white border border-[#e0d9cc] rounded-2xl p-4 sm:p-5 shadow-sm'
+
+// Fixed catalogs — travellers see these exact keys rendered with matching
+// icons on the listing page, so vendors pick from a list instead of typing
+// free text (keeps the icons meaningful and keeps the two sides in sync).
+const HOUSE_RULES_CATALOG: { key: string; label: string; icon: React.ReactNode }[] = [
+  { key: 'no_pets', label: 'No pets', icon: <PawPrint size={14} /> },
+  { key: 'no_parties', label: 'No parties or events', icon: <VolumeX size={14} /> },
+  { key: 'no_commercial_photography', label: 'No commercial photography', icon: <Camera size={14} /> },
+  { key: 'smoking_allowed', label: 'Smoking is allowed', icon: <Cigarette size={14} /> },
+  { key: 'quiet_hours', label: 'Quiet hours (10:00 PM \u2013 7:00 AM)', icon: <Moon size={14} /> },
+  { key: 'self_check_in', label: 'Self check-in with keypad', icon: <DoorOpen size={14} /> },
+]
+
+// needsNote items show an extra text field once selected, e.g. "Pet(s) live
+// on property" + a note like "Two friendly dogs" — mirrors Airbnb's format.
+const SAFETY_CATALOG: { key: string; label: string; icon: React.ReactNode; needsNote: boolean }[] = [
+  { key: 'no_carbon_monoxide_alarm', label: 'No carbon monoxide alarm', icon: <ShieldAlert size={14} />, needsNote: false },
+  { key: 'no_smoke_alarm', label: 'No smoke alarm', icon: <ShieldAlert size={14} />, needsNote: false },
+  { key: 'exterior_cameras', label: 'Exterior security cameras on property', icon: <Shield size={14} />, needsNote: false },
+  { key: 'not_suitable_children', label: 'Not suitable for children (2\u201312 years)', icon: <Ban size={14} />, needsNote: false },
+  { key: 'must_climb_stairs', label: 'Must climb stairs', icon: <AlertTriangle size={14} />, needsNote: false },
+  { key: 'no_parking', label: 'No parking on property', icon: <Ban size={14} />, needsNote: false },
+  { key: 'dangerous_animals', label: 'May encounter potentially dangerous animal', icon: <AlertTriangle size={14} />, needsNote: true },
+  { key: 'pets_on_property', label: 'Pet(s) live on property', icon: <PawPrint size={14} />, needsNote: true },
+  { key: 'noise_potential', label: 'Potential for noise', icon: <Volume2 size={14} />, needsNote: true },
+  { key: 'amenity_limitations', label: 'Amenity limitations', icon: <Wifi size={14} />, needsNote: true },
+]
+
 
 type PolicyId = 'flexible' | 'moderate' | 'strict' | 'custom'
 const POLICIES: { id: PolicyId; label: string; description: string }[] = [
@@ -58,6 +90,8 @@ type ApiListingDetail = {
   custom_cancellation_text: string | null
   amenities: string[] | null
   excluded: string[] | null
+  house_rules: { selected: string[]; additional_rules: string | null; additional_requests: string | null } | null
+  safety_info: { key: string; note: string | null }[] | null
   bookings_count?: number
   earnings?: string | null
   images: { id: number; url: string }[]
@@ -155,6 +189,24 @@ export default function EditListingPage({ params }: Props) {
   const [cancellationPolicy, setCancellationPolicy] = useState<PolicyId>('moderate')
   const [customCancellationPolicy, setCustomCancellationPolicy] = useState('')
 
+  // ── House rules & safety ──
+  const [houseRules, setHouseRules] = useState<string[]>([])
+  const [safetyInfo, setSafetyInfo] = useState<{ key: string; note: string }[]>([])
+  const [additionalRules, setAdditionalRules] = useState('')
+  const [additionalRequests, setAdditionalRequests] = useState('')
+
+  function toggleHouseRule(key: string) {
+    setHouseRules(r => r.includes(key) ? r.filter(x => x !== key) : [...r, key])
+  }
+  function toggleSafetyItem(key: string) {
+    setSafetyInfo(items => items.some(i => i.key === key)
+      ? items.filter(i => i.key !== key)
+      : [...items, { key, note: '' }])
+  }
+  function setSafetyNote(key: string, note: string) {
+    setSafetyInfo(items => items.map(i => i.key === key ? { ...i, note } : i))
+  }
+
   useEffect(() => {
     apiFetch<{ listing: ApiListingDetail }>(`/vendor/listings/${listingId}`)
       .then(({ listing }) => {
@@ -208,6 +260,10 @@ export default function EditListingPage({ params }: Props) {
 
         setCancellationPolicy(listing.cancellation_policy)
         setCustomCancellationPolicy(listing.custom_cancellation_text ?? '')
+        setHouseRules(listing.house_rules?.selected ?? [])
+        setSafetyInfo((listing.safety_info ?? []).map(i => ({ key: i.key, note: i.note ?? '' })))
+        setAdditionalRules(listing.house_rules?.additional_rules ?? '')
+        setAdditionalRequests(listing.house_rules?.additional_requests ?? '')
       })
       .catch((err) => {
         setNotFound(true)
@@ -333,6 +389,12 @@ export default function EditListingPage({ params }: Props) {
           min_lead_time_days: minLeadTimeDays ? Number(minLeadTimeDays) : null,
           cancellation_policy: cancellationPolicy,
           custom_cancellation_text: cancellationPolicy === 'custom' ? customCancellationPolicy.trim() || null : null,
+          house_rules: {
+            selected: houseRules,
+            additional_rules: additionalRules.trim() || null,
+            additional_requests: additionalRequests.trim() || null,
+          },
+          safety_info: safetyInfo.map(({ key, note }) => ({ key, note: note.trim() || null })),
           images: images.map(url => ({ url })),
           itinerary,
           duration_options: durationOptions.map(d => ({
@@ -928,6 +990,66 @@ export default function EditListingPage({ params }: Props) {
               className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm mt-1
                          outline-none focus:border-[#2c4a1e] transition-colors resize-none" />
           )}
+        </div>
+
+                {/* ══ HOUSE RULES ══ */}
+                <div className="pt-2 border-t border-gray-100">
+          <h2 className="text-lg font-bold text-[#1a1a1a] mb-1 mt-4">
+            {category === 'Stays' ? 'House rules' : 'Tour rules'}
+          </h2>
+          <p className="text-sm text-gray-500 mb-4">Select what applies \u2014 travellers see these on your listing page.</p>
+        </div>
+        <div className={FIELD_CARD}>
+          <div className="flex flex-wrap gap-2">
+            {HOUSE_RULES_CATALOG.map(({ key, label, icon }) => {
+              const checked = houseRules.includes(key)
+              return (
+                <button key={key} type="button" onClick={() => toggleHouseRule(key)}
+                  className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full border transition-colors
+                    ${checked ? 'bg-[#eaf5e4] text-[#2c4a1e] border-[#2c4a1e]' : 'bg-gray-50 text-gray-400 border-gray-200'}`}>
+                  {icon}
+                  {label}
+                </button>
+              )
+            })}
+          </div>
+          <textarea value={additionalRules} onChange={(e) => setAdditionalRules(e.target.value)}
+            rows={3} placeholder="Additional rules (optional) \u2014 e.g. arrival directions, extra guest policy..."
+            className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm mt-4
+                       outline-none focus:border-[#2c4a1e] transition-colors resize-none" />
+          <textarea value={additionalRequests} onChange={(e) => setAdditionalRequests(e.target.value)}
+            rows={3} placeholder="Additional requests before guests leave (optional) \u2014 e.g. return keys, turn things off..."
+            className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm mt-3
+                       outline-none focus:border-[#2c4a1e] transition-colors resize-none" />
+        </div>
+
+        {/* ══ SAFETY & PROPERTY ══ */}
+        <div className="pt-2 border-t border-gray-100">
+          <h2 className="text-lg font-bold text-[#1a1a1a] mb-1 mt-4">
+            {category === 'Stays' ? 'Safety & property' : 'Safety information'}
+          </h2>
+          <p className="text-sm text-gray-500 mb-4">Select anything travellers should know before booking.</p>
+        </div>
+        <div className={`${FIELD_CARD} flex flex-col gap-2`}>
+          {SAFETY_CATALOG.map(({ key, label, icon, needsNote }) => {
+            const selected = safetyInfo.find(i => i.key === key)
+            return (
+              <div key={key}>
+                <button type="button" onClick={() => toggleSafetyItem(key)}
+                  className={`w-full flex items-center gap-2 text-left text-xs font-semibold px-3 py-2 rounded-xl border transition-colors
+                    ${selected ? 'bg-[#eaf5e4] text-[#2c4a1e] border-[#2c4a1e]' : 'bg-gray-50 text-gray-400 border-gray-200'}`}>
+                  {icon}
+                  {label}
+                </button>
+                {selected && needsNote && (
+                  <input value={selected.note} onChange={(e) => setSafetyNote(key, e.target.value)}
+                    placeholder="Add a note travellers will see (optional)"
+                    className="w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm mt-1.5
+                               outline-none focus:border-[#2c4a1e] transition-colors" />
+                )}
+              </div>
+            )
+          })}
         </div>
 
         <div className="flex gap-3 pt-2">

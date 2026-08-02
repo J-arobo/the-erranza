@@ -15,6 +15,7 @@ class Listing extends Model
         'bedrooms', 'beds', 'bathrooms', 'lat', 'lng',
         'cancellation_policy', 'custom_cancellation_text',
         'amenities', 'excluded', 'flagged', 'flag_reason', 'views',
+        'house_rules', 'safety_info',
     ];    
 
     protected function casts(): array
@@ -22,6 +23,8 @@ class Listing extends Model
         return [
             'amenities' => 'array',
             'excluded' => 'array',
+            'house_rules' => 'array',
+            'safety_info' => 'array',
             'flagged' => 'boolean',
             'price' => 'decimal:2',
             'child_price' => 'decimal:2',

@@ -9,6 +9,9 @@ use Illuminate\Support\Facades\DB;
 
 class VendorListingController extends Controller
 {
+    private const HOUSE_RULE_KEYS = 'no_pets,no_parties,no_commercial_photography,smoking_allowed,quiet_hours,self_check_in';
+    private const SAFETY_KEYS = 'no_carbon_monoxide_alarm,no_smoke_alarm,exterior_cameras,not_suitable_children,must_climb_stairs,no_parking,dangerous_animals,pets_on_property,noise_potential,amenity_limitations';
+
     public function index(Request $request)
     {
         $vendor = $request->attributes->get('vendor');
@@ -53,6 +56,14 @@ class VendorListingController extends Controller
             'custom_cancellation_text' => ['nullable', 'string'],
             'amenities' => ['nullable', 'array'],
             'excluded' => ['nullable', 'array'],
+            'house_rules' => ['nullable', 'array'],
+            'house_rules.selected' => ['nullable', 'array'],
+            'house_rules.selected.*' => ['string', 'in:' . self::HOUSE_RULE_KEYS],
+            'house_rules.additional_rules' => ['nullable', 'string'],
+            'house_rules.additional_requests' => ['nullable', 'string'],
+            'safety_info' => ['nullable', 'array'],
+            'safety_info.*.key' => ['required', 'string', 'in:' . self::SAFETY_KEYS],
+            'safety_info.*.note' => ['nullable', 'string'],
 
             'images' => ['sometimes', 'array'],
             'images.*.url' => ['required', 'string'],
@@ -77,6 +88,7 @@ class VendorListingController extends Controller
                     'title', 'category', 'location', 'description', 'price', 'child_price',
                     'extra_guest_price', 'min_guests', 'max_guests', 'min_nights', 'min_lead_time_days',
                     'cancellation_policy', 'custom_cancellation_text', 'amenities', 'excluded',
+                    'house_rules', 'safety_info',
                     //Room details
                     'bedrooms', 'beds', 'bathrooms', 'lat', 'lng',
                 ])->toArray(),
@@ -140,6 +152,14 @@ class VendorListingController extends Controller
             'custom_cancellation_text' => ['nullable', 'string'],
             'amenities' => ['nullable', 'array'],
             'excluded' => ['nullable', 'array'],
+            'house_rules' => ['nullable', 'array'],
+            'house_rules.selected' => ['nullable', 'array'],
+            'house_rules.selected.*' => ['string', 'in:' . self::HOUSE_RULE_KEYS],
+            'house_rules.additional_rules' => ['nullable', 'string'],
+            'house_rules.additional_requests' => ['nullable', 'string'],
+            'safety_info' => ['nullable', 'array'],
+            'safety_info.*.key' => ['required', 'string', 'in:' . self::SAFETY_KEYS],
+            'safety_info.*.note' => ['nullable', 'string'],
 
             'images' => ['sometimes', 'array'],
             'images.*.url' => ['required', 'string'],
@@ -191,6 +211,7 @@ class VendorListingController extends Controller
                 'title', 'category', 'location', 'description', 'price', 'child_price',
                 'extra_guest_price', 'status', 'min_guests', 'max_guests', 'min_nights', 'min_lead_time_days',
                 'cancellation_policy', 'custom_cancellation_text', 'amenities', 'excluded',
+                'house_rules', 'safety_info',
                 // Room details
                 'bedrooms', 'beds', 'bathrooms', 'lat', 'lng',
             ])->toArray());
