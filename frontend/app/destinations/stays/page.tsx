@@ -6,7 +6,6 @@ import FooterSection from '@/components/FooterSection'
 import { type Listing } from '@/data/stays'
 import { apiFetch, apiErrorMessage } from '@/lib/api'
 import { ArrowRight } from 'lucide-react'
-import { ChevronRight } from 'lucide-react'
 import { useSearchParams } from 'next/navigation'
 
 
@@ -163,11 +162,17 @@ function StaysPageContent() {
                         <div className="relative w-full aspect-[3/2] rounded-xl border border-[#e0d9cc] shadow-sm
                             bg-[#f5f0e8] flex flex-col items-center justify-center gap-2
                             hover:bg-[#ece8e0] transition-colors cursor-pointer">
-                          <div className="w-10 h-10 rounded-full bg-[#2c4a1e22] flex items-center justify-center">
-                            <ChevronRight size={18} color="#2c4a1e" />
+                          <div className="relative h-10 w-full flex items-center justify-center">
+                            {items.slice(0, 3).map((it, i) => (
+                              <div key={it.id} className="absolute w-10 h-10 rounded-lg overflow-hidden bg-[#e0d9cc]"
+                                style={{ border: '2px solid white', boxShadow: '0 2px 8px rgba(0,0,0,0.15)', transform: `rotate(${(i - 1) * 10}deg)`, left: `calc(50% - 20px + ${(i - 1) * 16}px)`, zIndex: i === 1 ? 2 : 1 }}>
+                                <img src={it.image} alt="" className="w-full h-full object-cover" />
+                              </div>
+                            ))}
                           </div>
-                          <span className="text-xs font-semibold text-[#2c4a1e]">Show all</span>
+                          <span className="text-xs font-semibold text-[#2c4a1e]">See all</span>
                         </div>
+
                         <div className="pt-2">
                           <p className="text-[13px] invisible">·</p>
                           <p className="text-[12px] invisible">·</p>

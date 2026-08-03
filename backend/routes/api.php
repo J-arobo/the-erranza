@@ -32,6 +32,9 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\Vendor\VendorStatsController;
 use App\Http\Controllers\Api\Vendor\VendorTeamMemberController;
 use App\Http\Controllers\Api\WishlistController;
+//Messages
+use App\Http\Controllers\Api\ListingMessageController;
+
 
 
 
@@ -60,6 +63,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/bookings/{booking}/messages', [MessageController::class, 'store']);
     Route::get('/messages', [MessageController::class, 'index']);
     Route::get('/bookings/{booking}/messages', [MessageController::class, 'show']);
+    Route::get('/listings/{listing}/messages', [ListingMessageController::class, 'show']);
+    Route::post('/listings/{listing}/messages', [ListingMessageController::class, 'store']);
     Route::post('/bookings/{booking}/review', [ReviewController::class, 'store']);
     Route::post('/become-partner', [VendorRegistrationController::class, 'store']);
     // wishlist
@@ -85,6 +90,8 @@ Route::prefix('vendor')->middleware(['auth:sanctum', 'vendor'])->group(function 
     Route::get('/messages', [VendorMessageController::class, 'index']);
     Route::get('/messages/{booking}', [VendorMessageController::class, 'show']);
     Route::post('/messages/{booking}', [VendorMessageController::class, 'store']);
+    Route::get('/listing-messages/{listing}/{traveller}', [VendorMessageController::class, 'showListingThread']);
+    Route::post('/listing-messages/{listing}/{traveller}', [VendorMessageController::class, 'storeListingThread']);
 
     Route::get('/reviews', [VendorReviewController::class, 'index']);
     Route::post('/reviews/{review}/reply', [VendorReviewController::class, 'reply']);

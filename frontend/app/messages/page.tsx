@@ -16,8 +16,13 @@ function formatTimestamp(ts: string) {
   return new Date(ts).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
 }
 
+// A thread is either tied to a booking (post-booking conversation) or,
+// pre-booking, tied directly to a listing — "type" + "id" together identify
+// which one, since the two id spaces overlap (booking 25 and listing 25 are
+// unrelated).
 type Thread = {
-  booking_id: number
+  type: 'booking' | 'listing'
+  id: number
   listing_title: string
   listing_image: string | null
   vendor_name: string
@@ -35,7 +40,6 @@ type ThreadMessage = {
 }
 
 type ThreadDetail = {
-  booking_id: number
   listing_title: string
   listing_image: string | null
   vendor_name: string
@@ -56,13 +60,13 @@ type ConversationListProps = {
   filter: string
   onFilterChange: (v: string) => void
   filtered: Thread[]
-  activeId: number | null
-  onSelectThread: (id: number) => void
+  activeKey: string | null
+  onSelectThread: (t: Thread) => void
 }
 
 function ConversationList({
   showSearch, onShowSearch, search, onSearchChange,
-  filter, onFilterChange, filtered, activeId, onSelectThread,
+  filter, onFilterChange, filtered, activeKey, onSelectThread,
 }: ConversationListProps) {
   return (
     <div className="flex flex-col h-full">
@@ -118,33 +122,36 @@ function ConversationList({
           </div>
         ) : (
           <div className="flex flex-col">
-            {filtered.map((t) => (
-              <button key={t.booking_id} onClick={() => onSelectThread(t.booking_id)}
-                className={`flex items-center gap-4 px-5 py-4 hover:bg-gray-50 transition-colors text-left w-full
-                  ${activeId === t.booking_id ? 'bg-gray-50' : ''}`}>
-                <div className="relative flex-shrink-0 w-14 h-14">
-                  <div className="absolute top-0 left-0 w-11 h-11 rounded-xl overflow-hidden bg-[#e0d9cc] border-2 border-white">
-                    <Image src={t.listing_image ?? FALLBACK_IMAGE} alt={t.vendor_name} fill sizes="44px" className="object-cover" />
+            {filtered.map((t) => {
+              const key = `${t.type}:${t.id}`
+              return (
+                <button key={key} onClick={() => onSelectThread(t)}
+                  className={`flex items-center gap-4 px-5 py-4 hover:bg-gray-50 transition-colors text-left w-full
+                    ${activeKey === key ? 'bg-gray-50' : ''}`}>
+                  <div className="relative flex-shrink-0 w-14 h-14">
+                    <div className="absolute top-0 left-0 w-11 h-11 rounded-xl overflow-hidden bg-[#e0d9cc] border-2 border-white">
+                      <Image src={t.listing_image ?? FALLBACK_IMAGE} alt={t.vendor_name} fill sizes="44px" className="object-cover" />
+                    </div>
+                    <div className={`absolute bottom-0 right-0 w-7 h-7 rounded-full border-2 border-white flex items-center justify-center text-xs font-bold text-white
+                      ${t.unread ? 'bg-[#2c4a1e]' : 'bg-gray-400'}`}
+                      style={t.vendor_avatar ? { backgroundImage: `url(${t.vendor_avatar})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}>
+                      {!t.vendor_avatar && t.vendor_name[0]}
+                    </div>
                   </div>
-                  <div className={`absolute bottom-0 right-0 w-7 h-7 rounded-full border-2 border-white flex items-center justify-center text-xs font-bold text-white
-                    ${t.unread ? 'bg-[#2c4a1e]' : 'bg-gray-400'}`}
-                    style={t.vendor_avatar ? { backgroundImage: `url(${t.vendor_avatar})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}>
-                    {!t.vendor_avatar && t.vendor_name[0]}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between mb-0.5">
+                      <p className={`text-sm ${t.unread ? 'font-bold' : 'font-semibold'} text-[#1a1a1a]`}>{t.vendor_name}</p>
+                      <span className="text-xs text-gray-400 flex-shrink-0 ml-2">
+                        {t.last_message_at ? new Date(t.last_message_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''}
+                      </span>
+                    </div>
+                    <p className={`text-xs truncate mb-0.5 ${t.unread ? 'text-[#1a1a1a] font-medium' : 'text-gray-500'}`}>{t.last_message ?? 'Say hello!'}</p>
+                    <p className="text-xs text-gray-400 truncate">{t.listing_title}</p>
                   </div>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between mb-0.5">
-                    <p className={`text-sm ${t.unread ? 'font-bold' : 'font-semibold'} text-[#1a1a1a]`}>{t.vendor_name}</p>
-                    <span className="text-xs text-gray-400 flex-shrink-0 ml-2">
-                      {t.last_message_at ? new Date(t.last_message_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''}
-                    </span>
-                  </div>
-                  <p className={`text-xs truncate mb-0.5 ${t.unread ? 'text-[#1a1a1a] font-medium' : 'text-gray-500'}`}>{t.last_message}</p>
-                  <p className="text-xs text-gray-400 truncate">{t.listing_title}</p>
-                </div>
-                {t.unread && <div className="w-2.5 h-2.5 rounded-full bg-[#2c4a1e] flex-shrink-0" />}
-              </button>
-            ))}
+                  {t.unread && <div className="w-2.5 h-2.5 rounded-full bg-[#2c4a1e] flex-shrink-0" />}
+                </button>
+              )
+            })}
           </div>
         )}
       </div>
@@ -173,10 +180,15 @@ function ThreadView({ thread, onBack, onShowDetails, reply, onReplyChange, onSen
           </button>
           <div className="hidden md:block w-9" />
 
-          <div className="absolute left-1/2 top-1/2 w-10 h-10 rounded-full overflow-hidden bg-[#e0d9cc] border-2 border-white shadow-sm"
+          <div className="absolute left-1/2 top-1/2 w-10 h-10 rounded-full overflow-hidden bg-[#2c4a1e] border-2 border-white shadow-sm flex items-center justify-center text-white text-sm font-bold"
             style={{ transform: 'translate(-50%, -50%)' }}>
-            <Image src={thread.listing_image ?? FALLBACK_IMAGE} alt={thread.vendor_name} fill sizes="40px" className="object-cover" />
+            {thread.vendor_avatar ? (
+              <Image src={thread.vendor_avatar} alt={thread.vendor_name} fill sizes="40px" className="object-cover" />
+            ) : (
+              thread.vendor_name[0]
+            )}
           </div>
+
 
           <button onClick={onShowDetails}
             className="px-4 py-2 rounded-xl text-xs font-semibold text-[#304333] md:hidden relative z-10"
@@ -268,8 +280,12 @@ function DetailsSheet({ thread, onClose }: DetailsSheetProps) {
           <h3 className="text-lg font-bold text-[#1a1a1a] mb-4">In this conversation</h3>
           <div className="flex flex-col gap-4 mb-8">
             <div className="flex items-center gap-3">
-              <div className="w-11 h-11 rounded-full overflow-hidden bg-[#e0d9cc] flex-shrink-0">
-                <Image src={thread.listing_image ?? FALLBACK_IMAGE} alt={thread.vendor_name} width={44} height={44} className="object-cover" />
+              <div className="w-11 h-11 rounded-full overflow-hidden bg-[#2c4a1e] flex-shrink-0 flex items-center justify-center text-white text-sm font-bold">
+                {thread.vendor_avatar ? (
+                  <Image src={thread.vendor_avatar} alt={thread.vendor_name} width={44} height={44} className="object-cover" />
+                ) : (
+                  thread.vendor_name[0]
+                )}
               </div>
               <div>
                 <p className="text-base font-semibold text-[#1a1a1a]">{thread.vendor_name}</p>
@@ -290,6 +306,8 @@ function DetailsSheet({ thread, onClose }: DetailsSheetProps) {
   )
 }
 
+type ActiveThreadRef = { type: 'booking' | 'listing'; id: number }
+
 function MessagesPageContent() {
   const { isLoggedIn } = useAuth()
   const router = useRouter()
@@ -300,10 +318,27 @@ function MessagesPageContent() {
   const [error, setError] = useState('')
 
   const [filter, setFilter] = useState('All')
-  const [activeId, setActiveId] = useState<number | null>(() => {
-    const fromUrl = searchParams.get('booking')
-    return fromUrl ? Number(fromUrl) : null
-  })
+
+  function readActiveFromUrl(): ActiveThreadRef | null {
+    const bookingId = searchParams.get('booking')
+    const listingId = searchParams.get('listing')
+    if (bookingId) return { type: 'booking', id: Number(bookingId) }
+    if (listingId) return { type: 'listing', id: Number(listingId) }
+    return null
+  }
+
+  const [active, setActive] = useState<ActiveThreadRef | null>(readActiveFromUrl)
+
+  // Keeps the open thread in sync with the URL — the lazy initializer above
+  // only runs on first mount, which misses client-side navigations that land
+  // on this same route with a new ?booking=/?listing= (e.g. the "Message
+  // host" button).
+  useEffect(() => {
+    const fromUrl = readActiveFromUrl()
+    if (fromUrl) setActive(fromUrl)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams])
+
   const [activeThread, setActiveThread] = useState<ThreadDetail | null>(null)
   const [threadLoading, setThreadLoading] = useState(false)
 
@@ -323,14 +358,15 @@ function MessagesPageContent() {
   }, [isLoggedIn])
 
   useEffect(() => {
-    if (activeId === null) { setActiveThread(null); return }
+    if (!active) { setActiveThread(null); return }
 
     setThreadLoading(true)
-    apiFetch<ThreadDetail>(`/bookings/${activeId}/messages`)
+    const url = active.type === 'booking' ? `/bookings/${active.id}/messages` : `/listings/${active.id}/messages`
+    apiFetch<ThreadDetail>(url)
       .then(setActiveThread)
       .catch((err) => setError(apiErrorMessage(err)))
       .finally(() => setThreadLoading(false))
-  }, [activeId])
+  }, [active])
 
   const filtered = threads.filter(t =>
     t.vendor_name.toLowerCase().includes(search.toLowerCase()) ||
@@ -338,19 +374,40 @@ function MessagesPageContent() {
   )
 
   async function sendReply() {
-    if (!reply.trim() || activeId === null) return
+    if (!reply.trim() || !active) return
 
     setSending(true)
     setError('')
     try {
-      const { message } = await apiFetch<{ message: ThreadMessage }>(`/bookings/${activeId}/messages`, {
+      const url = active.type === 'booking' ? `/bookings/${active.id}/messages` : `/listings/${active.id}/messages`
+      const { message } = await apiFetch<{ message: ThreadMessage }>(url, {
         method: 'POST',
         body: JSON.stringify({ text: reply.trim() }),
       })
       setActiveThread(t => t ? { ...t, messages: [...t.messages, message] } : t)
-      setThreads(ts => ts.map(t => t.booking_id === activeId
-        ? { ...t, last_message: message.text, last_message_at: message.created_at, unread: false }
-        : t))
+      setThreads(ts => {
+        const exists = ts.some(t => t.type === active.type && t.id === active.id)
+        if (exists) {
+          return ts.map(t => (t.type === active.type && t.id === active.id)
+            ? { ...t, last_message: message.text, last_message_at: message.created_at, unread: false }
+            : t)
+        }
+        // First message on a brand-new pre-booking inquiry — the thread
+        // doesn't exist in the list yet, so add it using the detail we
+        // already have loaded.
+        if (!activeThread) return ts
+        return [{
+          type: active.type,
+          id: active.id,
+          listing_title: activeThread.listing_title,
+          listing_image: activeThread.listing_image,
+          vendor_name: activeThread.vendor_name,
+          vendor_avatar: null,
+          last_message: message.text,
+          last_message_at: message.created_at,
+          unread: false,
+        }, ...ts]
+      })
       setReply('')
     } catch (err) {
       setError(apiErrorMessage(err))
@@ -382,28 +439,31 @@ function MessagesPageContent() {
     )
   }
 
+  const activeKey = active ? `${active.type}:${active.id}` : null
+
   return (
     <div className="flex h-screen bg-white">
       <div className={`w-full md:w-[380px] md:flex-shrink-0 md:border-r md:border-gray-100 h-full
-        ${activeId ? 'hidden md:block' : 'block'}`}>
+        ${active ? 'hidden md:block' : 'block'}`}>
         <ConversationList
           showSearch={showSearch} onShowSearch={setShowSearch}
           search={search} onSearchChange={setSearch}
           filter={filter} onFilterChange={setFilter}
-          filtered={filtered} activeId={activeId} onSelectThread={setActiveId}
+          filtered={filtered} activeKey={activeKey}
+          onSelectThread={(t) => setActive({ type: t.type, id: t.id })}
         />
       </div>
 
-      <div className={`flex-1 h-full ${activeId ? 'block' : 'hidden md:flex'}`}>
-        {activeId !== null && activeThread && !threadLoading ? (
+      <div className={`flex-1 h-full ${active ? 'block' : 'hidden md:flex'}`}>
+        {active !== null && activeThread && !threadLoading ? (
           <ThreadView
             thread={activeThread}
-            onBack={() => setActiveId(null)}
+            onBack={() => setActive(null)}
             onShowDetails={() => setShowDetailsSheet(true)}
             reply={reply} onReplyChange={setReply}
             onSend={sendReply} sending={sending}
           />
-        ) : activeId !== null && threadLoading ? (
+        ) : active !== null && threadLoading ? (
           <div className="flex-1 flex items-center justify-center">
             <div className="w-8 h-8 rounded-full border-2 border-[#2c4a1e] border-t-transparent animate-spin" />
           </div>
@@ -420,7 +480,7 @@ function MessagesPageContent() {
       {showDetailsSheet && activeThread && (
         <DetailsSheet thread={activeThread} onClose={() => setShowDetailsSheet(false)} />
       )}
-      {!activeId && (
+      {!active && (
         <BottomNav active="Messages" onSelect={() => { }} scrollingDown={false} scrolled={false} />
       )}
     </div>

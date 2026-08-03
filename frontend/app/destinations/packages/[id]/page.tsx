@@ -1,6 +1,7 @@
 'use client'
 import { use, useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
+import { useAuth } from '@/context/AuthContext'
 import Image from 'next/image'
 import {
   ArrowLeft, Share2, Heart, Star, X, Camera, Grid2X2, Check,
@@ -111,13 +112,15 @@ const CANCELLATION_POLICIES: Record<string, { label: string; description: string
   custom: { label: 'Custom', description: 'Refund terms set by the tour operator.' },
 }
 
-
-
 export default function PackageDetailPage({ params }: Props) {
   const { id } = use(params)
   const router = useRouter()
+  const { isLoggedIn } = useAuth()
 
   const [pkg, setPkg] = useState<ApiListingDetail | null>(null)
+  const [messaging, setMessaging] = useState(false)
+  const [showLoginPrompt, setShowLoginPrompt] = useState(false)
+
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
   const [otherPackages, setOtherPackages] = useState<ApiListingSummary[]>([])
@@ -263,6 +266,14 @@ export default function PackageDetailPage({ params }: Props) {
   function handleWishlist(e: React.MouseEvent) {
     e.stopPropagation()
     setWishlisted(w => !w)
+  }
+
+  // Measse host handler
+  function handleMessageHost() {
+    if (!isLoggedIn) { setShowLoginPrompt(true); return }
+    const params = new URLSearchParams({ listing: String(pkg!.id), guests: String(guests) })
+    if (nextDate) params.set('checkIn', nextDate)
+    router.push(`/messages/new?${params.toString()}`)
   }
 
   // ── Full screen gallery modal ─────────────────────────────────────────
@@ -820,10 +831,10 @@ export default function PackageDetailPage({ params }: Props) {
                   <p className="text-sm text-[#78716c] mb-6">No message history yet.</p>
                 )}
 
-                <button
-                  className="px-8 py-3.5 rounded-xl text-sm font-semibold text-[#304333] transition-colors hover:bg-[#ede8df]"
+                <button onClick={handleMessageHost} disabled={messaging}
+                  className="px-8 py-3.5 rounded-xl text-sm font-semibold text-[#304333] transition-colors hover:bg-[#ede8df] disabled:opacity-60"
                   style={{ background: '#F1F5E4', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
-                  Message tour operator
+                  {messaging ? 'Opening…' : 'Message tour operator'}
                 </button>
 
                 <div className="flex items-start gap-3 mt-6 pt-6" style={{ borderTop: '1px solid #e8e0d0' }}>
@@ -900,11 +911,12 @@ export default function PackageDetailPage({ params }: Props) {
                 <p className="text-sm text-[#78716c] mb-5">No message history yet.</p>
               )}
 
-              <button
-                className="w-full py-3.5 rounded-xl text-sm font-semibold text-[#304333] transition-colors hover:bg-[#ede8df] mb-5"
+              <button onClick={handleMessageHost} disabled={messaging}
+                className="w-full py-3.5 rounded-xl text-sm font-semibold text-[#304333] transition-colors hover:bg-[#ede8df] mb-5 disabled:opacity-60"
                 style={{ background: '#F1F5E4', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
-                Message tour operator
+                {messaging ? 'Opening…' : 'Message tour operator'}
               </button>
+
 
               <div className="flex items-start gap-3">
                 <Shield size={18} strokeWidth={1.5} color="#78716c" />
@@ -982,6 +994,20 @@ export default function PackageDetailPage({ params }: Props) {
                         </div>
                       </button>
                     ))}
+                    <button
+                      onClick={() => router.push('/destinations/packages')}
+                      className="relative flex-shrink-0 w-[45vw] h-[130px] rounded-2xl border border-[#e0d9cc] bg-white flex flex-col items-center justify-center gap-1.5"
+                    >
+                      <div className="relative h-10 w-full flex items-center justify-center">
+                        {otherPackages.slice(0, 3).map((p, i) => (
+                          <div key={p.id} className="absolute w-10 h-10 rounded-lg overflow-hidden bg-[#e0d9cc]"
+                            style={{ border: '2px solid white', boxShadow: '0 2px 8px rgba(0,0,0,0.15)', transform: `rotate(${(i - 1) * 10}deg)`, left: `calc(50% - 20px + ${(i - 1) * 16}px)`, zIndex: i === 1 ? 2 : 1 }}>
+                            <Image src={p.images[0]?.url ?? FALLBACK_IMAGE} alt="" fill className="object-cover" sizes="40px" />
+                          </div>
+                        ))}
+                      </div>
+                      <span className="text-xs font-semibold text-[#304333]">See all</span>
+                    </button>
                   </div>
                 </div>
                 <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -1000,11 +1026,24 @@ export default function PackageDetailPage({ params }: Props) {
                       </div>
                     </button>
                   ))}
+                  <button
+                    onClick={() => router.push('/destinations/packages')}
+                    className="relative h-[130px] rounded-2xl border border-[#e0d9cc] bg-white flex flex-col items-center justify-center gap-1.5"
+                  >
+                    <div className="relative h-10 w-full flex items-center justify-center">
+                      {otherPackages.slice(0, 3).map((p, i) => (
+                        <div key={p.id} className="absolute w-10 h-10 rounded-lg overflow-hidden bg-[#e0d9cc]"
+                          style={{ border: '2px solid white', boxShadow: '0 2px 8px rgba(0,0,0,0.15)', transform: `rotate(${(i - 1) * 10}deg)`, left: `calc(50% - 20px + ${(i - 1) * 16}px)`, zIndex: i === 1 ? 2 : 1 }}>
+                          <Image src={p.images[0]?.url ?? FALLBACK_IMAGE} alt="" fill className="object-cover" sizes="40px" />
+                        </div>
+                      ))}
+                    </div>
+                    <span className="text-xs font-semibold text-[#304333]">See all</span>
+                  </button>
                 </div>
               </div>
             </>
           )}
-
         </div>
 
         <FooterSection />
@@ -1066,6 +1105,31 @@ export default function PackageDetailPage({ params }: Props) {
 
         </div>
       )}
+
+      {/* Messages Login prompt */}
+      {showLoginPrompt && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
+          style={{ background: 'rgba(0,0,0,0.4)' }}
+          onClick={(e) => { if (e.target === e.currentTarget) setShowLoginPrompt(false) }}>
+          <div className="bg-white w-full sm:max-w-sm rounded-t-3xl sm:rounded-2xl p-6">
+            <h2 className="text-lg font-bold text-[#1a1a1a] mb-2">Log in to continue</h2>
+            <p className="text-sm text-gray-500 mb-5">
+              You&apos;ll need to log in or create an account before you can message the tour operator.
+            </p>
+            <div className="flex gap-2">
+              <button onClick={() => router.push(`/login?redirect=${encodeURIComponent(`/destinations/packages/${id}`)}`)}
+                className="flex-1 py-3 rounded-xl border border-gray-200 text-sm font-semibold text-[#1a1a1a] hover:bg-gray-50 transition-colors">
+                Create account
+              </button>
+              <button onClick={() => router.push(`/login?redirect=${encodeURIComponent(`/destinations/packages/${id}`)}`)}
+                className="flex-1 py-3 rounded-xl bg-[#1a1a1a] text-white text-sm font-semibold hover:bg-[#333] transition-colors">
+                Log in
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
 
     </div>
   )

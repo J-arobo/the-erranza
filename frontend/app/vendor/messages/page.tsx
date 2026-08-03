@@ -1,6 +1,5 @@
 'use client'
 import { useEffect, useState } from 'react'
-import Image from 'next/image'
 import { Send, Search } from 'lucide-react'
 import { apiFetch, apiErrorMessage } from '@/lib/api'
 
@@ -15,8 +14,14 @@ function avatarColor(name: string): string {
   return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length]
 }
 
+// Same split as the traveller-side inbox: a thread is either tied to a
+// booking, or — for a pre-booking inquiry — tied to a (listing, traveller)
+// pair instead, since there's no booking yet to key off of.
 type Thread = {
-  booking_id: number
+  type: 'booking' | 'listing'
+  booking_id?: number
+  listing_id?: number
+  traveller_id?: number
   listing_title: string
   guest_name: string
   guest_avatar: string | null
@@ -33,11 +38,23 @@ type ThreadMessage = {
 }
 
 type ThreadDetail = {
-  booking_id: number
   listing_title: string
   guest_name: string
   guest_avatar: string | null
   messages: ThreadMessage[]
+}
+
+type ActiveRef =
+  | { type: 'booking'; id: number }
+  | { type: 'listing'; listingId: number; travellerId: number }
+
+function threadKey(t: Thread): string {
+  return t.type === 'booking' ? `b:${t.booking_id}` : `l:${t.listing_id}:${t.traveller_id}`
+}
+
+function activeKeyOf(a: ActiveRef | null): string | null {
+  if (!a) return null
+  return a.type === 'booking' ? `b:${a.id}` : `l:${a.listingId}:${a.travellerId}`
 }
 
 export default function VendorMessagesPage() {
@@ -45,7 +62,7 @@ export default function VendorMessagesPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
-  const [activeId, setActiveId] = useState<number | null>(null)
+  const [active, setActive] = useState<ActiveRef | null>(null)
   const [activeThread, setActiveThread] = useState<ThreadDetail | null>(null)
   const [threadLoading, setThreadLoading] = useState(false)
 
@@ -60,27 +77,41 @@ export default function VendorMessagesPage() {
   }, [])
 
   useEffect(() => {
-    if (activeId === null) { setActiveThread(null); return }
+    if (!active) { setActiveThread(null); return }
 
     setThreadLoading(true)
-    apiFetch<ThreadDetail>(`/vendor/messages/${activeId}`)
+    const url = active.type === 'booking'
+      ? `/vendor/messages/${active.id}`
+      : `/vendor/listing-messages/${active.listingId}/${active.travellerId}`
+    apiFetch<ThreadDetail>(url)
       .then(setActiveThread)
       .catch((err) => setError(apiErrorMessage(err)))
       .finally(() => setThreadLoading(false))
-  }, [activeId])
+  }, [active])
+
+  function openThread(t: Thread) {
+    if (t.type === 'booking' && t.booking_id) setActive({ type: 'booking', id: t.booking_id })
+    else if (t.type === 'listing' && t.listing_id && t.traveller_id) {
+      setActive({ type: 'listing', listingId: t.listing_id, travellerId: t.traveller_id })
+    }
+  }
 
   async function sendReply() {
-    if (!reply.trim() || activeId === null) return
+    if (!reply.trim() || !active) return
 
     setSending(true)
     setError('')
     try {
-      const { message } = await apiFetch<{ message: ThreadMessage }>(`/vendor/messages/${activeId}`, {
+      const url = active.type === 'booking'
+        ? `/vendor/messages/${active.id}`
+        : `/vendor/listing-messages/${active.listingId}/${active.travellerId}`
+      const { message } = await apiFetch<{ message: ThreadMessage }>(url, {
         method: 'POST',
         body: JSON.stringify({ text: reply.trim() }),
       })
       setActiveThread(t => t ? { ...t, messages: [...t.messages, message] } : t)
-      setThreads(ts => ts.map(t => t.booking_id === activeId
+      const key = activeKeyOf(active)
+      setThreads(ts => ts.map(t => threadKey(t) === key
         ? { ...t, last_message: message.text, last_message_at: message.created_at, unanswered: false }
         : t))
       setReply('')
@@ -99,12 +130,14 @@ export default function VendorMessagesPage() {
     )
   }
 
+  const activeKey = activeKeyOf(active)
+
   return (
     <div className="flex h-full">
 
       {/* Conversation list */}
       <div className={`flex flex-col border-r border-gray-100 bg-white
-                       ${activeId ? 'hidden lg:flex w-80' : 'flex-1 lg:w-80 lg:flex-none'}`}>
+                       ${active ? 'hidden lg:flex w-80' : 'flex-1 lg:w-80 lg:flex-none'}`}>
         <div className="px-4 py-4 border-b border-gray-100">
           <h1 className="text-lg font-bold text-[#1a1a1a] mb-3">Messages</h1>
           <div className="flex items-center gap-2 bg-gray-100 rounded-full px-3 h-9">
@@ -123,33 +156,36 @@ export default function VendorMessagesPage() {
               No conversations yet.
             </div>
           )}
-          {threads.map((t) => (
-            <button key={t.booking_id} onClick={() => setActiveId(t.booking_id)}
-              className={`flex items-center gap-3 px-4 py-3 text-left w-full transition-colors
-                ${activeId === t.booking_id ? 'bg-[#eaf5e4]' : 'hover:bg-gray-50'}`}>
-                            <div className="w-10 h-10 rounded-full flex items-center justify-center
+          {threads.map((t) => {
+            const key = threadKey(t)
+            return (
+              <button key={key} onClick={() => openThread(t)}
+                className={`flex items-center gap-3 px-4 py-3 text-left w-full transition-colors
+                  ${activeKey === key ? 'bg-[#eaf5e4]' : 'hover:bg-gray-50'}`}>
+                <div className="w-10 h-10 rounded-full flex items-center justify-center
                               text-sm font-bold flex-shrink-0"
-                style={t.guest_avatar
-                  ? { backgroundImage: `url(${t.guest_avatar})`, backgroundSize: 'cover', backgroundPosition: 'center' }
-                  : { background: avatarColor(t.guest_name) }}>
-                {!t.guest_avatar && t.guest_name[0]?.toUpperCase()}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="text-sm font-semibold text-[#1a1a1a] truncate">{t.guest_name}</p>
-                  {t.unanswered && (
-                    <span className="w-2 h-2 rounded-full bg-amber-500 flex-shrink-0" />
-                  )}
+                  style={t.guest_avatar
+                    ? { backgroundImage: `url(${t.guest_avatar})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+                    : { background: avatarColor(t.guest_name) }}>
+                  {!t.guest_avatar && t.guest_name[0]?.toUpperCase()}
                 </div>
-                <p className="text-xs text-gray-400 truncate">{t.last_message ?? ''}</p>
-              </div>
-            </button>
-          ))}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-sm font-semibold text-[#1a1a1a] truncate">{t.guest_name}</p>
+                    {t.unanswered && (
+                      <span className="w-2 h-2 rounded-full bg-amber-500 flex-shrink-0" />
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-400 truncate">{t.last_message ?? ''}</p>
+                </div>
+              </button>
+            )
+          })}
         </div>
       </div>
 
       {/* Thread */}
-      {activeId !== null ? (
+      {active !== null ? (
         <div className="flex-1 flex flex-col bg-[#f3f4f6]">
           {threadLoading || !activeThread ? (
             <div className="flex-1 flex items-center justify-center">
@@ -158,7 +194,7 @@ export default function VendorMessagesPage() {
           ) : (
             <>
               <div className="flex items-center gap-3 px-4 py-3 bg-white border-b border-gray-100">
-                <button onClick={() => setActiveId(null)} className="lg:hidden text-sm text-[#2c4a1e]">
+                <button onClick={() => setActive(null)} className="lg:hidden text-sm text-[#2c4a1e]">
                   ← Back
                 </button>
                 <div className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold"
@@ -173,6 +209,9 @@ export default function VendorMessagesPage() {
                 </div>
               </div>
               <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-3">
+                {activeThread.messages.length === 0 && (
+                  <p className="text-sm text-gray-400 text-center py-8">No messages yet.</p>
+                )}
                 {activeThread.messages.map((m) => (
                   <div key={m.id} className={`flex flex-col ${m.sender_type === 'vendor' ? 'items-end' : 'items-start'}`}>
                     <div className={`px-4 py-2.5 rounded-2xl text-sm max-w-[75%]

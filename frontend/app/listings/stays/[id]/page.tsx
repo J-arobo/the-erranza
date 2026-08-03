@@ -124,6 +124,9 @@ function formatRelative(iso: string): string {
 
 const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?w=1200&q=80'
 
+type ApiListingSummary = { id: number; title: string; price: string; images: { url: string }[] }
+type PaginatedListings = { data: ApiListingSummary[] }
+
 type ApiListingDetail = {
   id: number
   title: string
@@ -443,13 +446,20 @@ export default function StayDetailPage({ params }: Props) {
   const photoGridRef = useRef<HTMLDivElement>(null)
   const calendarSectionRef = useRef<HTMLDivElement>(null) // scroll target for "Add dates"
   const [messaging, setMessaging] = useState(false)
-
+  const [showLoginPrompt, setShowLoginPrompt] = useState(false)
+  const [otherListings, setOtherListings] = useState<ApiListingSummary[]>([])
 
   useEffect(() => {
     apiFetch<{ listing: ApiListingDetail }>(`/listings/${id}`)
       .then(({ listing }) => setListing(listing))
       .catch(() => setNotFound(true))
       .finally(() => setLoading(false))
+  }, [id])
+
+  useEffect(() => {
+    apiFetch<PaginatedListings>('/listings?category=Stays&per_page=100')
+      .then(({ data }) => setOtherListings(data.filter(l => String(l.id) !== id).slice(0, 4)))
+      .catch(() => { })
   }, [id])
 
   useEffect(() => {
@@ -491,20 +501,13 @@ export default function StayDetailPage({ params }: Props) {
       </div>
     )
   }
-  async function handleMessageHost() {
-    if (!isLoggedIn) { router.push('/login'); return }
-    setMessaging(true)
-    try {
-      const { bookings } = await apiFetch<{ bookings: { id: number; listing: { id: number } }[] }>('/bookings')
-      const existing = bookings.find(b => b.listing.id === listing!.id)
-      router.push(existing ? `/messages?booking=${existing.id}` : `/listings/stays/${id}/book`)
-    } catch {
-      router.push(`/listings/stays/${id}/book`)
-    } finally {
-      setMessaging(false)
-    }
+  function handleMessageHost() {
+    if (!isLoggedIn) { setShowLoginPrompt(true); return }
+    const params = new URLSearchParams({ listing: String(listing!.id), guests: String(totalGuests) })
+    if (checkIn) params.set('checkIn', checkIn.toISOString())
+    if (checkOut) params.set('checkOut', checkOut.toISOString())
+    router.push(`/messages/new?${params.toString()}`)
   }
-
 
   const title = listing.title
   const location = listing.location
@@ -1096,6 +1099,31 @@ export default function StayDetailPage({ params }: Props) {
                   </div>
                 </div>
               )}
+
+              {/* ── Login prompt for message host ── */}
+              {showLoginPrompt && (
+                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
+                  style={{ background: 'rgba(0,0,0,0.4)' }}
+                  onClick={(e) => { if (e.target === e.currentTarget) setShowLoginPrompt(false) }}>
+                  <div className="bg-white w-full sm:max-w-sm rounded-t-3xl sm:rounded-2xl p-6">
+                    <h2 className="text-lg font-bold text-[#1a1a1a] mb-2">Log in to continue</h2>
+                    <p className="text-sm text-gray-500 mb-5">
+                      You&apos;ll need to log in or create an account before you can message the host.
+                    </p>
+                    <div className="flex gap-2">
+                      <button onClick={() => router.push(`/login?redirect=${encodeURIComponent(`/listings/stays/${id}`)}`)}
+                        className="flex-1 py-3 rounded-xl border border-gray-200 text-sm font-semibold text-[#1a1a1a] hover:bg-gray-50 transition-colors">
+                        Create account
+                      </button>
+                      <button onClick={() => router.push(`/login?redirect=${encodeURIComponent(`/listings/stays/${id}`)}`)}
+                        className="flex-1 py-3 rounded-xl bg-[#1a1a1a] text-white text-sm font-semibold hover:bg-[#333] transition-colors">
+                        Log in
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
             </div>
 
             {/* ══ DESKTOP BOOKING SIDEBAR ══ */}
@@ -1504,9 +1532,10 @@ export default function StayDetailPage({ params }: Props) {
                     <p className="text-sm text-[#78716c]">No message history yet.</p>
                   )}
                 </div>
-                <button className="px-8 py-3.5 rounded-xl text-sm font-semibold transition-colors hover:bg-[#ede8df]"
+                <button onClick={handleMessageHost} disabled={messaging}
+                  className="px-8 py-3.5 rounded-xl text-sm font-semibold transition-colors hover:bg-[#ede8df] disabled:opacity-60"
                   style={{ background: '#F1F5E4', border: 'none', cursor: 'pointer', fontFamily: 'inherit', color: '#304333' }}>
-                  Message host
+                  {messaging ? 'Opening…' : 'Message host'}
                 </button>
                 <div className="flex items-start gap-3 mt-6 pt-6" style={{ borderTop: '1px solid #e8e0d0' }}>
                   <Shield size={20} strokeWidth={1.5} color="#78716c" />
@@ -1585,9 +1614,10 @@ export default function StayDetailPage({ params }: Props) {
                   <p className="text-sm text-[#78716c]">No message history yet.</p>
                 )}
               </div>
-              <button className="w-full py-3.5 rounded-xl text-sm font-semibold transition-colors hover:bg-[#ede8df] mb-5"
+              <button onClick={handleMessageHost} disabled={messaging}
+                className="w-full py-3.5 rounded-xl text-sm font-semibold transition-colors hover:bg-[#ede8df] mb-5"
                 style={{ background: '#F1F5E4', border: 'none', cursor: 'pointer', fontFamily: 'inherit', color: '#304333' }}>
-                Message host
+                {messaging ? 'Opening…' : 'Message host'}
               </button>
               <div className="flex items-start gap-3 pt-5" >
                 <Shield size={18} strokeWidth={1.5} color="#78716c" />
@@ -1675,9 +1705,57 @@ export default function StayDetailPage({ params }: Props) {
             </div>
           </div>
 
+          {otherListings.length > 0 && (
+            <>
+              <Divider />
+              <div className="pb-1 sm:px-0" style={{ ...MOB_PAD }}>
+                <h2 className="text-xl font-semibold text-[#304333] mb-4">More stays nearby</h2>
+
+                <div className="sm:hidden overflow-x-auto scrollbar-hide -mx-4 px-4">
+                  <div className="flex gap-3">
+                    {otherListings.map((l) => (
+                      <button
+                        key={l.id}
+                        onClick={() => router.push(`/listings/stays/${l.id}`)}
+                        className="relative flex-shrink-0 w-[45vw] h-[130px] rounded-2xl overflow-hidden active:scale-95 transition-transform"
+                        style={{ background: '#e8e0d0' }}
+                      >
+                        <Image src={l.images[0]?.url ?? FALLBACK_IMAGE} alt={l.title} fill className="object-cover" sizes="45vw" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                        <div className="absolute bottom-0 left-0 right-0 p-2 text-left">
+                          <p className="text-white text-xs font-semibold truncate">{l.title}</p>
+                          <p className="text-white/70 text-[10px]">Ksh {Math.round(Number(l.price)).toLocaleString()}</p>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {otherListings.map((l) => (
+                    <button
+                      key={l.id}
+                      onClick={() => router.push(`/listings/stays/${l.id}`)}
+                      className="relative h-[130px] rounded-2xl overflow-hidden active:scale-95 transition-transform"
+                      style={{ background: '#e8e0d0' }}
+                    >
+                      <Image src={l.images[0]?.url ?? FALLBACK_IMAGE} alt={l.title} fill className="object-cover" sizes="50vw" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                      <div className="absolute bottom-0 left-0 right-0 p-2 text-left">
+                        <p className="text-white text-xs font-semibold truncate">{l.title}</p>
+                        <p className="text-white/70 text-[10px]">Ksh {Math.round(Number(l.price)).toLocaleString()}</p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
+
           <Divider />
 
           {/* ── Explore nearby ── */}
+
           <div className="pb-4 sm:px-0" style={{ ...MOB_PAD }}>
             <h2 className="text-xl font-semibold text-[#304333] mb-4">
               Explore other options in and around {location.split(',')[0]}

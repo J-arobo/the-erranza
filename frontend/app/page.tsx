@@ -120,22 +120,40 @@ export default function Home() {
                       />
                     </div>
                   ))}
-                  <button
-                    onClick={() => router.push(`/destinations/${slug}`)}
-                    className="flex-shrink-0 w-[36vw] sm:w-[26vw] md:w-[22vw] lg:w-[17vw] xl:w-[13vw] rounded-2xl border
-                 border-[#e0d9cc] shadow-sm bg-white flex flex-col items-center
-                 justify-center gap-2 hover:bg-[#f5f0e8] transition-colors"
-                  >
-                    <div
-                      className="w-10 h-10 rounded-full flex items-center justify-center"
-                      style={{ background: color + '22' }}
-                    >
-                      <ChevronRight size={18} color={color} />
-                    </div>
-                    <span className="text-xs font-semibold" style={{ color }}>
-                      Show all
-                    </span>
-                  </button>
+                  {(() => {
+                    // profile page, just with 3 photos — picked randomly each
+                    // profile page, just with 3 photos — picked randomly each
+                    // load so the card doesn't always show the same 3 items.
+                    const previewImages = [...data].sort(() => Math.random() - 0.5).slice(0, 3)
+                    return (
+                      <button
+                        onClick={() => router.push(`/destinations/${slug}`)}
+                        className="flex-shrink-0 self-start w-[36vw] sm:w-[26vw] md:w-[22vw] lg:w-[17vw] xl:w-[13vw] aspect-[5/4] rounded-2xl border
+                     border-[#e0d9cc] shadow-sm bg-white flex flex-col items-center
+                     justify-center gap-2 hover:bg-[#f5f0e8] transition-colors p-4"
+                      >
+
+                        <div className="relative h-12 w-full flex items-center justify-center mb-1">
+                          {previewImages.map((item, i) => (
+                            <div key={item.id} className="absolute w-12 h-12 rounded-xl overflow-hidden bg-[#e0d9cc]"
+                              style={{
+                                border: '3px solid white',
+                                boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+                                transform: `rotate(${(i - 1) * 10}deg)`,
+                                left: `calc(50% - 24px + ${(i - 1) * 18}px)`,
+                                zIndex: i === 1 ? 2 : 1,
+                              }}>
+                              <img src={item.image} alt="" className="w-full h-full object-cover" />
+                            </div>
+                          ))}
+                        </div>
+                        <span className="text-xs font-semibold" style={{ color }}>
+                          See all
+                        </span>
+                      </button>
+                    )
+                  })()}
+
                 </div>
               </div>
             </div>

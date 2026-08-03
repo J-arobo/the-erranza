@@ -222,8 +222,24 @@ function PackagesPageContent() {
                       <PackageCard pkg={item} />
                     </div>
                   ))}
+                  <div className={CARD_WIDTH_CLASSES}>
+                    <div className="relative w-full aspect-[4/3] rounded-xl border border-[#e0d9cc] shadow-sm
+                        bg-[#f5f0e8] flex flex-col items-center justify-center gap-2
+                        hover:bg-[#ece8e0] transition-colors cursor-pointer">
+                      <div className="relative h-10 w-full flex items-center justify-center">
+                        {filtered.slice(0, 3).map((it, i) => (
+                          <div key={it.id} className="absolute w-10 h-10 rounded-lg overflow-hidden bg-[#e0d9cc]"
+                            style={{ border: '2px solid white', boxShadow: '0 2px 8px rgba(0,0,0,0.15)', transform: `rotate(${(i - 1) * 10}deg)`, left: `calc(50% - 20px + ${(i - 1) * 16}px)`, zIndex: i === 1 ? 2 : 1 }}>
+                            <img src={it.image} alt="" className="w-full h-full object-cover" />
+                          </div>
+                        ))}
+                      </div>
+                      <span className="text-xs font-semibold text-[#2c4a1e]">See all</span>
+                    </div>
+                  </div>
                 </div>
               </div>
+
             </div>
           )}
         </div>
@@ -242,13 +258,28 @@ function PackagesPageContent() {
             <p className="text-sm text-gray-400 px-4 sm:px-8 md:px-12 lg:px-52">No safari tours available yet.</p>
           ) : (
             <div className="sm:px-4 md:px-12 lg:px-52 pb-2">
-              <div className="overflow-x-auto scrollbar-hide">
+                            <div className="overflow-x-auto scrollbar-hide">
                 <div className="flex gap-3 px-4">
                   {safaris.map((item) => (
                     <div key={item.id} className={CARD_WIDTH_CLASSES}>
                       <ListingCard {...item} listingCategory="safari" />
                     </div>
                   ))}
+                  <div className={CARD_WIDTH_CLASSES}>
+                    <div className="relative w-full aspect-[5/4] rounded-xl border border-[#e0d9cc] shadow-sm
+                        bg-[#f5f0e8] flex flex-col items-center justify-center gap-2
+                        hover:bg-[#ece8e0] transition-colors cursor-pointer">
+                      <div className="relative h-10 w-full flex items-center justify-center">
+                        {safaris.slice(0, 3).map((it, i) => (
+                          <div key={it.id} className="absolute w-10 h-10 rounded-lg overflow-hidden bg-[#e0d9cc]"
+                            style={{ border: '2px solid white', boxShadow: '0 2px 8px rgba(0,0,0,0.15)', transform: `rotate(${(i - 1) * 10}deg)`, left: `calc(50% - 20px + ${(i - 1) * 16}px)`, zIndex: i === 1 ? 2 : 1 }}>
+                            <img src={it.image} alt="" className="w-full h-full object-cover" />
+                          </div>
+                        ))}
+                      </div>
+                      <span className="text-xs font-semibold text-[#2c4a1e]">See all</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>

@@ -192,9 +192,25 @@ function SafariPageContent() {
                           <ListingCard {...item} listingCategory="safari" />
                         </div>
                       ))}
+                      <div className="flex-shrink-0 w-[82vw] sm:w-[50vw] md:w-[34vw] lg:w-[25vw] xl:w-[19vw]">
+                        <div className="relative w-full aspect-[5/4] rounded-xl border border-[#e0d9cc] shadow-sm
+                            bg-[#f5f0e8] flex flex-col items-center justify-center gap-2
+                            hover:bg-[#ece8e0] transition-colors cursor-pointer">
+                          <div className="relative h-10 w-full flex items-center justify-center">
+                            {items.slice(0, 3).map((it, i) => (
+                              <div key={it.id} className="absolute w-10 h-10 rounded-lg overflow-hidden bg-[#e0d9cc]"
+                                style={{ border: '2px solid white', boxShadow: '0 2px 8px rgba(0,0,0,0.15)', transform: `rotate(${(i - 1) * 10}deg)`, left: `calc(50% - 20px + ${(i - 1) * 16}px)`, zIndex: i === 1 ? 2 : 1 }}>
+                                <img src={it.image} alt="" className="w-full h-full object-cover" />
+                              </div>
+                            ))}
+                          </div>
+                          <span className="text-xs font-semibold text-[#2c4a1e]">See all</span>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
+
               </div>
             )
           })
