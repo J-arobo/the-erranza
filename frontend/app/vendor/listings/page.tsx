@@ -160,7 +160,7 @@ export default function VendorListingsPage() {
                          hover:shadow-md transition-all min-w-0">
               <div className="flex gap-4 p-4 min-w-0">
                 <div className="relative w-20 h-20 sm:w-24 sm:h-24 rounded-xl overflow-hidden
-                                flex-shrink-0 bg-[#e0d9cc]">
+                                flex-shrink-0 bg-[#f5f5f5]">
                   <Image src={listing.images[0]?.url ?? FALLBACK_IMAGE} alt={listing.title} fill
                     sizes="96px" className="object-cover" />
                 </div>

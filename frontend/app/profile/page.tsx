@@ -162,7 +162,7 @@ function VisitedPlaces({ loading, places }: { loading: boolean; places: ApiBooki
         <div className="flex gap-8 mb-8 flex-wrap">
           {places.map((b) => (
             <div key={b.listing.location} className="text-center">
-              <div className="relative w-20 h-20 rounded-full overflow-hidden mb-2 mx-auto bg-[#e0d9cc]">
+              <div className="relative w-20 h-20 rounded-full overflow-hidden mb-2 mx-auto bg-[#f5f5f5]">
                 {b.listing.images[0] ? (
                   <img src={b.listing.images[0].url} alt="" className="w-full h-full object-cover" />
                 ) : (
@@ -311,7 +311,7 @@ export default function ProfilePage() {
               </button>
               <button onClick={() => router.push('/trips')}
                 className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-50 transition-colors text-left">
-                <div className="w-9 h-9 rounded-lg overflow-hidden bg-[#e0d9cc] flex-shrink-0">
+                <div className="w-9 h-9 rounded-lg overflow-hidden bg-[#f5f5f5] flex-shrink-0">
                   {bookings[0] && <img src={bookings[0].listing.images[0]?.url ?? FALLBACK_IMAGE} alt="" className="w-full h-full object-cover" />}
                 </div>
                 <span className="text-sm text-[#1a1a1a]">Past trips</span>
@@ -344,7 +344,7 @@ export default function ProfilePage() {
                 style={{ boxShadow: '0 2px 16px rgba(0,0,0,0.08)' }}>
                 <div className="relative h-16 mb-4" style={{ width: 90 }}>
                   {bookings.length > 0 ? bookings.slice(0, 2).map((b, i) => (
-                    <div key={b.id} className="absolute w-14 h-14 rounded-xl overflow-hidden bg-[#e0d9cc]"
+                    <div key={b.id} className="absolute w-14 h-14 rounded-xl overflow-hidden bg-[#f5f5f5]"
                       style={{
                         border: '3px solid white',
                         boxShadow: '0 2px 8px rgba(0,0,0,0.15)',

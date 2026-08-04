@@ -82,7 +82,7 @@ export default function FlightsPage() {
                 Flight header ********** To comment out until flights launch **********
                 <div className="flex gap-4 p-4">
                   <div className="relative w-[90px] h-[90px] rounded-xl overflow-hidden
-                                  bg-[#e0d9cc] flex-shrink-0">
+                                  bg-[#f5f5f5] flex-shrink-0">
                     <Image src={flight.image} alt={flight.title} fill
                       sizes="90px" className="object-cover" />
                   </div>

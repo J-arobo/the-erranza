@@ -41,7 +41,7 @@ export default function ListingBookingsPage({ params }: Props) {
       </button>
 
       <div className="flex items-center gap-4 mb-6">
-        <div className="relative w-16 h-16 rounded-xl overflow-hidden flex-shrink-0 bg-[#e0d9cc]">
+        <div className="relative w-16 h-16 rounded-xl overflow-hidden flex-shrink-0 bg-[#f5f5f5]">
           <Image src={listing.image} alt={listing.title} fill sizes="64px" className="object-cover" />
         </div>
         <div>

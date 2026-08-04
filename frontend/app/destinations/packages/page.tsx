@@ -106,7 +106,7 @@ function PackageCard({ pkg }: { pkg: PackageItem }) {
       shadow-[0_4px_16px_rgba(0,0,0,0.12)] hover:shadow-[0_6px_24px_rgba(0,0,0,0.18)]
       transition-shadow duration-200 active:scale-[0.98]"
     >
-      <div className="relative w-full aspect-[4/3] rounded-b-2xl overflow-hidden bg-[#e0d9cc]">
+      <div className="relative w-full aspect-[4/3] rounded-b-2xl overflow-hidden bg-[#f5f5f5]">
         <Image
           src={pkg.image} alt={pkg.title} fill
           sizes="(max-width: 640px) 90vw, 30vw"
@@ -143,11 +143,12 @@ function PackageCard({ pkg }: { pkg: PackageItem }) {
 }
 
 // ── Section heading
-function SectionHeading({ title }: { title: string }) {
+function SectionHeading({ title, onClick }: { title: string; onClick?: () => void }) {
   return (
     <div className="flex items-center gap-2 px-4 sm:px-8 md:px-12 lg:px-52 mb-3 w-fit">
       <h2 className="text-base font-bold text-[#1a1a1a]">{title}</h2>
-      <button className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors flex-shrink-0">
+      <button onClick={onClick} disabled={!onClick}
+        className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors flex-shrink-0 disabled:opacity-40 disabled:cursor-default">
         <ArrowRight size={14} color="#1a1a1a" />
       </button>
     </div>
@@ -223,12 +224,12 @@ function PackagesPageContent() {
                     </div>
                   ))}
                   <div className={CARD_WIDTH_CLASSES}>
-                    <div className="relative w-full aspect-[4/3] rounded-xl border border-[#e0d9cc] shadow-sm
-                        bg-[#f5f0e8] flex flex-col items-center justify-center gap-2
-                        hover:bg-[#ece8e0] transition-colors cursor-pointer">
+                  <div className="relative w-full aspect-[4/3] rounded-xl border border-[#e0d9cc] shadow-sm
+                        bg-white flex flex-col items-center justify-center gap-2
+                        hover:bg-[#f5f5f5] transition-colors">
                       <div className="relative h-10 w-full flex items-center justify-center">
                         {filtered.slice(0, 3).map((it, i) => (
-                          <div key={it.id} className="absolute w-10 h-10 rounded-lg overflow-hidden bg-[#e0d9cc]"
+                          <div key={it.id} className="absolute w-10 h-10 rounded-lg overflow-hidden bg-[#f5f5f5]"
                             style={{ border: '2px solid white', boxShadow: '0 2px 8px rgba(0,0,0,0.15)', transform: `rotate(${(i - 1) * 10}deg)`, left: `calc(50% - 20px + ${(i - 1) * 16}px)`, zIndex: i === 1 ? 2 : 1 }}>
                             <img src={it.image} alt="" className="w-full h-full object-cover" />
                           </div>
@@ -246,7 +247,7 @@ function PackagesPageContent() {
 
         {/* ── Safari tour packages — real listings, shared ListingCard so wishlist/routing work ── */}
         <div>
-          <SectionHeading title="Safari tour packages" />
+        <SectionHeading title="Safari tour packages" onClick={() => router.push('/destinations/safari')} />
 
           {loadingSafaris ? (
             <div className="flex items-center justify-center py-10">
@@ -266,12 +267,13 @@ function PackagesPageContent() {
                     </div>
                   ))}
                   <div className={CARD_WIDTH_CLASSES}>
-                    <div className="relative w-full aspect-[5/4] rounded-xl border border-[#e0d9cc] shadow-sm
-                        bg-[#f5f0e8] flex flex-col items-center justify-center gap-2
-                        hover:bg-[#ece8e0] transition-colors cursor-pointer">
+                  <div onClick={() => router.push('/destinations/safari')}
+                      className="relative w-full aspect-[5/4] rounded-xl border border-[#e0d9cc] shadow-sm
+                        bg-white flex flex-col items-center justify-center gap-2
+                        hover:bg-[#f5f5f5] transition-colors cursor-pointer">
                       <div className="relative h-10 w-full flex items-center justify-center">
                         {safaris.slice(0, 3).map((it, i) => (
-                          <div key={it.id} className="absolute w-10 h-10 rounded-lg overflow-hidden bg-[#e0d9cc]"
+                          <div key={it.id} className="absolute w-10 h-10 rounded-lg overflow-hidden bg-[#f5f5f5]"
                             style={{ border: '2px solid white', boxShadow: '0 2px 8px rgba(0,0,0,0.15)', transform: `rotate(${(i - 1) * 10}deg)`, left: `calc(50% - 20px + ${(i - 1) * 16}px)`, zIndex: i === 1 ? 2 : 1 }}>
                             <img src={it.image} alt="" className="w-full h-full object-cover" />
                           </div>

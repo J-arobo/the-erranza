@@ -62,6 +62,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/bookings/{booking}/cancel', [BookingController::class, 'cancel']);
     Route::post('/bookings/{booking}/messages', [MessageController::class, 'store']);
     Route::get('/messages', [MessageController::class, 'index']);
+    //Unread message
+    Route::get('/messages/unread-count', [MessageController::class, 'unreadCount']);
+    Route::get('/vendors/{vendor}/messages', [MessageController::class, 'vendorThread']);
+    Route::post('/vendors/{vendor}/messages', [MessageController::class, 'storeToVendor']);
+
     Route::get('/bookings/{booking}/messages', [MessageController::class, 'show']);
     Route::get('/listings/{listing}/messages', [ListingMessageController::class, 'show']);
     Route::post('/listings/{listing}/messages', [ListingMessageController::class, 'store']);
@@ -88,6 +93,9 @@ Route::prefix('vendor')->middleware(['auth:sanctum', 'vendor'])->group(function 
     Route::post('/bookings/{booking}/cancel', [VendorBookingController::class, 'cancel']);
 
     Route::get('/messages', [VendorMessageController::class, 'index']);
+    Route::get('/messages/unread-count', [VendorMessageController::class, 'unreadCount']);
+    Route::get('/travellers/{traveller}/messages', [VendorMessageController::class, 'travellerThread']);
+    Route::post('/travellers/{traveller}/messages', [VendorMessageController::class, 'replyToTraveller']);
     Route::get('/messages/{booking}', [VendorMessageController::class, 'show']);
     Route::post('/messages/{booking}', [VendorMessageController::class, 'store']);
     Route::get('/listing-messages/{listing}/{traveller}', [VendorMessageController::class, 'showListingThread']);

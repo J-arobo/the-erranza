@@ -1,34 +1,32 @@
 'use client'
-import { Suspense, useEffect, useState } from 'react'
+import { Suspense, useEffect, useState, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Image from 'next/image'
 import {
-  Search, Settings, Send, ArrowLeft, Clock, X,
+  Search, Settings, Send, ArrowLeft, Clock, X, Home,
 } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { apiFetch, apiErrorMessage } from '@/lib/api'
 import BottomNav from '@/components/BottomNav'
 
 const FILTER_TABS = ['All', 'Travelling', 'Support']
-const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1547471080-7cc2caa01a7e?w=400&q=80'
 
 function formatTimestamp(ts: string) {
   return new Date(ts).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
 }
 
-// A thread is either tied to a booking (post-booking conversation) or,
-// pre-booking, tied directly to a listing — "type" + "id" together identify
-// which one, since the two id spaces overlap (booking 25 and listing 25 are
-// unrelated).
+// One thread per vendor — every listing/booking you've ever messaged that
+// vendor about lives in the same conversation, so it doesn't fragment when
+// you message about a second property from the same host.
 type Thread = {
-  type: 'booking' | 'listing'
-  id: number
-  listing_title: string
-  listing_image: string | null
+  vendor_id: number
   vendor_name: string
   vendor_avatar: string | null
+  listing_title: string | null
   last_message: string | null
   last_message_at: string | null
+  last_sender_name: string | null
+  last_sender_avatar: string | null
   unread: boolean
 }
 
@@ -37,11 +35,11 @@ type ThreadMessage = {
   sender_type: 'guest' | 'vendor'
   text: string
   created_at: string
+  listing: { id: number; title: string } | null
 }
 
 type ThreadDetail = {
-  listing_title: string
-  listing_image: string | null
+  vendor_id: number
   vendor_name: string
   vendor_avatar: string | null
   messages: ThreadMessage[]
@@ -60,13 +58,16 @@ type ConversationListProps = {
   filter: string
   onFilterChange: (v: string) => void
   filtered: Thread[]
-  activeKey: string | null
+  activeVendorId: number | null
   onSelectThread: (t: Thread) => void
+  tooltipVendorId: number | null
+  onToggleTooltip: (v: number | null) => void
 }
 
 function ConversationList({
   showSearch, onShowSearch, search, onSearchChange,
-  filter, onFilterChange, filtered, activeKey, onSelectThread,
+  filter, onFilterChange, filtered, activeVendorId, onSelectThread,
+  tooltipVendorId, onToggleTooltip,
 }: ConversationListProps) {
   return (
     <div className="flex flex-col h-full">
@@ -122,36 +123,47 @@ function ConversationList({
           </div>
         ) : (
           <div className="flex flex-col">
-            {filtered.map((t) => {
-              const key = `${t.type}:${t.id}`
-              return (
-                <button key={key} onClick={() => onSelectThread(t)}
-                  className={`flex items-center gap-4 px-5 py-4 hover:bg-gray-50 transition-colors text-left w-full
-                    ${activeKey === key ? 'bg-gray-50' : ''}`}>
-                  <div className="relative flex-shrink-0 w-14 h-14">
-                    <div className="absolute top-0 left-0 w-11 h-11 rounded-xl overflow-hidden bg-[#e0d9cc] border-2 border-white">
-                      <Image src={t.listing_image ?? FALLBACK_IMAGE} alt={t.vendor_name} fill sizes="44px" className="object-cover" />
-                    </div>
-                    <div className={`absolute bottom-0 right-0 w-7 h-7 rounded-full border-2 border-white flex items-center justify-center text-xs font-bold text-white
-                      ${t.unread ? 'bg-[#2c4a1e]' : 'bg-gray-400'}`}
-                      style={t.vendor_avatar ? { backgroundImage: `url(${t.vendor_avatar})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}>
-                      {!t.vendor_avatar && t.vendor_name[0]}
-                    </div>
+            {filtered.map((t) => (
+              <button key={t.vendor_id} onClick={() => onSelectThread(t)}
+                className={`flex items-center gap-4 px-5 py-4 hover:bg-gray-50 transition-colors text-left w-full
+                  ${activeVendorId === t.vendor_id ? 'bg-gray-50' : ''}`}>
+                <div className="relative flex-shrink-0 w-14 h-14">
+                  <div className="absolute top-0 left-0 w-14 h-14 rounded-full overflow-hidden bg-[#2c4a1e] border-2 border-white flex items-center justify-center text-white text-lg font-bold"
+                    style={t.vendor_avatar ? { backgroundImage: `url(${t.vendor_avatar})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}>
+                    {!t.vendor_avatar && t.vendor_name[0]}
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between mb-0.5">
-                      <p className={`text-sm ${t.unread ? 'font-bold' : 'font-semibold'} text-[#1a1a1a]`}>{t.vendor_name}</p>
-                      <span className="text-xs text-gray-400 flex-shrink-0 ml-2">
-                        {t.last_message_at ? new Date(t.last_message_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''}
-                      </span>
+                  {/* Only shown once an actual staff member has replied — before that it's just the vendor. Tap (not just hover) reveals who, since hover-only tooltips don't work on touch devices. */}
+                  {t.last_sender_name && (
+                    <div className="absolute bottom-0 right-0">
+                      <div
+                        onClick={(e) => { e.stopPropagation(); onToggleTooltip(tooltipVendorId === t.vendor_id ? null : t.vendor_id) }}
+                        className="w-6 h-6 rounded-full border-2 border-white flex items-center justify-center text-[10px] font-bold text-white bg-gray-400 cursor-pointer"
+                        style={t.last_sender_avatar ? { backgroundImage: `url(${t.last_sender_avatar})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}>
+                        {!t.last_sender_avatar && t.last_sender_name[0]}
+                      </div>
+                      {tooltipVendorId === t.vendor_id && (
+                        <div className="absolute z-20 bottom-7 right-0 bg-[#1a1a1a] text-white text-xs px-2.5 py-1.5 rounded-lg whitespace-nowrap shadow-lg">
+                          {t.last_sender_name}
+                          <div className="absolute -bottom-1 right-2 w-2 h-2 bg-[#1a1a1a] rotate-45" />
+                        </div>
+                      )}
                     </div>
-                    <p className={`text-xs truncate mb-0.5 ${t.unread ? 'text-[#1a1a1a] font-medium' : 'text-gray-500'}`}>{t.last_message ?? 'Say hello!'}</p>
-                    <p className="text-xs text-gray-400 truncate">{t.listing_title}</p>
+                  )}
+
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between mb-0.5">
+                    <p className={`text-sm ${t.unread ? 'font-bold' : 'font-semibold'} text-[#1a1a1a]`}>{t.vendor_name}</p>
+                    <span className="text-xs text-gray-400 flex-shrink-0 ml-2">
+                      {t.last_message_at ? new Date(t.last_message_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''}
+                    </span>
                   </div>
-                  {t.unread && <div className="w-2.5 h-2.5 rounded-full bg-[#2c4a1e] flex-shrink-0" />}
-                </button>
-              )
-            })}
+                  <p className={`text-xs truncate mb-0.5 ${t.unread ? 'text-[#1a1a1a] font-medium' : 'text-gray-500'}`}>{t.last_message ?? 'Say hello!'}</p>
+                  {t.listing_title && <p className="text-xs text-gray-400 truncate">{t.listing_title}</p>}
+                </div>
+                {t.unread && <div className="w-2.5 h-2.5 rounded-full bg-[#2c4a1e] flex-shrink-0" />}
+              </button>
+            ))}
           </div>
         )}
       </div>
@@ -170,6 +182,13 @@ type ThreadViewProps = {
 }
 
 function ThreadView({ thread, onBack, onShowDetails, reply, onReplyChange, onSend, sending }: ThreadViewProps) {
+  const lastListingTitle = thread.messages.length > 0 ? thread.messages[thread.messages.length - 1].listing?.title ?? null : null
+  const bottomRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ block: 'end' })
+  }, [thread.messages.length])
+
   return (
     <div className="flex flex-col h-full bg-white">
       <div className="pt-3 md:pt-5 pb-3 border-b border-gray-100">
@@ -181,14 +200,9 @@ function ThreadView({ thread, onBack, onShowDetails, reply, onReplyChange, onSen
           <div className="hidden md:block w-9" />
 
           <div className="absolute left-1/2 top-1/2 w-10 h-10 rounded-full overflow-hidden bg-[#2c4a1e] border-2 border-white shadow-sm flex items-center justify-center text-white text-sm font-bold"
-            style={{ transform: 'translate(-50%, -50%)' }}>
-            {thread.vendor_avatar ? (
-              <Image src={thread.vendor_avatar} alt={thread.vendor_name} fill sizes="40px" className="object-cover" />
-            ) : (
-              thread.vendor_name[0]
-            )}
+            style={{ transform: 'translate(-50%, -50%)', ...(thread.vendor_avatar ? { backgroundImage: `url(${thread.vendor_avatar})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {}) }}>
+            {!thread.vendor_avatar && thread.vendor_name[0]}
           </div>
-
 
           <button onClick={onShowDetails}
             className="px-4 py-2 rounded-xl text-xs font-semibold text-[#304333] md:hidden relative z-10"
@@ -204,7 +218,7 @@ function ThreadView({ thread, onBack, onShowDetails, reply, onReplyChange, onSen
 
         <div className="text-center px-4 mt-1">
           <p className="text-sm font-bold text-[#1a1a1a]">{thread.vendor_name}</p>
-          <p className="text-xs text-gray-400">{thread.listing_title}</p>
+          {lastListingTitle && <p className="text-xs text-gray-400">{lastListingTitle}</p>}
         </div>
       </div>
 
@@ -212,33 +226,49 @@ function ThreadView({ thread, onBack, onShowDetails, reply, onReplyChange, onSen
         {thread.messages.length === 0 && (
           <p className="text-sm text-gray-400 text-center py-8">No messages yet — say hello!</p>
         )}
-        {thread.messages.map((msg) => (
-          <div key={msg.id} className={`flex ${msg.sender_type === 'guest' ? 'justify-end' : 'justify-start'}`}>
-            <div className={`max-w-[75%] px-4 py-2.5 rounded-2xl text-sm
-              ${msg.sender_type === 'guest' ? 'bg-[#2c4a1e] text-white rounded-br-sm' : 'bg-gray-100 text-[#1a1a1a] rounded-bl-sm'}`}>
-              <p>{msg.text}</p>
-              <p className={`text-[10px] mt-1 ${msg.sender_type === 'guest' ? 'text-white/60' : 'text-gray-400'}`}>{formatTimestamp(msg.created_at)}</p>
+        {thread.messages.map((msg, i) => {
+          const prevListingId = i > 0 ? thread.messages[i - 1].listing?.id ?? null : null
+          const showListingTag = msg.listing && msg.listing.id !== prevListingId
+          return (
+            <div key={msg.id}>
+              {showListingTag && (
+                <div className="flex justify-center my-2">
+                  <div className="bg-gray-100 text-gray-500 text-xs font-medium px-3 py-1.5 rounded-full flex items-center gap-1.5">
+                    <Home size={11} /> Regarding: {msg.listing!.title}
+                  </div>
+                </div>
+              )}
+              <div className={`flex ${msg.sender_type === 'guest' ? 'justify-end' : 'justify-start'}`}>
+                <div className={`max-w-[75%] px-4 py-2.5 rounded-2xl text-sm
+                  ${msg.sender_type === 'guest' ? 'bg-[#2c4a1e] text-white rounded-br-sm' : 'bg-gray-100 text-[#1a1a1a] rounded-bl-sm'}`}>
+                  <p>{msg.text}</p>
+                  <p className={`text-[10px] mt-1 ${msg.sender_type === 'guest' ? 'text-white/60' : 'text-gray-400'}`}>{formatTimestamp(msg.created_at)}</p>
+                </div>
+                </div>
             </div>
-          </div>
-        ))}
+          )
+        })}
+        <div ref={bottomRef} />
       </div>
 
       <div className="bg-white border-t border-gray-100 pb-8">
         <div className="px-4 pt-3">
-          <div className="flex items-center gap-2 justify-center bg-gray-50 rounded-xl py-2.5 text-sm text-gray-500 mb-3">
-            <Clock size={14} />
-            Typical response time: 40 minutes
+          <div className="rounded-2xl overflow-hidden border border-gray-200">
+            <div className="flex items-center gap-2 justify-center bg-gray-50 py-2.5 text-sm text-gray-500">
+              <Clock size={14} />
+              Typical response time: 40 minutes
+            </div>
+            <div className="flex gap-2 bg-white p-2.5">
+              <input type="text" value={reply} onChange={(e) => onReplyChange(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') onSend() }}
+                placeholder="Write a message..." disabled={sending}
+                className="flex-1 border-none outline-none text-sm px-2 disabled:opacity-50" />
+              <button onClick={onSend} disabled={sending}
+                className="w-10 h-10 bg-[#2c4a1e] rounded-full flex items-center justify-center flex-shrink-0 disabled:opacity-50">
+                <Send size={16} color="white" />
+              </button>
+            </div>
           </div>
-        </div>
-        <div className="px-4 flex gap-2">
-          <input type="text" value={reply} onChange={(e) => onReplyChange(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') onSend() }}
-            placeholder="Write a message..." disabled={sending}
-            className="flex-1 border border-gray-200 rounded-full px-4 py-2.5 text-sm outline-none focus:border-[#2c4a1e] transition-colors disabled:opacity-50" />
-          <button onClick={onSend} disabled={sending}
-            className="w-10 h-10 bg-[#2c4a1e] rounded-full flex items-center justify-center flex-shrink-0 disabled:opacity-50">
-            <Send size={16} color="white" />
-          </button>
         </div>
       </div>
     </div>
@@ -251,6 +281,8 @@ type DetailsSheetProps = {
 }
 
 function DetailsSheet({ thread, onClose }: DetailsSheetProps) {
+  const listingTitles = Array.from(new Set(thread.messages.map(m => m.listing?.title).filter((t): t is string => !!t)))
+
   return (
     <div className="fixed inset-0 z-[300] md:flex md:items-center md:justify-center"
       style={{ background: 'rgba(0,0,0,0.4)' }}
@@ -264,28 +296,25 @@ function DetailsSheet({ thread, onClose }: DetailsSheetProps) {
         </div>
 
         <div className="px-5 pb-12">
-          <h2 className="text-2xl font-bold text-[#1a1a1a] mb-4">Trip details</h2>
-          <div className="rounded-2xl p-4 mb-8" style={{ border: '1px solid #e8e0d0' }}>
-            <div className="flex gap-3">
-              <div className="relative w-20 h-20 rounded-xl overflow-hidden bg-[#e0d9cc] flex-shrink-0">
-                <Image src={thread.listing_image ?? FALLBACK_IMAGE} alt={thread.vendor_name} fill sizes="80px" className="object-cover" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-base font-bold text-[#1a1a1a] truncate">{thread.listing_title}</p>
-                <p className="text-sm text-gray-500 mb-2">{thread.vendor_name}</p>
+          <h2 className="text-2xl font-bold text-[#1a1a1a] mb-4">Conversation details</h2>
+
+          {listingTitles.length > 0 && (
+            <div className="rounded-2xl p-4 mb-8" style={{ border: '1px solid #e8e0d0' }}>
+              <p className="text-xs text-gray-400 mb-2">Listings discussed in this conversation</p>
+              <div className="flex flex-col gap-1.5">
+                {listingTitles.map(title => (
+                  <p key={title} className="text-sm font-semibold text-[#1a1a1a]">{title}</p>
+                ))}
               </div>
             </div>
-          </div>
+          )}
 
           <h3 className="text-lg font-bold text-[#1a1a1a] mb-4">In this conversation</h3>
           <div className="flex flex-col gap-4 mb-8">
             <div className="flex items-center gap-3">
-              <div className="w-11 h-11 rounded-full overflow-hidden bg-[#2c4a1e] flex-shrink-0 flex items-center justify-center text-white text-sm font-bold">
-                {thread.vendor_avatar ? (
-                  <Image src={thread.vendor_avatar} alt={thread.vendor_name} width={44} height={44} className="object-cover" />
-                ) : (
-                  thread.vendor_name[0]
-                )}
+              <div className="w-11 h-11 rounded-full overflow-hidden bg-[#2c4a1e] flex-shrink-0 flex items-center justify-center text-white text-sm font-bold"
+                style={thread.vendor_avatar ? { backgroundImage: `url(${thread.vendor_avatar})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}>
+                {!thread.vendor_avatar && thread.vendor_name[0]}
               </div>
               <div>
                 <p className="text-base font-semibold text-[#1a1a1a]">{thread.vendor_name}</p>
@@ -306,8 +335,6 @@ function DetailsSheet({ thread, onClose }: DetailsSheetProps) {
   )
 }
 
-type ActiveThreadRef = { type: 'booking' | 'listing'; id: number }
-
 function MessagesPageContent() {
   const { isLoggedIn } = useAuth()
   const router = useRouter()
@@ -319,23 +346,23 @@ function MessagesPageContent() {
 
   const [filter, setFilter] = useState('All')
 
-  function readActiveFromUrl(): ActiveThreadRef | null {
-    const bookingId = searchParams.get('booking')
-    const listingId = searchParams.get('listing')
-    if (bookingId) return { type: 'booking', id: Number(bookingId) }
-    if (listingId) return { type: 'listing', id: Number(listingId) }
-    return null
-  }
+  const [activeVendorId, setActiveVendorId] = useState<number | null>(() => {
+    const v = searchParams.get('vendor')
+    return v ? Number(v) : null
+  })
+  // The listing a NEW message should be tagged with — set from the URL when
+  // arriving via "Message host", otherwise falls back to whatever the
+  // thread's last message was about.
+  const [contextListingId, setContextListingId] = useState<number | null>(() => {
+    const l = searchParams.get('listing')
+    return l ? Number(l) : null
+  })
 
-  const [active, setActive] = useState<ActiveThreadRef | null>(readActiveFromUrl)
-
-  // Keeps the open thread in sync with the URL — the lazy initializer above
-  // only runs on first mount, which misses client-side navigations that land
-  // on this same route with a new ?booking=/?listing= (e.g. the "Message
-  // host" button).
   useEffect(() => {
-    const fromUrl = readActiveFromUrl()
-    if (fromUrl) setActive(fromUrl)
+    const v = searchParams.get('vendor')
+    const l = searchParams.get('listing')
+    if (v) setActiveVendorId(Number(v))
+    if (l) setContextListingId(Number(l))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams])
 
@@ -347,6 +374,8 @@ function MessagesPageContent() {
   const [showSearch, setShowSearch] = useState(false)
   const [search, setSearch] = useState('')
   const [showDetailsSheet, setShowDetailsSheet] = useState(false)
+  const [tooltipVendorId, setTooltipVendorId] = useState<number | null>(null)
+
 
   useEffect(() => {
     if (!isLoggedIn) { setLoading(false); return }
@@ -358,53 +387,51 @@ function MessagesPageContent() {
   }, [isLoggedIn])
 
   useEffect(() => {
-    if (!active) { setActiveThread(null); return }
+    if (activeVendorId === null) { setActiveThread(null); return }
 
     setThreadLoading(true)
-    const url = active.type === 'booking' ? `/bookings/${active.id}/messages` : `/listings/${active.id}/messages`
-    apiFetch<ThreadDetail>(url)
+    apiFetch<ThreadDetail>(`/vendors/${activeVendorId}/messages`)
       .then(setActiveThread)
       .catch((err) => setError(apiErrorMessage(err)))
       .finally(() => setThreadLoading(false))
-  }, [active])
+  }, [activeVendorId])
 
   const filtered = threads.filter(t =>
     t.vendor_name.toLowerCase().includes(search.toLowerCase()) ||
-    t.listing_title.toLowerCase().includes(search.toLowerCase())
+    (t.listing_title ?? '').toLowerCase().includes(search.toLowerCase())
   )
 
   async function sendReply() {
-    if (!reply.trim() || !active) return
+    if (!reply.trim() || activeVendorId === null) return
+
+    const listingId = contextListingId ?? activeThread?.messages[activeThread.messages.length - 1]?.listing?.id
+    if (!listingId) { setError('Could not tell which listing this is about — try messaging from that listing\'s page.'); return }
 
     setSending(true)
     setError('')
     try {
-      const url = active.type === 'booking' ? `/bookings/${active.id}/messages` : `/listings/${active.id}/messages`
-      const { message } = await apiFetch<{ message: ThreadMessage }>(url, {
+      const { message } = await apiFetch<{ message: ThreadMessage }>(`/vendors/${activeVendorId}/messages`, {
         method: 'POST',
-        body: JSON.stringify({ text: reply.trim() }),
+        body: JSON.stringify({ text: reply.trim(), listing_id: listingId }),
       })
       setActiveThread(t => t ? { ...t, messages: [...t.messages, message] } : t)
       setThreads(ts => {
-        const exists = ts.some(t => t.type === active.type && t.id === active.id)
+        const exists = ts.some(t => t.vendor_id === activeVendorId)
         if (exists) {
-          return ts.map(t => (t.type === active.type && t.id === active.id)
-            ? { ...t, last_message: message.text, last_message_at: message.created_at, unread: false }
+          return ts.map(t => t.vendor_id === activeVendorId
+            ? { ...t, last_message: message.text, last_message_at: message.created_at, listing_title: message.listing?.title ?? t.listing_title, unread: false }
             : t)
         }
-        // First message on a brand-new pre-booking inquiry — the thread
-        // doesn't exist in the list yet, so add it using the detail we
-        // already have loaded.
         if (!activeThread) return ts
         return [{
-          type: active.type,
-          id: active.id,
-          listing_title: activeThread.listing_title,
-          listing_image: activeThread.listing_image,
+          vendor_id: activeVendorId,
           vendor_name: activeThread.vendor_name,
-          vendor_avatar: null,
+          vendor_avatar: activeThread.vendor_avatar,
+          listing_title: message.listing?.title ?? null,
           last_message: message.text,
           last_message_at: message.created_at,
+          last_sender_name: null,
+          last_sender_avatar: null,
           unread: false,
         }, ...ts]
       })
@@ -439,60 +466,57 @@ function MessagesPageContent() {
     )
   }
 
-  const activeKey = active ? `${active.type}:${active.id}` : null
-
   return (
     <div className="flex h-screen bg-white">
       <div className={`w-full md:w-[380px] md:flex-shrink-0 md:border-r md:border-gray-100 h-full
-        ${active ? 'hidden md:block' : 'block'}`}>
-        <ConversationList
+        ${activeVendorId !== null ? 'hidden md:block' : 'block'}`}>
+                <ConversationList
           showSearch={showSearch} onShowSearch={setShowSearch}
           search={search} onSearchChange={setSearch}
           filter={filter} onFilterChange={setFilter}
-          filtered={filtered} activeKey={activeKey}
-          onSelectThread={(t) => setActive({ type: t.type, id: t.id })}
+          filtered={filtered} activeVendorId={activeVendorId}
+          onSelectThread={(t) => { setActiveVendorId(t.vendor_id); setContextListingId(null) }}
+          tooltipVendorId={tooltipVendorId} onToggleTooltip={setTooltipVendorId}
         />
       </div>
 
-      <div className={`flex-1 h-full ${active ? 'block' : 'hidden md:flex'}`}>
-        {active !== null && activeThread && !threadLoading ? (
-          <ThreadView
-            thread={activeThread}
-            onBack={() => setActive(null)}
-            onShowDetails={() => setShowDetailsSheet(true)}
-            reply={reply} onReplyChange={setReply}
-            onSend={sendReply} sending={sending}
-          />
-        ) : active !== null && threadLoading ? (
-          <div className="flex-1 flex items-center justify-center">
-            <div className="w-8 h-8 rounded-full border-2 border-[#2c4a1e] border-t-transparent animate-spin" />
-          </div>
-        ) : (
-          <div className="hidden md:flex flex-1 items-center justify-center text-center px-8">
-            <div>
-              <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center text-2xl mx-auto mb-3">💬</div>
-              <p className="text-sm text-gray-500">Select a conversation to start messaging</p>
+      <div className={`flex-1 h-full ${activeVendorId !== null ? 'block' : 'hidden md:flex'}`}>
+          {activeVendorId !== null && activeThread && !threadLoading ? (
+            <ThreadView
+              thread={activeThread}
+              onBack={() => setActiveVendorId(null)}
+              onShowDetails={() => setShowDetailsSheet(true)}
+              reply={reply} onReplyChange={setReply}
+              onSend={sendReply} sending={sending}
+            />
+          ) : activeVendorId !== null && threadLoading ? (
+            <div className="flex-1 flex items-center justify-center">
+              <div className="w-8 h-8 rounded-full border-2 border-[#2c4a1e] border-t-transparent animate-spin" />
             </div>
-          </div>
-        )}
-      </div>
+          ) : (
+            <div className="hidden md:flex flex-1 items-center justify-center text-center px-8">
+              <div>
+                <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center text-2xl mx-auto mb-3">💬</div>
+                <p className="text-sm text-gray-500">Select a conversation to start messaging</p>
+              </div>
+            </div>
+          )}
+        </div>
 
-      {showDetailsSheet && activeThread && (
-        <DetailsSheet thread={activeThread} onClose={() => setShowDetailsSheet(false)} />
-      )}
-      {!active && (
+        {showDetailsSheet && activeThread && (
+          <DetailsSheet thread={activeThread} onClose={() => setShowDetailsSheet(false)} />
+        )}
+              {activeVendorId === null && (
         <BottomNav active="Messages" onSelect={() => { }} scrollingDown={false} scrolled={false} />
       )}
     </div>
   )
 }
 
-
-
-export default function MessagesPage() {
+      export default function MessagesPage() {
   return (
-    <Suspense fallback={null}>
-      <MessagesPageContent />
-    </Suspense>
-  )
+      <Suspense fallback={null}>
+        <MessagesPageContent />
+      </Suspense>
+      )
 }

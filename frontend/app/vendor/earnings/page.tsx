@@ -58,7 +58,7 @@ export default function VendorEarningsPage() {
             const conversion = views > 0 ? ((l.bookings / views) * 100).toFixed(1) : null
             return (
               <div key={l.id} className="flex items-center gap-3 py-3">
-                <div className="relative w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 bg-[#e0d9cc]">
+                <div className="relative w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 bg-[#f5f5f5]">
                   <Image src={l.image} alt={l.title} fill sizes="48px" className="object-cover" />
                 </div>
                 <div className="flex-1 min-w-0">

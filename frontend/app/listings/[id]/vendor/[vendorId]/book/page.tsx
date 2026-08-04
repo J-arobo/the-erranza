@@ -313,7 +313,7 @@ function BookingPageContent({ params }: Props) {
 
       {/* Vendor thumbnail + name */}
       <div className="flex items-center gap-3 mb-4">
-        <div className="relative w-14 h-14 rounded-xl overflow-hidden bg-[#e0d9cc]
+        <div className="relative w-14 h-14 rounded-xl overflow-hidden bg-[#f5f5f5]
                         flex-shrink-0">
           <Image
             src={tourImage} alt={guideName}

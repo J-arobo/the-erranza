@@ -150,7 +150,7 @@ export default function TripDetailPage({ params }: Props) {
           <div className="mb-4 px-4 py-3 rounded-xl bg-red-50 text-red-600 text-sm">{error}</div>
         )}
 
-        <div className="relative w-full aspect-[4/3] rounded-2xl overflow-hidden bg-[#e0d9cc] mb-4">
+        <div className="relative w-full aspect-[4/3] rounded-2xl overflow-hidden bg-[#f5f5f5] mb-4">
           <Image src={image} alt={listing.title} fill sizes="500px" className="object-cover" />
         </div>
 

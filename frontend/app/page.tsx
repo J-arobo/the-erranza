@@ -130,12 +130,12 @@ export default function Home() {
                         onClick={() => router.push(`/destinations/${slug}`)}
                         className="flex-shrink-0 self-start w-[36vw] sm:w-[26vw] md:w-[22vw] lg:w-[17vw] xl:w-[13vw] aspect-[5/4] rounded-2xl border
                      border-[#e0d9cc] shadow-sm bg-white flex flex-col items-center
-                     justify-center gap-2 hover:bg-[#f5f0e8] transition-colors p-4"
+                     justify-center gap-2 hover:bg-[#f5f5f5] transition-colors p-4"
                       >
 
                         <div className="relative h-12 w-full flex items-center justify-center mb-1">
                           {previewImages.map((item, i) => (
-                            <div key={item.id} className="absolute w-12 h-12 rounded-xl overflow-hidden bg-[#e0d9cc]"
+                            <div key={item.id} className="absolute w-12 h-12 rounded-xl overflow-hidden bg-[#f5f5f5]"
                               style={{
                                 border: '3px solid white',
                                 boxShadow: '0 2px 8px rgba(0,0,0,0.15)',

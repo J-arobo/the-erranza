@@ -134,7 +134,7 @@ export default function VendorBookingsPage() {
                        hover:shadow-md transition-all w-full cursor-pointer">
             <div className="flex items-start gap-4">
               <div className="relative w-16 h-16 rounded-xl overflow-hidden
-                              flex-shrink-0 bg-[#e0d9cc]">
+                              flex-shrink-0 bg-[#f5f5f5]">
                 <Image src={booking.listing.images[0]?.url ?? FALLBACK_IMAGE} alt={booking.listing.title}
                   fill sizes="64px" className="object-cover" />
               </div>

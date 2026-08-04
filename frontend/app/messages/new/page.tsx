@@ -114,7 +114,7 @@ function NewMessagePageContent() {
             <p className="text-2xl font-bold text-[#1a1a1a]">Ksh {total.toLocaleString()} total</p>
             <p className="text-sm text-gray-600 mt-2">{listing.title}</p>
           </div>
-          <div className="relative w-20 h-20 rounded-xl overflow-hidden bg-[#e0d9cc] flex-shrink-0">
+          <div className="relative w-20 h-20 rounded-xl overflow-hidden bg-[#f5f5f5] flex-shrink-0">
             <Image src={listing.images[0]?.url ?? FALLBACK_IMAGE} alt={listing.title} fill sizes="80px" className="object-cover" />
           </div>
         </div>

@@ -108,7 +108,7 @@ type ApiListingDetail = {
   years_hosting: number
   response_rate: number | null
   avg_response_minutes: number | null
-  vendor: { business_name: string; logo_url: string | null }
+  vendor: { id: number; business_name: string; logo_url: string | null }
   cancellation_policy: 'flexible' | 'moderate' | 'strict' | 'custom'
   custom_cancellation_text: string | null
 }
@@ -473,9 +473,7 @@ export default function VendorDetailPage({ params }: Props) {
   // message host hnadler
   function handleMessageHost() {
     if (!isLoggedIn) { setShowLoginPrompt(true); return }
-    const params = new URLSearchParams({ listing: String(listing!.id), guests: String(guests) })
-    if (selectedDate) params.set('checkIn', selectedDate.toISOString())
-    router.push(`/messages/new?${params.toString()}`)
+    router.push(`/messages?vendor=${listing!.vendor.id}&listing=${listing!.id}`)
   }
 
   function handleTouchEnd(e: React.TouchEvent) {
@@ -1339,7 +1337,7 @@ export default function VendorDetailPage({ params }: Props) {
                     >
                       <div className="relative h-10 w-full flex items-center justify-center">
                         {otherListings.slice(0, 3).map((l, i) => (
-                          <div key={l.id} className="absolute w-10 h-10 rounded-lg overflow-hidden bg-[#e0d9cc]"
+                          <div key={l.id} className="absolute w-10 h-10 rounded-lg overflow-hidden bg-[#f5f5f5]"
                             style={{ border: '2px solid white', boxShadow: '0 2px 8px rgba(0,0,0,0.15)', transform: `rotate(${(i - 1) * 10}deg)`, left: `calc(50% - 20px + ${(i - 1) * 16}px)`, zIndex: i === 1 ? 2 : 1 }}>
                             <Image src={l.images[0]?.url ?? FALLBACK_IMAGE} alt="" fill className="object-cover" sizes="40px" />
                           </div>
@@ -1371,7 +1369,7 @@ export default function VendorDetailPage({ params }: Props) {
                   >
                     <div className="relative h-10 w-full flex items-center justify-center">
                       {otherListings.slice(0, 3).map((l, i) => (
-                        <div key={l.id} className="absolute w-10 h-10 rounded-lg overflow-hidden bg-[#e0d9cc]"
+                        <div key={l.id} className="absolute w-10 h-10 rounded-lg overflow-hidden bg-[#f5f5f5]"
                           style={{ border: '2px solid white', boxShadow: '0 2px 8px rgba(0,0,0,0.15)', transform: `rotate(${(i - 1) * 10}deg)`, left: `calc(50% - 20px + ${(i - 1) * 16}px)`, zIndex: i === 1 ? 2 : 1 }}>
                           <Image src={l.images[0]?.url ?? FALLBACK_IMAGE} alt="" fill className="object-cover" sizes="40px" />
                         </div>

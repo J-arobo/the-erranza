@@ -49,7 +49,7 @@ export default function ListingRow(listing: Props) {
         style={{ WebkitTapHighlightColor: 'transparent' }}
       >
         <div className="relative w-[100px] h-[100px] rounded-xl overflow-hidden
-                        flex-shrink-0 bg-[#e0d9cc]">
+                        flex-shrink-0 bg-[#f5f5f5]">
           <Image src={image} alt={title} fill sizes="100px" className="object-cover" />
           {badge && (
             <span className="absolute bottom-1.5 left-1.5 bg-white/90 text-[#1a1a1a]
@@ -85,7 +85,7 @@ export default function ListingRow(listing: Props) {
                    hover:shadow-lg active:scale-[0.98] flex-col"
         style={{ WebkitTapHighlightColor: 'transparent' }}
       >
-        <div className="relative w-full aspect-[4/3] bg-[#e0d9cc] overflow-hidden">
+        <div className="relative w-full aspect-[4/3] bg-[#f5f5f5] overflow-hidden">
           <Image src={image} alt={title} fill
             sizes="(max-width: 1024px) 300px, 400px"
             className="object-cover transition-transform duration-300 group-hover:scale-105" />

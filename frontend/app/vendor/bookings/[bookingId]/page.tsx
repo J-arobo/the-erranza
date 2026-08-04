@@ -221,7 +221,7 @@ export default function BookingDetailPage({ params }: Props) {
         </div>
 
         <div className="flex gap-3 pb-4 mb-4 border-b border-gray-100">
-          <div className="relative w-16 h-16 rounded-xl overflow-hidden flex-shrink-0 bg-[#e0d9cc]">
+          <div className="relative w-16 h-16 rounded-xl overflow-hidden flex-shrink-0 bg-[#f5f5f5]">
             <Image src={booking.listing.images[0]?.url ?? FALLBACK_IMAGE} alt={booking.listing.title} fill
               sizes="64px" className="object-cover" />
           </div>

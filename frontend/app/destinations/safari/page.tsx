@@ -4,7 +4,8 @@ import AppShell from '@/components/AppShell'
 import ListingCard from '@/components/ListingCard'
 import FooterSection from '@/components/FooterSection'
 import { apiFetch, apiErrorMessage } from '@/lib/api'
-import { useSearchParams } from 'next/navigation'
+import { useSearchParams, useRouter } from 'next/navigation'
+import { ArrowRight } from 'lucide-react'
 
 
 const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1547471080-7cc2caa01a7e?w=400&q=80'
@@ -83,6 +84,7 @@ const SECTIONS = [
 ]
 
 function SafariPageContent() {
+  const router = useRouter()
   const searchParams = useSearchParams()
   const [search, setSearch] = useState('')
   const [activeFilter, setFilter] = useState('All')
@@ -102,6 +104,8 @@ function SafariPageContent() {
   }, [])
 
   const guestsParam = Number(searchParams.get('guests') ?? '0') || 0
+  const sectionParam = searchParams.get('section')
+  const activeSection = sectionParam ? SECTIONS.find(s => s.title === sectionParam) : null
 
   const filtered = safaris.filter(item => {
     const matchesText =
@@ -141,19 +145,32 @@ function SafariPageContent() {
           </div>
         ) : error ? (
           <p className="text-sm text-red-600">{error}</p>
+        ) : activeSection ? (
+          <div className="-mx-4 sm:-mx-6 px-4 sm:px-8 md:px-12 lg:px-52">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-[17px] font-bold text-[#1a1a1a]">{activeSection.title}</h2>
+              <span className="text-xs text-gray-400">{safaris.filter(activeSection.filter).length} results</span>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-4">
+              {safaris.filter(activeSection.filter).map((item) => (
+                <ListingCard key={item.id} {...item} listingCategory="safari" />
+              ))}
+            </div>
+          </div>
         ) : search ? (
-          <>
+          <div className="-mx-4 sm:-mx-6 px-4 sm:px-8 md:px-12 lg:px-52">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-[17px] font-bold text-[#1a1a1a]">Search results</h2>
               <span className="text-xs text-gray-400">{filtered.length} results</span>
             </div>
             {filtered.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-4">
                 {filtered.map((item) => (
                   <ListingCard key={item.id} {...item} listingCategory="safari" />
                 ))}
               </div>
             ) : (
+
               <div className="flex flex-col items-center justify-center py-20 gap-3">
                 <span className="text-5xl">🦁</span>
                 <p className="text-sm text-gray-400 text-center">
@@ -165,9 +182,9 @@ function SafariPageContent() {
                 >
                   Clear search
                 </button>
-              </div>
+                </div>
             )}
-          </>
+          </div>
         ) : safaris.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 gap-3">
             <span className="text-5xl">🦁</span>
@@ -179,10 +196,13 @@ function SafariPageContent() {
             if (items.length === 0) return null
             return (
               <div key={title} className="mb-8 -mx-4 sm:-mx-6">
-                <div className="flex items-center justify-between px-4 sm:px-8 md:px-12 lg:px-52 mb-4">
-                  <h2 className="text-[17px] font-bold text-[#1a1a1a]">{title}</h2>
-                  <span className="text-xs text-gray-400">{items.length} results</span>
-                </div>
+              <div className="flex items-center gap-2 px-4 sm:px-8 md:px-12 lg:px-52 mb-4 w-fit">
+                <h2 className="text-[17px] font-bold text-[#1a1a1a]">{title}</h2>
+                <button onClick={() => router.push(`/destinations/safari?section=${encodeURIComponent(title)}`)}
+                  className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors flex-shrink-0">
+                  <ArrowRight size={14} color="#1a1a1a" />
+                </button>
+              </div>
                 <div className="sm:px-4 md:px-12 lg:px-52 pb-1">
                   <div className="overflow-x-auto scrollbar-hide">
                     <div className="flex gap-4 px-4">
@@ -193,12 +213,13 @@ function SafariPageContent() {
                         </div>
                       ))}
                       <div className="flex-shrink-0 w-[82vw] sm:w-[50vw] md:w-[34vw] lg:w-[25vw] xl:w-[19vw]">
-                        <div className="relative w-full aspect-[5/4] rounded-xl border border-[#e0d9cc] shadow-sm
-                            bg-[#f5f0e8] flex flex-col items-center justify-center gap-2
-                            hover:bg-[#ece8e0] transition-colors cursor-pointer">
+                      <div onClick={() => router.push(`/destinations/safari?section=${encodeURIComponent(title)}`)}
+                          className="relative w-full aspect-[5/4] rounded-xl border border-[#e0d9cc] shadow-sm
+                            bg-white flex flex-col items-center justify-center gap-2
+                            hover:bg-[#f5f5f5] transition-colors cursor-pointer">
                           <div className="relative h-10 w-full flex items-center justify-center">
                             {items.slice(0, 3).map((it, i) => (
-                              <div key={it.id} className="absolute w-10 h-10 rounded-lg overflow-hidden bg-[#e0d9cc]"
+                              <div key={it.id} className="absolute w-10 h-10 rounded-lg overflow-hidden bg-[#f5f5f5]"
                                 style={{ border: '2px solid white', boxShadow: '0 2px 8px rgba(0,0,0,0.15)', transform: `rotate(${(i - 1) * 10}deg)`, left: `calc(50% - 20px + ${(i - 1) * 16}px)`, zIndex: i === 1 ? 2 : 1 }}>
                                 <img src={it.image} alt="" className="w-full h-full object-cover" />
                               </div>

@@ -436,7 +436,7 @@ export default function ListingDetailPage({ params }: Props) {
                     onClick={() => router.push(`/listings/${id}/vendor/${vendor.id}`)}
                     className="flex-shrink-0 w-[calc((100vw-44px)/2)] sm:w-[26vw] md:w-[22vw] lg:w-[17vw] xl:w-[13vw] cursor-pointer group text-left"
                   >
-                    <div className="relative w-full aspect-[5/4] sm:aspect-[3/2] rounded-xl bg-[#e0d9cc] overflow-hidden">
+                    <div className="relative w-full aspect-[5/4] sm:aspect-[3/2] rounded-xl bg-[#f5f5f5] overflow-hidden">
                       <Image
                         src={vendor.image}
                         alt={vendor.name}
@@ -529,7 +529,7 @@ function VendorCard({ vendor, listingId, onBook }: VendorCardProps) {
                  group"
     >
       {/* Vendor image — fully clickable as part of card */}
-      <div className="relative aspect-[5/4] sm:h-[200px] bg-[#e0d9cc] overflow-hidden">
+      <div className="relative aspect-[5/4] sm:h-[200px] bg-[#f5f5f5] overflow-hidden">
         {!imgError ? (
           <Image
             src={vendor.image}

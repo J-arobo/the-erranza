@@ -78,7 +78,7 @@ export default function ListingCard(listing: Props) {
                  cursor-pointer active:scale-[0.98] group text-left"
       style={{ WebkitTapHighlightColor: 'transparent' }}
     >
-      <div className="relative w-full aspect-[5/4] rounded-xl bg-[#e0d9cc] overflow-hidden">
+      <div className="relative w-full aspect-[5/4] rounded-xl bg-[#f5f5f5] overflow-hidden">
         {video && !videoFailed ? (
           <video
             ref={videoRef}

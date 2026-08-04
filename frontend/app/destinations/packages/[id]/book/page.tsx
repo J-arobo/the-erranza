@@ -154,7 +154,7 @@ function PackageBookingPageContent({ params }: Props) {
   const SummaryCard = ({ highlighted = false }: { highlighted?: boolean }) => (
     <div className={`rounded-2xl border p-4 mb-4 ${highlighted ? 'border-2 border-[#304333]' : 'border-gray-200'}`}>
       <div className="flex items-center gap-3 mb-3">
-        <div className="relative w-20 h-20 rounded-xl overflow-hidden bg-[#e0d9cc] flex-shrink-0">
+        <div className="relative w-20 h-20 rounded-xl overflow-hidden bg-[#f5f5f5] flex-shrink-0">
           <Image src={packageImage} alt={pkg.title} fill sizes="80px" className="object-cover" />
         </div>
         <div>

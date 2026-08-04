@@ -1,7 +1,9 @@
 'use client'
+import { useEffect, useState } from 'react'
 import { Search, Heart, User, Calendar, MessageCircle } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { useRouter } from 'next/navigation'
+import { apiFetch } from '@/lib/api'
 
 type Props = {
   active: string
@@ -13,6 +15,17 @@ type Props = {
 export default function BottomNav({ active, onSelect, scrollingDown, scrolled }: Props) {
   const { isLoggedIn, user } = useAuth()
   const router = useRouter()
+  const [unreadMessages, setUnreadMessages] = useState(0)
+
+  useEffect(() => {
+    if (!isLoggedIn) { setUnreadMessages(0); return }
+    function fetchCount() {
+      apiFetch<{ count: number }>('/messages/unread-count').then(({ count }) => setUnreadMessages(count)).catch(() => { })
+    }
+    fetchCount()
+    const interval = setInterval(fetchCount, 30000)
+    return () => clearInterval(interval)
+  }, [isLoggedIn])
 
   const guestItems = [
     { name: 'Explore', Icon: Search },
@@ -139,7 +152,7 @@ export default function BottomNav({ active, onSelect, scrollingDown, scrolled }:
                   color={active === name ? '#EAF98E' : '#ffffff'}
                 />
               )}
-              {name === 'Profile' && isLoggedIn && (
+                            {name === 'Profile' && isLoggedIn && (
                 <div
                   style={{
                     position: 'absolute',
@@ -152,6 +165,29 @@ export default function BottomNav({ active, onSelect, scrollingDown, scrolled }:
                     border: '1.5px solid rgba(255,255,255,0.6)',
                   }}
                 />
+              )}
+              {name === 'Messages' && unreadMessages > 0 && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: '-4px',
+                    right: '-6px',
+                    minWidth: '14px',
+                    height: '14px',
+                    borderRadius: '9999px',
+                    backgroundColor: '#EAF98E',
+                    border: '1.5px solid rgba(255,255,255,0.6)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '9px',
+                    color: '#2c4a1e',
+                    fontWeight: 700,
+                    padding: '0 3px',
+                  }}
+                >
+                  {unreadMessages > 9 ? '9+' : unreadMessages}
+                </div>
               )}
             </div>
 

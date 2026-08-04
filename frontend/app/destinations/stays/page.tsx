@@ -6,7 +6,7 @@ import FooterSection from '@/components/FooterSection'
 import { type Listing } from '@/data/stays'
 import { apiFetch, apiErrorMessage } from '@/lib/api'
 import { ArrowRight } from 'lucide-react'
-import { useSearchParams } from 'next/navigation'
+import { useSearchParams, useRouter } from 'next/navigation'
 
 
 const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=400&q=80'
@@ -66,6 +66,7 @@ const SECTIONS = [
 ]
 
 function StaysPageContent() {
+  const router = useRouter()
   const searchParams = useSearchParams()
   const [search, setSearch] = useState('')
   const [stays, setStays] = useState<StayListing[]>([])
@@ -84,6 +85,8 @@ function StaysPageContent() {
   }, [])
 
   const guestsParam = Number(searchParams.get('guests') ?? '0') || 0
+  const sectionParam = searchParams.get('section')
+  const activeSection = sectionParam ? SECTIONS.find(s => s.title === sectionParam) : null
 
   const filtered = stays.filter(item => {
     const matchesText =
@@ -112,16 +115,28 @@ function StaysPageContent() {
           <div className="px-4 sm:px-6 py-20 text-center">
             <p className="text-sm text-gray-400">No stays available yet.</p>
           </div>
+        ) : activeSection ? (
+          <div className="px-4 sm:px-8 md:px-12 lg:px-52 pb-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-[17px] font-bold text-[#1a1a1a]">{activeSection.title}</h2>
+              <span className="text-xs text-gray-400">{stays.filter(activeSection.filter).length} results</span>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-4">
+              {stays.filter(activeSection.filter).map(item => (
+                <ListingCard key={item.id} {...item} listingCategory="stays" />
+              ))}
+            </div>
+          </div>
         ) : search ? (
-          <div className="px-4 sm:px-6 pb-6">
+          <div className="px-4 sm:px-8 md:px-12 lg:px-52 pb-6">
             <p className="text-sm text-gray-400 mb-4">{filtered.length} results</p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-4">
               {filtered.map(item => (
                 <ListingCard key={item.id} {...item} listingCategory="stays" />
               ))}
             </div>
           </div>
-        ) : (
+        ) :(
           SECTIONS.map(({ title, filter }) => {
             const items = filtered.filter(filter)
             if (items.length === 0) return null
@@ -131,7 +146,8 @@ function StaysPageContent() {
                   <h2 className="text-base font-bold text-[#1a1a1a] ">
                     {title}
                   </h2>
-                  <button className='w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors flex-shrink-0' >
+                  <button onClick={() => router.push(`/destinations/stays?section=${encodeURIComponent(title)}`)}
+                    className='w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors flex-shrink-0' >
                     <ArrowRight size={14} color="#1a1a1a" />
                   </button>
                 </div>
@@ -159,12 +175,13 @@ function StaysPageContent() {
                             md:w-[calc((100vw-164px)/4)]
                             lg:w-[calc((100vw-452px)/4)]
                             xl:w-[calc((100vw-464px)/5)]">
-                        <div className="relative w-full aspect-[3/2] rounded-xl border border-[#e0d9cc] shadow-sm
-                            bg-[#f5f0e8] flex flex-col items-center justify-center gap-2
-                            hover:bg-[#ece8e0] transition-colors cursor-pointer">
+                        <div onClick={() => router.push(`/destinations/stays?section=${encodeURIComponent(title)}`)}
+                          className="relative w-full aspect-[5/4] rounded-xl border border-[#e0d9cc] shadow-sm
+                            bg-white flex flex-col items-center justify-center gap-2
+                            hover:bg-[#f5f5f5] transition-colors cursor-pointer">
                           <div className="relative h-10 w-full flex items-center justify-center">
                             {items.slice(0, 3).map((it, i) => (
-                              <div key={it.id} className="absolute w-10 h-10 rounded-lg overflow-hidden bg-[#e0d9cc]"
+                              <div key={it.id} className="absolute w-10 h-10 rounded-lg overflow-hidden bg-[#f5f5f5]"
                                 style={{ border: '2px solid white', boxShadow: '0 2px 8px rgba(0,0,0,0.15)', transform: `rotate(${(i - 1) * 10}deg)`, left: `calc(50% - 20px + ${(i - 1) * 16}px)`, zIndex: i === 1 ? 2 : 1 }}>
                                 <img src={it.image} alt="" className="w-full h-full object-cover" />
                               </div>

@@ -49,7 +49,7 @@ type ApiListingDetail = {
   response_rate: number | null
   avg_response_minutes: number | null
   cohost: { name: string } | null
-  vendor: { business_name: string; logo_url: string | null; languages: string[] | null }
+  vendor: { id: number; business_name: string; logo_url: string | null; languages: string[] | null }
   cancellation_policy: 'flexible' | 'moderate' | 'strict' | 'custom'
   custom_cancellation_text: string | null
 }
@@ -271,9 +271,7 @@ export default function PackageDetailPage({ params }: Props) {
   // Measse host handler
   function handleMessageHost() {
     if (!isLoggedIn) { setShowLoginPrompt(true); return }
-    const params = new URLSearchParams({ listing: String(pkg!.id), guests: String(guests) })
-    if (nextDate) params.set('checkIn', nextDate)
-    router.push(`/messages/new?${params.toString()}`)
+    router.push(`/messages?vendor=${pkg!.vendor.id}&listing=${pkg!.id}`)
   }
 
   // ── Full screen gallery modal ─────────────────────────────────────────
@@ -1000,7 +998,7 @@ export default function PackageDetailPage({ params }: Props) {
                     >
                       <div className="relative h-10 w-full flex items-center justify-center">
                         {otherPackages.slice(0, 3).map((p, i) => (
-                          <div key={p.id} className="absolute w-10 h-10 rounded-lg overflow-hidden bg-[#e0d9cc]"
+                          <div key={p.id} className="absolute w-10 h-10 rounded-lg overflow-hidden bg-[#f5f5f5]"
                             style={{ border: '2px solid white', boxShadow: '0 2px 8px rgba(0,0,0,0.15)', transform: `rotate(${(i - 1) * 10}deg)`, left: `calc(50% - 20px + ${(i - 1) * 16}px)`, zIndex: i === 1 ? 2 : 1 }}>
                             <Image src={p.images[0]?.url ?? FALLBACK_IMAGE} alt="" fill className="object-cover" sizes="40px" />
                           </div>
@@ -1032,7 +1030,7 @@ export default function PackageDetailPage({ params }: Props) {
                   >
                     <div className="relative h-10 w-full flex items-center justify-center">
                       {otherPackages.slice(0, 3).map((p, i) => (
-                        <div key={p.id} className="absolute w-10 h-10 rounded-lg overflow-hidden bg-[#e0d9cc]"
+                        <div key={p.id} className="absolute w-10 h-10 rounded-lg overflow-hidden bg-[#f5f5f5]"
                           style={{ border: '2px solid white', boxShadow: '0 2px 8px rgba(0,0,0,0.15)', transform: `rotate(${(i - 1) * 10}deg)`, left: `calc(50% - 20px + ${(i - 1) * 16}px)`, zIndex: i === 1 ? 2 : 1 }}>
                           <Image src={p.images[0]?.url ?? FALLBACK_IMAGE} alt="" fill className="object-cover" sizes="40px" />
                         </div>

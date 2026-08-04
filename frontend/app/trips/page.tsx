@@ -190,7 +190,7 @@ function TripCard({ trip }: { trip: Trip }) {
     >
       <div className="flex gap-4 p-4">
         <div className="relative w-[90px] h-[90px] rounded-xl overflow-hidden
-                        flex-shrink-0 bg-[#e0d9cc]">
+                        flex-shrink-0 bg-[#f5f5f5]">
           <Image src={trip.image} alt={trip.listingTitle} fill
             sizes="90px" className="object-cover" />
         </div>

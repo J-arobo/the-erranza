@@ -503,10 +503,7 @@ export default function StayDetailPage({ params }: Props) {
   }
   function handleMessageHost() {
     if (!isLoggedIn) { setShowLoginPrompt(true); return }
-    const params = new URLSearchParams({ listing: String(listing!.id), guests: String(totalGuests) })
-    if (checkIn) params.set('checkIn', checkIn.toISOString())
-    if (checkOut) params.set('checkOut', checkOut.toISOString())
-    router.push(`/messages/new?${params.toString()}`)
+    router.push(`/messages?vendor=${listing!.vendor.id}&listing=${listing!.id}`)
   }
 
   const title = listing.title

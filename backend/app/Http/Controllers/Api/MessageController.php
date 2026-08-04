@@ -4,106 +4,115 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Booking;
+use App\Models\Listing;
 use App\Models\Message;
+use App\Models\Vendor;
 use Illuminate\Http\Request;
 
 class MessageController extends Controller
 {
+    // One row per vendor you've ever messaged, regardless of which of their
+    // listings each individual message was about.
     public function index(Request $request)
     {
         $user = $request->user();
 
-        $bookingThreads = $user->bookings()
-            ->whereHas('messages')
-            ->with([
-                'listing:id,title,vendor_id',
-                'listing.images',
-                'listing.vendor:id,business_name,logo_url',
-                'messages' => fn($q) => $q->latest()->limit(1),
-            ])
-            ->get()
-            ->map(function (Booking $booking) {
-                $last = $booking->messages->first();
-
-                return [
-                    'type' => 'booking',
-                    'id' => $booking->id,
-                    'listing_title' => $booking->listing->title,
-                    'listing_image' => $booking->listing->images->first()?->url,
-                    'vendor_name' => $booking->listing->vendor->business_name,
-                    'vendor_avatar' => $booking->listing->vendor->logo_url,
-                    'last_message' => $last?->text,
-                    'last_message_at' => $last?->created_at,
-                    'unread' => $last?->sender_type === 'vendor',
-                ];
-            });
-
-        // Pre-booking inquiries — messages tied to a listing rather than a
-        // booking. Grouped by listing since every row here already belongs
-        // to this traveller (booking_id is null only for their own inquiries).
-        $listingThreads = Message::where('traveller_id', $user->id)
-            ->whereNull('booking_id')
-            ->select('listing_id')
+        $vendorIds = Message::where('traveller_id', $user->id)
+            ->whereNotNull('vendor_id')
+            ->select('vendor_id')
             ->distinct()
-            ->get()
-            ->map(function ($row) use ($user) {
-                $listing = \App\Models\Listing::with(['images', 'vendor:id,business_name,logo_url'])->find($row->listing_id);
-                if (! $listing) {
-                    return null;
-                }
+            ->pluck('vendor_id');
 
-                $last = Message::where('listing_id', $listing->id)->where('traveller_id', $user->id)->latest()->first();
+        $threads = $vendorIds->map(function ($vendorId) use ($user) {
+            $vendor = Vendor::find($vendorId);
+            if (! $vendor) {
+                return null;
+            }
 
-                return [
-                    'type' => 'listing',
-                    'id' => $listing->id,
-                    'listing_title' => $listing->title,
-                    'listing_image' => $listing->images->first()?->url,
-                    'vendor_name' => $listing->vendor->business_name,
-                    'vendor_avatar' => $listing->vendor->logo_url,
-                    'last_message' => $last?->text,
-                    'last_message_at' => $last?->created_at,
-                    'unread' => $last?->sender_type === 'vendor',
-                ];
-            })
-            ->filter()
-            ->values();
+            $last = Message::where('vendor_id', $vendorId)->where('traveller_id', $user->id)
+                ->with(['listing:id,title', 'sender:id,name,avatar_url'])
+                ->latest()
+                ->first();
 
-        $threads = $bookingThreads->concat($listingThreads)->sortByDesc('last_message_at')->values();
+            return [
+                'vendor_id' => $vendor->id,
+                'vendor_name' => $vendor->business_name,
+                'vendor_avatar' => $vendor->logo_url,
+                'listing_title' => $last?->listing?->title,
+                'last_message' => $last?->text,
+                'last_message_at' => $last?->created_at,
+                // Only surfaced once an actual staff member has replied —
+                // before that there's no "who" to show, just the vendor.
+                'last_sender_name' => $last?->sender_type === 'vendor' ? $last?->sender?->name : null,
+                'last_sender_avatar' => $last?->sender_type === 'vendor' ? $last?->sender?->avatar_url : null,
+                'unread' => Message::where('vendor_id', $vendorId)->where('traveller_id', $user->id)
+                    ->where('sender_type', 'vendor')->whereNull('read_at')->exists(),
+            ];
+        })->filter()->sortByDesc('last_message_at')->values();
 
         return response()->json(['threads' => $threads]);
     }
 
-    public function show(Request $request, Booking $booking)
+    public function vendorThread(Request $request, Vendor $vendor)
     {
-        abort_unless($booking->traveller_id === $request->user()->id, 403);
+        $user = $request->user();
 
-        $booking->load(['listing:id,title,vendor_id', 'listing.images', 'listing.vendor:id,business_name,logo_url', 'messages.sender']);
+        Message::where('vendor_id', $vendor->id)->where('traveller_id', $user->id)
+            ->where('sender_type', 'vendor')->whereNull('read_at')->update(['read_at' => now()]);
+
+        $messages = Message::where('vendor_id', $vendor->id)->where('traveller_id', $user->id)
+            ->with(['listing:id,title', 'sender:id,name,avatar_url'])
+            ->oldest()
+            ->get();
 
         return response()->json([
-            'booking_id' => $booking->id,
-            'listing_title' => $booking->listing->title,
-            'listing_image' => $booking->listing->images->first()?->url,
-            'vendor_name' => $booking->listing->vendor->business_name,
-            'vendor_avatar' => $booking->listing->vendor->logo_url,
-            'messages' => $booking->messages,
+            'vendor_id' => $vendor->id,
+            'vendor_name' => $vendor->business_name,
+            'vendor_avatar' => $vendor->logo_url,
+            'messages' => $messages,
         ]);
     }
 
-    public function store(Request $request, Booking $booking)
+    public function storeToVendor(Request $request, Vendor $vendor)
     {
-        abort_unless($booking->traveller_id === $request->user()->id, 403);
-
         $validated = $request->validate([
             'text' => ['required', 'string'],
+            'listing_id' => ['required', 'exists:listings,id'],
         ]);
 
-        $message = $booking->messages()->create([
+        $listing = Listing::findOrFail($validated['listing_id']);
+        abort_unless($listing->vendor_id === $vendor->id, 422, 'This listing does not belong to that vendor.');
+
+        $message = Message::create([
+            'vendor_id' => $vendor->id,
+            'listing_id' => $listing->id,
+            'traveller_id' => $request->user()->id,
             'sender_type' => 'guest',
             'sender_id' => $request->user()->id,
             'text' => $validated['text'],
         ]);
 
+        $vendor->notifications()->create([
+            'type' => 'message',
+            'title' => 'New message',
+            'message' => "{$request->user()->name} sent a message about \"{$listing->title}\".",
+            'link' => '/vendor/messages',
+        ]);
+
+        $message->load('listing:id,title');
+
         return response()->json(['message' => $message], 201);
+    }
+
+    // Unread mesage
+    public function unreadCount(Request $request)
+    {
+        $user = $request->user();
+
+        $count = Message::where('traveller_id', $user->id)->whereNotNull('vendor_id')
+            ->where('sender_type', 'vendor')->whereNull('read_at')
+            ->distinct()->count('vendor_id');
+
+        return response()->json(['count' => $count]);
     }
 }

@@ -54,6 +54,7 @@ export default function VendorShell({ children }: { children: React.ReactNode })
 
   const [pendingCount, setPendingCount] = useState(0)
   const [notifications, setNotifications] = useState<ApiNotification[]>([])
+  const [unreadMessages, setUnreadMessages] = useState(0)
 
   useEffect(() => {
     apiFetch<{ bookings: { status: string }[] }>('/vendor/bookings')
@@ -63,6 +64,15 @@ export default function VendorShell({ children }: { children: React.ReactNode })
     apiFetch<{ notifications: ApiNotification[] }>('/vendor/notifications')
       .then(({ notifications }) => setNotifications(notifications))
       .catch(() => { })
+
+    function fetchUnreadMessages() {
+      apiFetch<{ count: number }>('/vendor/messages/unread-count')
+        .then(({ count }) => setUnreadMessages(count))
+        .catch(() => { })
+    }
+    fetchUnreadMessages()
+    const interval = setInterval(fetchUnreadMessages, 30000)
+    return () => clearInterval(interval)
   }, [])
 
   const unreadCount = notifications.filter(n => !n.read).length
@@ -292,6 +302,10 @@ export default function VendorShell({ children }: { children: React.ReactNode })
                   {label === 'Bookings' && pendingCount > 0 && (
                     <span className="ml-auto bg-[#EAF98E] text-[#2c4a1e] text-[10px]
                                      font-bold px-1.5 py-0.5 rounded-full">{pendingCount}</span>
+                  )}
+                  {label === 'Messages' && unreadMessages > 0 && (
+                    <span className="ml-auto bg-[#EAF98E] text-[#2c4a1e] text-[10px]
+                                     font-bold px-1.5 py-0.5 rounded-full">{unreadMessages > 9 ? '9+' : unreadMessages}</span>
                   )}
                 </button>
               ))}
