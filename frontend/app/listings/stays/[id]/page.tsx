@@ -447,6 +447,7 @@ export default function StayDetailPage({ params }: Props) {
   const calendarSectionRef = useRef<HTMLDivElement>(null) // scroll target for "Add dates"
   const [messaging, setMessaging] = useState(false)
   const [showLoginPrompt, setShowLoginPrompt] = useState(false)
+  const [dateWarning, setDateWarning] = useState(false)
   const [otherListings, setOtherListings] = useState<ApiListingSummary[]>([])
 
   useEffect(() => {
@@ -551,6 +552,20 @@ export default function StayDetailPage({ params }: Props) {
   // since there's nothing real to show in the cancellation table until a
   // check-in date exists.
   const scrollToDates = () => calendarSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+
+
+  function handleReserveClick() {
+    if (!checkIn || !checkOut) {
+      setDateWarning(true)
+      scrollToDates()
+      return
+    }
+    const params = new URLSearchParams()
+    params.set('checkIn', checkIn.toISOString())
+    params.set('checkOut', checkOut.toISOString())
+    router.push(`/listings/stays/${id}/book?${params.toString()}`)
+  }
+
 
   const cancellationModalBody = (
     <div className="flex flex-col gap-6">
@@ -784,13 +799,7 @@ export default function StayDetailPage({ params }: Props) {
                 <span className="text-xs text-[#78716c]">· {reviewCount} reviews</span>
               </div>
             </div>
-            <button onClick={() => {
-              const params = new URLSearchParams()
-              if (checkIn) params.set('checkIn', checkIn.toISOString())
-              if (checkOut) params.set('checkOut', checkOut.toISOString())
-              router.push(`/listings/stays/${id}/book${params.toString() ? '?' + params.toString() : ''}`)
-            }}
-
+            <button onClick={handleReserveClick}
               className="px-5 py-2.5 rounded-xl font-semibold text-sm text-white transition-opacity hover:opacity-90"
               style={{ background: 'linear-gradient(to right, #e8612a, #d44d1a)', border: 'none', cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}>
               Reserve
@@ -1097,30 +1106,6 @@ export default function StayDetailPage({ params }: Props) {
                 </div>
               )}
 
-              {/* ── Login prompt for message host ── */}
-              {showLoginPrompt && (
-                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
-                  style={{ background: 'rgba(0,0,0,0.4)' }}
-                  onClick={(e) => { if (e.target === e.currentTarget) setShowLoginPrompt(false) }}>
-                  <div className="bg-white w-full sm:max-w-sm rounded-t-3xl sm:rounded-2xl p-6">
-                    <h2 className="text-lg font-bold text-[#1a1a1a] mb-2">Log in to continue</h2>
-                    <p className="text-sm text-gray-500 mb-5">
-                      You&apos;ll need to log in or create an account before you can message the host.
-                    </p>
-                    <div className="flex gap-2">
-                      <button onClick={() => router.push(`/login?redirect=${encodeURIComponent(`/listings/stays/${id}`)}`)}
-                        className="flex-1 py-3 rounded-xl border border-gray-200 text-sm font-semibold text-[#1a1a1a] hover:bg-gray-50 transition-colors">
-                        Create account
-                      </button>
-                      <button onClick={() => router.push(`/login?redirect=${encodeURIComponent(`/listings/stays/${id}`)}`)}
-                        className="flex-1 py-3 rounded-xl bg-[#1a1a1a] text-white text-sm font-semibold hover:bg-[#333] transition-colors">
-                        Log in
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-
             </div>
 
             {/* ══ DESKTOP BOOKING SIDEBAR ══ */}
@@ -1262,12 +1247,7 @@ export default function StayDetailPage({ params }: Props) {
 
                   </div>
 
-                  <button onClick={() => {
-                    const params = new URLSearchParams()
-                    if (checkIn) params.set('checkIn', checkIn.toISOString())
-                    if (checkOut) params.set('checkOut', checkOut.toISOString())
-                    router.push(`/listings/stays/${id}/book?${params.toString()}`)
-                  }}
+                  <button onClick={handleReserveClick}
                     className="w-full py-3.5 rounded-xl font-semibold text-sm text-white mb-3 transition-opacity hover:opacity-90"
                     style={{ background: 'linear-gradient(to right, #e8612a, #d44d1a)', border: 'none', cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}>
                     Reserve
@@ -1330,10 +1310,15 @@ export default function StayDetailPage({ params }: Props) {
               </p>
             )}
             {checkIn && !checkOut && (
-              <p className="text-sm text-[#78716c] mb-4">Check-in {fmtDateFull(checkIn)} — now choose your checkout date</p>
+              <p className="text-sm font-semibold mb-4" style={{ color: '#e8612a' }}>
+                Check-in {fmtDateFull(checkIn)} — now choose your checkout date
+              </p>
             )}
             {!checkIn && (
-              <p className="text-sm text-[#78716c] mb-4">Add your travel dates for exact pricing</p>
+              <p className={`text-sm mb-4 ${dateWarning ? 'font-semibold' : 'text-[#78716c]'}`}
+                style={dateWarning ? { color: '#e8612a' } : undefined}>
+                {dateWarning ? 'Please select your check-in and check-out dates to continue.' : 'Add your travel dates for exact pricing'}
+              </p>
             )}
 
             <div className="hidden sm:block mt-4">
@@ -1634,8 +1619,8 @@ export default function StayDetailPage({ params }: Props) {
               {[
                 {
                   icon: <CalendarX2 size={32} strokeWidth={1.5} />, title: 'Cancellation policy',
-                  items: checkIn ? [`${cancellationPolicy.label}: ${cancellationDescription}`] : ['Add your dates to see the cancellation policy for your trip.'],
-                  modalKey: 'cancellation' as const, needsDates: !checkIn,
+                  items: checkIn && checkOut ? [`${cancellationPolicy.label}: ${cancellationDescription}`] : ['Add your dates to see the cancellation policy for your trip.'],
+                  modalKey: 'cancellation' as const, needsDates: !checkIn || !checkOut,
                 },
                 {
                   icon: <Key size={32} strokeWidth={1.5} />, title: 'House rules',
@@ -1669,8 +1654,8 @@ export default function StayDetailPage({ params }: Props) {
               {[
                 {
                   icon: <Calendar size={22} strokeWidth={1.5} />, title: 'Cancellation policy',
-                  items: checkIn ? [`${cancellationPolicy.label}: ${cancellationDescription}`] : ['Add your dates to see the cancellation policy for your trip.'],
-                  modalKey: 'cancellation' as const, needsDates: !checkIn,
+                  items: checkIn && checkOut ? [`${cancellationPolicy.label}: ${cancellationDescription}`] : ['Add your dates to see the cancellation policy for your trip.'],
+                  modalKey: 'cancellation' as const, needsDates: !checkIn || !checkOut,
                 },
                 {
                   icon: <Home size={22} strokeWidth={1.5} />, title: 'House rules',
@@ -1792,19 +1777,38 @@ export default function StayDetailPage({ params }: Props) {
             </button>
           )}
         </div>
-        <button onClick={() => {
-          const params = new URLSearchParams()
-          if (checkIn) params.set('checkIn', checkIn.toISOString())
-          if (checkOut) params.set('checkOut', checkOut.toISOString())
-          router.push(`/listings/stays/${id}/book${params.toString() ? '?' + params.toString() : ''}`)
-        }}
-
+        <button onClick={handleReserveClick}
           className="px-7 py-3 rounded-xl font-semibold text-sm text-white transition-opacity hover:opacity-90"
           style={{ background: 'linear-gradient(to right, #e8612a, #d44d1a)', border: 'none', cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}>
           Reserve
         </button>
       </div>
 
+      {/* ── Login prompt for message host ── */}
+      {showLoginPrompt && (
+                <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center"
+                  style={{ background: 'rgba(0,0,0,0.4)' }}
+                  onClick={(e) => { if (e.target === e.currentTarget) setShowLoginPrompt(false) }}>
+                  <div className="bg-white w-full sm:max-w-sm rounded-t-3xl sm:rounded-2xl p-6">
+                    <h2 className="text-lg font-bold text-[#1a1a1a] mb-2">Log in to continue</h2>
+                    <p className="text-sm text-gray-500 mb-5">
+                      You&apos;ll need to log in or create an account before you can message the host.
+                    </p>
+                    <div className="flex gap-2">
+                      <button onClick={() => router.push(`/login?redirect=${encodeURIComponent(`/listings/stays/${id}`)}`)}
+                        className="flex-1 py-3 rounded-xl border border-gray-200 text-sm font-semibold text-[#1a1a1a] hover:bg-gray-50 transition-colors">
+                        Create account
+                      </button>
+                      <button onClick={() => router.push(`/login?redirect=${encodeURIComponent(`/listings/stays/${id}`)}`)}
+                        className="flex-1 py-3 rounded-xl bg-[#1a1a1a] text-white text-sm font-semibold hover:bg-[#333] transition-colors">
+                        Log in
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+      {/* ── Show all review modal ── */}
       {showAllReviewsPage && (
         <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center"
           style={{ background: 'rgba(0,0,0,0.4)' }}

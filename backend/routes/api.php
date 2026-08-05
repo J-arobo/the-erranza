@@ -34,13 +34,18 @@ use App\Http\Controllers\Api\Vendor\VendorTeamMemberController;
 use App\Http\Controllers\Api\WishlistController;
 //Messages
 use App\Http\Controllers\Api\ListingMessageController;
-
+//Password reset 
+use App\Http\Controllers\Api\PasswordResetController;
 
 
 
 Route::prefix('auth')->group(function () {
     Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:6,1');
     Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:6,1');
+    //Password reset
+    Route::post('/forgot-password', [PasswordResetController::class, 'sendResetLink'])->middleware('throttle:6,1');
+    Route::post('/reset-password', [PasswordResetController::class, 'reset'])->middleware('throttle:6,1');
+    Route::post('/verify-password', [AuthController::class, 'verifyPassword']);
 
     Route::middleware('auth:sanctum')->group(function () {
         Route::post('/logout', [AuthController::class, 'logout']);

@@ -14,7 +14,7 @@ const MENU_SECTIONS_GUEST = [
     section: null,
     items: [
       { icon: LogIn, label: 'Log in', path: '/login' },
-      { icon: UserPlus, label: 'Sign up', path: '/login' },
+      { icon: UserPlus, label: 'Sign up', path: '/signup' },
       { icon: LayoutDashboard, label: 'Become a vendor', path: '/partner' },
     ],
   },

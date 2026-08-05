@@ -1,8 +1,8 @@
 'use client'
-import { Suspense, useEffect, useState } from 'react'
+import { Suspense, useEffect, useRef, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Image from 'next/image'
-import { Plus, Check, ArrowRight } from 'lucide-react'
+import { Plus, Check, ArrowRight, ArrowLeft, SlidersHorizontal, Star, ChevronLeft, ChevronRight } from 'lucide-react'
 import AppShell from '@/components/AppShell'
 import FooterSection from '@/components/FooterSection'
 import HeartButton from '@/components/HeartButton'
@@ -155,6 +155,89 @@ function SectionHeading({ title, onClick }: { title: string; onClick?: () => voi
   )
 }
 
+// Sliding editorial hero for a section's results page — top-rated listings
+// with a gradient overlay so white text stays legible over any photo.
+function HeroCarousel({ items }: { items: PackageItem[] }) {
+  const router = useRouter()
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const [index, setIndex] = useState(0)
+  const slides = items.slice(0, 5)
+
+  function scrollToIndex(i: number) {
+    const el = scrollRef.current
+    if (!el) return
+    el.scrollTo({ left: i * el.clientWidth, behavior: 'smooth' })
+  }
+
+  function handleScroll() {
+    const el = scrollRef.current
+    if (!el) return
+    setIndex(Math.round(el.scrollLeft / el.clientWidth))
+  }
+
+  if (slides.length === 0) return null
+
+  return (
+    <div className="relative rounded-3xl overflow-hidden mb-8" style={{ boxShadow: '0 4px 24px rgba(0,0,0,0.08)' }}>
+      <div ref={scrollRef} onScroll={handleScroll}
+        className="flex overflow-x-auto snap-x snap-mandatory scrollbar-hide">
+        {slides.map((item) => (
+          <div key={item.id}
+            className="relative flex-shrink-0 w-full snap-center h-[260px] sm:h-[320px] md:h-[360px] lg:h-[380px]">
+            <img src={item.image} alt={item.title} className="absolute inset-0 w-full h-full object-cover" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/10 to-transparent" />
+
+            <div className="absolute top-4 left-4 sm:top-6 sm:left-6">
+              <span className="inline-block bg-white text-[#1a1a1a] text-[11px] sm:text-xs font-bold uppercase tracking-wide px-3 py-1.5 rounded-full -rotate-2 shadow-sm">
+                Featured this week
+              </span>
+            </div>
+
+            <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-6 md:p-8">
+              <h3 className="text-sm sm:text-base md:text-lg lg:text-xl font-bold leading-none truncate text-white"
+                style={{ fontFamily: 'Georgia, serif' }}>
+                {item.title}
+              </h3>
+
+              <div className="flex items-center justify-between gap-2 -mt-1">
+                <p className="text-white/85 text-sm sm:text-base leading-none flex items-center gap-1.5 truncate min-w-0">
+                  {item.location.split(',').pop()?.trim()} · from {item.price}
+                  <span className="inline-flex items-center gap-1 ml-1 flex-shrink-0">
+                    <Star size={12} fill="white" color="white" />{item.rating.toFixed(1)}
+                  </span>
+                </p>
+                <button onClick={() => router.push(`/destinations/packages/${item.id}`)}
+                  className="flex-shrink-0 flex items-center gap-1.5 bg-[#2c4a1e] hover:bg-[#233a17] transition-colors text-white text-xs sm:text-sm font-semibold px-3 sm:px-5 py-2 sm:py-2.5 rounded-full whitespace-nowrap">
+                  Explore <ArrowRight size={14} />
+                </button>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {slides.length > 1 && (
+        <>
+          <button onClick={() => scrollToIndex(Math.max(0, index - 1))}
+            className="hidden sm:flex absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/90 items-center justify-center shadow-sm hover:bg-white transition-colors">
+            <ChevronLeft size={18} color="#1a1a1a" />
+          </button>
+          <button onClick={() => scrollToIndex(Math.min(slides.length - 1, index + 1))}
+            className="hidden sm:flex absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/90 items-center justify-center shadow-sm hover:bg-white transition-colors">
+            <ChevronRight size={18} color="#1a1a1a" />
+          </button>
+          <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
+            {slides.map((_, i) => (
+              <button key={i} onClick={() => scrollToIndex(i)}
+                className={`h-1.5 rounded-full transition-all ${i === index ? 'w-5 bg-white' : 'w-1.5 bg-white/50'}`} />
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
 function PackagesPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -198,13 +281,53 @@ function PackagesPageContent() {
     return matchesText && matchesGuests
   })
 
+  const sectionParam = searchParams.get('section')
+  const showCuratedSection = sectionParam === 'curated'
+
+  // ─── Minimal, AppShell-free view for the curated packages section ───
+  if (showCuratedSection) {
+    return (
+      <div className="min-h-screen bg-white">
+        <div className="sticky top-0 z-20 bg-white border-b border-gray-100 px-4 sm:px-6 py-2.5 flex items-center gap-3">
+          <button onClick={() => router.push('/destinations/packages')}
+            className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors flex-shrink-0">
+            <ArrowLeft size={18} color="#1a1a1a" />
+          </button>
+          <div className="flex-1 min-w-0 text-center">
+            <h1 className="text-xs sm:text-sm font-bold text-[#1a1a1a] truncate">Curated packages</h1>
+          </div>
+          <button className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors flex-shrink-0">
+            <SlidersHorizontal size={16} color="#1a1a1a" />
+          </button>
+        </div>
+
+        {loading ? (
+          <div className="flex items-center justify-center py-20">
+            <div className="w-8 h-8 rounded-full border-2 border-[#2c4a1e] border-t-transparent animate-spin" />
+          </div>
+        ) : (
+          <div className="px-4 sm:px-8 md:px-12 lg:px-52 pt-3 pb-6">
+            <HeroCarousel items={[...packages].sort((a, b) => b.rating - a.rating)} />
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-4">
+              {packages.map((pkg) => (
+                <PackageCard key={pkg.id} pkg={pkg} />
+              ))}
+            </div>
+          </div>
+        )}
+        <FooterSection />
+      </div>
+    )
+  }
+
   return (
     <AppShell showCollapse={false}>
       <div className="pt-4 bg-[#ffffff] min-h-full overflow-x-hidden w-full">
 
         {/* ── Curated packages */}
         <div className="mb-2">
-          <SectionHeading title="Curated packages" />
+          <SectionHeading title="Curated packages" onClick={() => router.push('/destinations/packages?section=curated')} />
 
           {loading ? (
             <div className="flex items-center justify-center py-10">
@@ -224,9 +347,10 @@ function PackagesPageContent() {
                     </div>
                   ))}
                   <div className={CARD_WIDTH_CLASSES}>
-                  <div className="relative w-full aspect-[4/3] rounded-xl border border-[#e0d9cc] shadow-sm
+                    <div onClick={() => router.push('/destinations/packages?section=curated')}
+                      className="relative w-full aspect-[4/3] rounded-xl border border-[#e0d9cc] shadow-sm
                         bg-white flex flex-col items-center justify-center gap-2
-                        hover:bg-[#f5f5f5] transition-colors">
+                        hover:bg-[#f5f5f5] transition-colors cursor-pointer">
                       <div className="relative h-10 w-full flex items-center justify-center">
                         {filtered.slice(0, 3).map((it, i) => (
                           <div key={it.id} className="absolute w-10 h-10 rounded-lg overflow-hidden bg-[#f5f5f5]"
@@ -247,7 +371,7 @@ function PackagesPageContent() {
 
         {/* ── Safari tour packages — real listings, shared ListingCard so wishlist/routing work ── */}
         <div>
-        <SectionHeading title="Safari tour packages" onClick={() => router.push('/destinations/safari')} />
+          <SectionHeading title="Safari tour packages" onClick={() => router.push(`/destinations/safari?section=${encodeURIComponent('All safaris')}`)} />
 
           {loadingSafaris ? (
             <div className="flex items-center justify-center py-10">
@@ -259,7 +383,7 @@ function PackagesPageContent() {
             <p className="text-sm text-gray-400 px-4 sm:px-8 md:px-12 lg:px-52">No safari tours available yet.</p>
           ) : (
             <div className="sm:px-4 md:px-12 lg:px-52 pb-2">
-                            <div className="overflow-x-auto scrollbar-hide">
+              <div className="overflow-x-auto scrollbar-hide">
                 <div className="flex gap-3 px-4">
                   {safaris.map((item) => (
                     <div key={item.id} className={CARD_WIDTH_CLASSES}>
@@ -267,7 +391,7 @@ function PackagesPageContent() {
                     </div>
                   ))}
                   <div className={CARD_WIDTH_CLASSES}>
-                  <div onClick={() => router.push('/destinations/safari')}
+                    <div onClick={() => router.push(`/destinations/safari?section=${encodeURIComponent('All safaris')}`)}
                       className="relative w-full aspect-[5/4] rounded-xl border border-[#e0d9cc] shadow-sm
                         bg-white flex flex-col items-center justify-center gap-2
                         hover:bg-[#f5f5f5] transition-colors cursor-pointer">

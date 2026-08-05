@@ -1479,7 +1479,7 @@ export default function VendorDetailPage({ params }: Props) {
 
       {/* Message Login prompt modal */}
       {showLoginPrompt && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
+        <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center"
           style={{ background: 'rgba(0,0,0,0.4)' }}
           onClick={(e) => { if (e.target === e.currentTarget) setShowLoginPrompt(false) }}>
           <div className="bg-white w-full sm:max-w-sm rounded-t-3xl sm:rounded-2xl p-6">

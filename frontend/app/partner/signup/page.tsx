@@ -2,7 +2,8 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/context/AuthContext'
-import { apiErrorMessage } from '@/lib/api'
+import { ApiError, apiFetch, apiErrorMessage } from '@/lib/api'
+import { Eye, EyeOff } from 'lucide-react'
 
 export default function PartnerSignupPage() {
   const router = useRouter()
@@ -11,16 +12,31 @@ export default function PartnerSignupPage() {
   const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [passwordConfirmation, setPasswordConfirmation] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [agreed, setAgreed] = useState(false)
+  const [fieldErrors, setFieldErrors] = useState<{ fullName?: string; email?: string; password?: string; passwordConfirmation?: string }>({})
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
   const [confirmPassword, setConfirmPassword] = useState('')
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [confirmPasswordError, setConfirmPasswordError] = useState('')
 
   const canCreate = fullName.trim() && email.trim() && password.trim() && agreed
 
   async function handleCreateAccount() {
     if (!canCreate) return
+
+    const errors: typeof fieldErrors = {}
+    if (password.length < 8) errors.password = 'Password must be at least 8 characters'
+    if (passwordConfirmation !== password) errors.passwordConfirmation = 'Passwords do not match'
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors)
+      return
+    }
+
+    setFieldErrors({})
     setError('')
     setLoading(true)
     try {
@@ -36,13 +52,22 @@ export default function PartnerSignupPage() {
 
   async function handleContinueAsPartner() {
     if (!confirmPassword.trim()) return
+    setConfirmPasswordError('')
     setError('')
     setLoading(true)
     try {
+      await apiFetch('/auth/verify-password', {
+        method: 'POST',
+        body: JSON.stringify({ password: confirmPassword }),
+      })
       await becomePartner()
       router.push('/vendor/onboarding')
     } catch (err) {
-      setError(apiErrorMessage(err))
+      if (err instanceof ApiError && err.errors?.password) {
+        setConfirmPasswordError(err.errors.password[0])
+      } else {
+        setError(apiErrorMessage(err))
+      }
     } finally {
       setLoading(false)
     }
@@ -90,13 +115,22 @@ export default function PartnerSignupPage() {
               </label>
               <div className="mb-5">
                 <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">Password</p>
-                <input
-                  type="password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm
-                             outline-none focus:border-[#304333] transition-colors"
-                />
+                <div className="relative">
+                  <input
+                    type={showConfirmPassword ? 'text' : 'password'}
+                    value={confirmPassword}
+                    onChange={(e) => { setConfirmPassword(e.target.value); setConfirmPasswordError('') }}
+                    onKeyDown={(e) => { if (e.key === 'Enter') handleContinueAsPartner() }}
+                    className={`w-full border rounded-xl pl-4 pr-10 py-3 text-sm
+                               outline-none focus:border-[#304333] transition-colors
+                               ${confirmPasswordError ? 'border-red-400' : 'border-gray-300'}`}
+                  />
+                  <button type="button" onClick={() => setShowConfirmPassword(s => !s)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                    {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+                {confirmPasswordError && <p className="text-xs text-red-500 mt-1">{confirmPasswordError}</p>}
               </div>
 
               {error && <p className="text-xs text-red-500 mb-4">{error}</p>}
@@ -126,7 +160,12 @@ export default function PartnerSignupPage() {
               </h2>
               <p className="text-sm text-gray-500 mb-6 leading-relaxed">
                 This is separate from a traveller account — you'll use it to manage everything
-                you list on Erranza.
+                you list on Erranza.{' '}
+                <button onClick={() => router.push('/partner/login')}
+                  className="text-[#304333] font-semibold underline"
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                  Already have an account? Log in
+                </button>
               </p>
 
               <div className="flex flex-col gap-4 mb-5">
@@ -134,7 +173,7 @@ export default function PartnerSignupPage() {
                   <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">Full name</p>
                   <input
                     value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
+                    onChange={(e) => { setFullName(e.target.value); setFieldErrors(fe => ({ ...fe, fullName: undefined })) }}
                     placeholder="Sarah Wanjiru"
                     className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm
                                outline-none focus:border-[#304333] transition-colors"
@@ -145,7 +184,7 @@ export default function PartnerSignupPage() {
                   <input
                     type="email"
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={(e) => { setEmail(e.target.value); setFieldErrors(fe => ({ ...fe, email: undefined })) }}
                     placeholder="sarah@maraexpeditions.co.ke"
                     className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm
                                outline-none focus:border-[#304333] transition-colors"
@@ -153,13 +192,34 @@ export default function PartnerSignupPage() {
                 </div>
                 <div>
                   <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">Password</p>
+                  <div className="relative">
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      value={password}
+                      onChange={(e) => { setPassword(e.target.value); setFieldErrors(fe => ({ ...fe, password: undefined })) }}
+                      className={`w-full border rounded-xl pl-4 pr-10 py-3 text-sm
+                                 outline-none focus:border-[#304333] transition-colors
+                                 ${fieldErrors.password ? 'border-red-400' : 'border-gray-300'}`}
+                    />
+                    <button type="button" onClick={() => setShowPassword(s => !s)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                      {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+                  {fieldErrors.password && <p className="text-xs text-red-500 mt-1">{fieldErrors.password}</p>}
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">Confirm password</p>
                   <input
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm
-                               outline-none focus:border-[#304333] transition-colors"
+                    type={showPassword ? 'text' : 'password'}
+                    value={passwordConfirmation}
+                    onChange={(e) => { setPasswordConfirmation(e.target.value); setFieldErrors(fe => ({ ...fe, passwordConfirmation: undefined })) }}
+                    onKeyDown={(e) => { if (e.key === 'Enter') handleCreateAccount() }}
+                    className={`w-full border rounded-xl px-4 py-3 text-sm
+                               outline-none focus:border-[#304333] transition-colors
+                               ${fieldErrors.passwordConfirmation ? 'border-red-400' : 'border-gray-300'}`}
                   />
+                  {fieldErrors.passwordConfirmation && <p className="text-xs text-red-500 mt-1">{fieldErrors.passwordConfirmation}</p>}
                 </div>
               </div>
 

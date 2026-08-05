@@ -78,6 +78,20 @@ class AuthController extends Controller
         return response()->json(['message' => 'Logged out.']);
     }
 
+    public function verifyPassword(Request $request)
+    {
+        $validated = $request->validate(['password' => ['required', 'string']]);
+
+        if (! Hash::check($validated['password'], $request->user()->password)) {
+            throw ValidationException::withMessages([
+                'password' => ['Incorrect password.'],
+            ]);
+        }
+
+        return response()->json(['message' => 'Password verified.']);
+    }
+
+
     public function me(Request $request)
     {
         return response()->json([

@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation'
 import {
   Bell, Settings, HelpCircle, User, Shield,
   ChevronRight, LogOut, Gift, FileText, Users,
-  Menu, MapPin, Camera,
+  Menu, MapPin, Camera, Plane, Heart,
 } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { apiFetch } from '@/lib/api'
@@ -184,10 +184,10 @@ function VisitedPlaces({ loading, places }: { loading: boolean; places: ApiBooki
 }
 
 export default function ProfilePage() {
-  const { isLoggedIn, user,updateProfile, logout, wishlists } = useAuth()
+  const { isLoggedIn, user, updateProfile, logout, wishlists } = useAuth()
   async function handleAvatarChange(dataUrl: string) {
     await updateProfile({ avatarUrl: dataUrl })
-  }  
+  }
   const router = useRouter()
 
   const [bookings, setBookings] = useState<ApiBooking[]>([])
@@ -197,26 +197,30 @@ export default function ProfilePage() {
     if (!isLoggedIn) { setLoadingBookings(false); return }
     apiFetch<{ bookings: ApiBooking[] }>('/bookings')
       .then(({ bookings }) => setBookings(bookings))
-      .catch(() => {})
+      .catch(() => { })
       .finally(() => setLoadingBookings(false))
   }, [isLoggedIn])
 
   const memberSinceYear = user?.createdAt ? new Date(user.createdAt).getFullYear() : null
 
-  const stats: Stat[] = [
-    { value: bookings.length, label: 'Trips' },
-    { value: wishlists.length, label: 'Saved' },
-    { value: memberSinceYear ?? '—', label: 'Member since' },
-  ]
+    // Only bookings that actually happened count as "past trips" — excludes
+  // upcoming/pending bookings and ones that were cancelled.
+  const pastTrips = bookings.filter(b => b.status === 'completed')
 
   // Unique real destinations from completed bookings, keeping the first occurrence's date.
   const visitedPlaces = Array.from(
     new Map(
-      bookings
-        .filter(b => b.status === 'completed')
-        .map(b => [b.listing.location, b])
+      pastTrips.map(b => [b.listing.location, b])
     ).values()
   )
+  
+  const stats: Stat[] = [
+    { value: pastTrips.length, label: 'Trips' },
+    { value: wishlists.length, label: 'Saved' },
+    { value: memberSinceYear ?? '—', label: 'Member since' },
+  ]
+
+
 
   if (!isLoggedIn) {
     return (
@@ -242,7 +246,7 @@ export default function ProfilePage() {
               className="flex-1 bg-[#2c4a1e] text-white py-3 rounded-xl font-semibold text-sm">
               Log in
             </button>
-            <button onClick={() => router.push('/login')}
+            <button onClick={() => router.push('/signup')}
               className="flex-1 border border-[#1a1a1a] text-[#1a1a1a] py-3 rounded-xl
                          font-semibold text-sm">
               Sign up
@@ -312,7 +316,7 @@ export default function ProfilePage() {
               <button onClick={() => router.push('/trips')}
                 className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-50 transition-colors text-left">
                 <div className="w-9 h-9 rounded-lg overflow-hidden bg-[#f5f5f5] flex-shrink-0">
-                  {bookings[0] && <img src={bookings[0].listing.images[0]?.url ?? FALLBACK_IMAGE} alt="" className="w-full h-full object-cover" />}
+                  {pastTrips[0] && <img src={pastTrips[0].listing.images[0]?.url ?? FALLBACK_IMAGE} alt="" className="w-full h-full object-cover" />}
                 </div>
                 <span className="text-sm text-[#1a1a1a]">Past trips</span>
               </button>
@@ -342,33 +346,57 @@ export default function ProfilePage() {
               <button onClick={() => router.push('/trips')}
                 className="bg-white rounded-2xl p-5 text-left relative min-h-[180px] transition-shadow"
                 style={{ boxShadow: '0 2px 16px rgba(0,0,0,0.08)' }}>
-                <div className="relative h-16 mb-4" style={{ width: 90 }}>
-                  {bookings.length > 0 ? bookings.slice(0, 2).map((b, i) => (
-                    <div key={b.id} className="absolute w-14 h-14 rounded-xl overflow-hidden bg-[#f5f5f5]"
-                      style={{
-                        border: '3px solid white',
-                        boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-                        transform: `rotate(${i === 0 ? -8 : 8}deg)`,
-                        left: i * 22,
-                        zIndex: i,
-                      }}>
-                      <img src={b.listing.images[0]?.url ?? FALLBACK_IMAGE} alt={b.listing.title} className="w-full h-full object-cover" />
+                {bookings.length > 0 ? (
+                  <>
+                    <div className="relative h-16 mb-4" style={{ width: 90 }}>
+                      {bookings.slice(0, 2).map((b, i) => (
+                        <div key={b.id} className="absolute w-14 h-14 rounded-xl overflow-hidden bg-[#f5f5f5]"
+                          style={{
+                            border: '3px solid white',
+                            boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+                            transform: `rotate(${i === 0 ? -8 : 8}deg)`,
+                            left: i * 22,
+                            zIndex: i,
+                          }}>
+                          <img src={b.listing.images[0]?.url ?? FALLBACK_IMAGE} alt={b.listing.title} className="w-full h-full object-cover" />
+                        </div>
+                      ))}
                     </div>
-                  )) : (
-                    <div className="absolute w-14 h-14 rounded-xl bg-gray-100" style={{ border: '3px solid white' }} />
-                  )}
-                </div>
-                <p className="text-sm font-bold text-[#1a1a1a]">Past trips</p>
+                    <p className="text-sm font-bold text-[#1a1a1a]">Past trips</p>
+                  </>
+                ) : (
+                  <>
+                    <div className="w-14 h-14 rounded-xl flex items-center justify-center mb-4"
+                      style={{ background: '#F1F5E4' }}>
+                      <Plane size={22} color="#2c4a1e" />
+                    </div>
+                    <p className="text-sm font-bold text-[#1a1a1a] mb-1">Past trips</p>
+                    <p className="text-xs text-gray-400 leading-snug">Your trips will show up here once you book one.</p>
+                  </>
+                )}
               </button>
 
               <button onClick={() => router.push('/wishlists')}
                 className="bg-white rounded-2xl p-5 text-left relative min-h-[180px] transition-shadow"
                 style={{ boxShadow: '0 2px 16px rgba(0,0,0,0.08)' }}>
-                <div className="w-14 h-14 rounded-full flex items-center justify-center
-                              text-2xl font-bold mb-4" style={{ background: '#F1F5E4', color: '#2c4a1e' }}>
-                  {wishlists.length}
-                </div>
-                <p className="text-sm font-bold text-[#1a1a1a]">Saved</p>
+                {wishlists.length > 0 ? (
+                  <>
+                    <div className="w-14 h-14 rounded-full flex items-center justify-center
+                                  text-2xl font-bold mb-4" style={{ background: '#F1F5E4', color: '#2c4a1e' }}>
+                      {wishlists.length}
+                    </div>
+                    <p className="text-sm font-bold text-[#1a1a1a]">Saved</p>
+                  </>
+                ) : (
+                  <>
+                    <div className="w-14 h-14 rounded-full flex items-center justify-center mb-4"
+                      style={{ background: '#F1F5E4' }}>
+                      <Heart size={22} color="#2c4a1e" />
+                    </div>
+                    <p className="text-sm font-bold text-[#1a1a1a] mb-1">Saved</p>
+                    <p className="text-xs text-gray-400 leading-snug">Places you save will show up here.</p>
+                  </>
+                )}
               </button>
             </div>
 

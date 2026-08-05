@@ -24,7 +24,7 @@ type ApiListing = {
   images: { url: string }[]
   reviews_count: number
   reviews_avg_rating: string | null
-  vendor: { business_name: string }
+  vendor: { id: number; business_name: string }
   unavailable_dates: { start: string; end: string }[]
 }
 
@@ -305,9 +305,9 @@ function StayBookingPageContent({ params }: Props) {
         })
 
         if (message.trim()) {
-          await apiFetch(`/bookings/${booking.id}/messages`, {
+          await apiFetch(`/vendors/${listing!.vendor.id}/messages`, {
             method: 'POST',
-            body: JSON.stringify({ text: message.trim() }),
+            body: JSON.stringify({ text: message.trim(), listing_id: listing!.id }),
           })
         }
 

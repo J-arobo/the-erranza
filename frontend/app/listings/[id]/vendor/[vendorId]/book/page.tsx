@@ -265,9 +265,9 @@ function BookingPageContent({ params }: Props) {
         })
 
         if (message.trim()) {
-          await apiFetch(`/bookings/${booking.id}/messages`, {
+          await apiFetch(`/vendors/${vendorId}/messages`, {
             method: 'POST',
-            body: JSON.stringify({ text: message.trim() }),
+            body: JSON.stringify({ text: message.trim(), listing_id: listing!.id }),
           })
         }
 

@@ -61,7 +61,7 @@ function mapSafariItem(l: ApiListing): SectionItem {
 const SECTION_META = [
   { title: 'Popular Stays', slug: 'stays', category: 'Stays', listingCategory: 'stays', color: '#2c4a1e', map: mapItem, sectionTitle: 'All stays' },
   { title: 'Safari Destinations', slug: 'safari', category: 'Safari', listingCategory: 'safari', color: '#5a3e10', map: mapSafariItem, sectionTitle: 'All safaris' },
-  { title: 'Travel Packages', slug: 'packages', category: 'Packages', listingCategory: 'packages', color: '#163a4a', map: mapItem, sectionTitle: null },
+  { title: 'Travel Packages', slug: 'packages', category: 'Packages', listingCategory: 'packages', color: '#163a4a', map: mapItem, sectionTitle: 'curated' },
 ]
 
 export default function Home() {
