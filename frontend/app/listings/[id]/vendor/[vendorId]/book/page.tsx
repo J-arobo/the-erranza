@@ -11,8 +11,8 @@ type Props = {
 }
 
 // 3 steps: review → message → confirm & pay
-type Step = 'review' | 'message' | 'confirm'
-const STEPS: Step[] = ['review', 'message', 'confirm']
+type Step = 'review' | 'message' | 'confirm' | 'payment'
+const STEPS: Step[] = ['review', 'message', 'confirm', 'payment']
 
 const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1516426122078-c23e76319801?w=400&q=80'
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
@@ -42,6 +42,75 @@ function toDateStr(d: Date): string {
 function formatDisplayDate(d: Date) {
   return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })
 }
+
+// Payment Helper functions
+function formatCardNumber(v: string): string {
+  const digits = v.replace(/\D/g, '').slice(0, 19)
+  return digits.replace(/(.{4})/g, '$1 ').trim()
+}
+
+function formatCardExpiry(v: string): string {
+  const digits = v.replace(/\D/g, '').slice(0, 4)
+  return digits.length >= 3 ? `${digits.slice(0, 2)}/${digits.slice(2)}` : digits
+}
+
+function luhnCheck(digits: string): boolean {
+  let sum = 0
+  let alt = false
+  for (let i = digits.length - 1; i >= 0; i--) {
+    let n = parseInt(digits[i], 10)
+    if (alt) { n *= 2; if (n > 9) n -= 9 }
+    sum += n
+    alt = !alt
+  }
+  return sum % 10 === 0
+}
+
+type PaymentFieldErrors = Partial<Record<'cardName' | 'cardNumber' | 'cardExpiry' | 'cardCvv' | 'mpesaPhone', string>>
+
+function validatePayment(
+  method: 'card' | 'mpesa',
+  cardName: string, cardNumber: string, cardExpiry: string, cardCvv: string, mpesaPhone: string
+): PaymentFieldErrors {
+  const errors: PaymentFieldErrors = {}
+
+  if (method === 'card') {
+    if (!cardName.trim()) errors.cardName = 'Name on card is required'
+
+    const digits = cardNumber.replace(/\s/g, '')
+    if (digits.length < 13 || digits.length > 19) {
+      errors.cardNumber = 'Enter a valid card number'
+    } else if (!luhnCheck(digits)) {
+      errors.cardNumber = 'Card number looks incorrect'
+    }
+
+    const [mm, yy] = cardExpiry.split('/')
+    const month = Number(mm)
+    const year = Number(yy)
+    if (!mm || !yy || month < 1 || month > 12 || mm.length !== 2 || yy.length !== 2) {
+      errors.cardExpiry = 'Enter a valid expiry (MM/YY)'
+    } else {
+      const now = new Date()
+      const currentYear = now.getFullYear() % 100
+      const currentMonth = now.getMonth() + 1
+      if (year < currentYear || (year === currentYear && month < currentMonth)) {
+        errors.cardExpiry = 'This card has expired'
+      }
+    }
+
+    if (cardCvv.trim().length < 3 || cardCvv.trim().length > 4) {
+      errors.cardCvv = 'Enter a valid CVV'
+    }
+  } else {
+    const digits = mpesaPhone.replace(/\D/g, '')
+    if (!/^(?:254|0)?[71]\d{8}$/.test(digits)) {
+      errors.mpesaPhone = 'Enter a valid Safaricom number'
+    }
+  }
+
+  return errors
+}
+
 
 function DateMonthGrid({ year, month, checkIn, checkOut, minDate, onSelect }: {
   year: number; month: number; checkIn: Date | null; checkOut: Date | null; minDate: Date; onSelect: (d: Date) => void
@@ -145,6 +214,15 @@ function BookingPageContent({ params }: Props) {
   const [payMode, setPayMode] = useState<'full' | 'instalments'>('full')
   const [message, setMessage] = useState('')
   const [insurance, setInsurance] = useState(false)
+  // Payment helper
+  const [paymentMethod, setPaymentMethod] = useState<'card' | 'mpesa'>('card')
+  const [cardNumber, setCardNumber] = useState('')
+  const [cardExpiry, setCardExpiry] = useState('')
+  const [cardCvv, setCardCvv] = useState('')
+  const [cardName, setCardName] = useState('')
+  const [mpesaPhone, setMpesaPhone] = useState('')
+  const [paymentFieldErrors, setPaymentFieldErrors] = useState<PaymentFieldErrors>({})
+
   const [guests, setGuests] = useState(() => Number(searchParams.get('guests')) || 1)
   const [selectedCheckIn, setSelectedCheckIn] = useState<Date | null>(dateParam ? new Date(dateParam) : null)
   const [selectedCheckOut, setSelectedCheckOut] = useState<Date | null>(null)
@@ -226,7 +304,11 @@ function BookingPageContent({ params }: Props) {
   const tourImage = listing.images[0]?.url ?? FALLBACK_IMAGE
   const guideName = listing.vendor.business_name
   const rating = listing.reviews_avg_rating ? Number(listing.reviews_avg_rating).toFixed(2) : '4.50'
+  // Payment
   const dateReady = usesDepartures ? !!selectedDepartureId : !!(selectedCheckIn && selectedCheckOut)
+  const paymentDetailsValid = paymentMethod === 'card'
+    ? cardNumber.replace(/\s/g, '').length >= 15 && cardExpiry.trim().length >= 4 && cardCvv.trim().length >= 3 && cardName.trim().length > 0
+    : mpesaPhone.trim().length >= 9
 
   function handleSheetCalSelect(date: Date) {
     if (!sheetCheckIn || (sheetCheckIn && sheetCheckOut)) {
@@ -249,6 +331,17 @@ function BookingPageContent({ params }: Props) {
         setSubmitError('Please select your tour dates first.')
         return
       }
+      setSubmitError('')
+      setStep('payment')
+      return
+    }
+    if (step === 'payment') {
+      const errors = validatePayment(paymentMethod, cardName, cardNumber, cardExpiry, cardCvv, mpesaPhone)
+      if (Object.keys(errors).length > 0) {
+        setPaymentFieldErrors(errors)
+        return
+      }
+      setPaymentFieldErrors({})
 
       setSubmitting(true)
       setSubmitError('')
@@ -278,13 +371,14 @@ function BookingPageContent({ params }: Props) {
         setSubmitting(false)
       }
     }
-
   }
+
 
   function goBack() {
     if (step === 'review') router.back()
     if (step === 'message') setStep('review')
     if (step === 'confirm') setStep('message')
+    if (step === 'payment') setStep('confirm')
   }
 
   function handleContentScroll(e: React.UIEvent<HTMLDivElement>) {
@@ -374,8 +468,8 @@ function BookingPageContent({ params }: Props) {
                 {selectedCheckIn && selectedCheckOut
                   ? `${formatDisplayDate(selectedCheckIn)} – ${formatDisplayDate(selectedCheckOut)}`
                   : selectedCheckIn
-                  ? `Check-in ${formatDisplayDate(selectedCheckIn)} — now choose checkout`
-                  : 'Add dates'}
+                    ? `Check-in ${formatDisplayDate(selectedCheckIn)} — now choose checkout`
+                    : 'Add dates'}
               </p>
               <button
                 onClick={() => { setSheetCheckIn(selectedCheckIn); setSheetCheckOut(selectedCheckOut); setShowDateSheet(true) }}
@@ -451,6 +545,7 @@ function BookingPageContent({ params }: Props) {
           {step === 'review' && 'Review and continue'}
           {step === 'message' && 'Message the guide'}
           {step === 'confirm' && 'Confirm and pay'}
+          {step === 'payment' && 'Payment details'}
         </h1>
 
         <button
@@ -477,46 +572,82 @@ function BookingPageContent({ params }: Props) {
             )}
 
             {/* How to pay */}
-            <div className="mb-4">
-              <h2 className="text-base font-bold text-[#1a1a1a] mb-3">
-                Choose how to pay
+            {false && (
+              <div className="mb-4">
+                <h2 className="text-base font-bold text-[#1a1a1a] mb-3">
+                  Choose how to pay
+                </h2>
+                <div className="border border-gray-200 rounded-2xl overflow-hidden">
+                  <label className="flex items-center justify-between p-4 cursor-pointer
+                                    hover:bg-gray-50 transition-colors">
+                    <div>
+                      <p className="text-sm font-semibold text-[#1a1a1a]">
+                        Pay Ksh {totalPrice.toLocaleString()} now
+                      </p>
+                    </div>
+                    <input
+                      type="radio"
+                      name="pay"
+                      checked={payMode === 'full'}
+                      onChange={() => setPayMode('full')}
+                      className="w-5 h-5 accent-[#1a1a1a]"
+                    />
+                  </label>
+                  <div className="border-t border-gray-100" />
+                  <label className="flex items-center justify-between p-4 cursor-pointer
+                                    hover:bg-gray-50 transition-colors">
+                    <div>
+                      <p className="text-sm font-semibold text-[#1a1a1a]">
+                        Pay in 3 instalments
+                      </p>
+                      <p className="text-xs text-gray-400">
+                        3 payments of Ksh {Math.round(totalPrice / 3).toLocaleString()} each ·{' '}
+                        <button className="underline text-[#1a1a1a]">More info</button>
+                      </p>
+                    </div>
+                    <input
+                      type="radio"
+                      name="pay"
+                      checked={payMode === 'instalments'}
+                      onChange={() => setPayMode('instalments')}
+                      className="w-5 h-5 accent-[#1a1a1a]"
+                    />
+                  </label>
+                </div>
+              </div>
+            )}
+
+            {/* Travel insurance */}
+            <div className="mb-5">
+              <h2 className="text-sm font-bold text-[#1a1a1a] mb-3">
+                Add safari/travel insurance?
               </h2>
-              <div className="border border-gray-200 rounded-2xl overflow-hidden">
-                <label className="flex items-center justify-between p-4 cursor-pointer
-                                  hover:bg-gray-50 transition-colors">
-                  <div>
-                    <p className="text-sm font-semibold text-[#1a1a1a]">
-                      Pay Ksh {totalPrice.toLocaleString()} now
+              <div className="border border-gray-200 rounded-2xl p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1">
+                    <p className="text-sm font-bold text-[#1a1a1a]">
+                      Yes, add for Ksh {Math.round(insurancePrice).toLocaleString()}
+                    </p>
+                    <p className="text-xs text-gray-400 mb-2">Only available when booking.</p>
+                    <p className="text-xs text-gray-500 leading-relaxed">
+                      Get up to 100% of the cost back if you cancel for covered reasons,
+                      plus coverage for flights and activities.{' '}
+                      <button className="font-semibold text-[#1a1a1a] underline">
+                        What's covered
+                      </button>
                     </p>
                   </div>
-                  <input
-                    type="radio"
-                    name="pay"
-                    checked={payMode === 'full'}
-                    onChange={() => setPayMode('full')}
-                    className="w-5 h-5 accent-[#1a1a1a]"
-                  />
-                </label>
-                <div className="border-t border-gray-100" />
-                <label className="flex items-center justify-between p-4 cursor-pointer
-                                  hover:bg-gray-50 transition-colors">
-                  <div>
-                    <p className="text-sm font-semibold text-[#1a1a1a]">
-                      Pay in 3 instalments
-                    </p>
-                    <p className="text-xs text-gray-400">
-                      3 payments of Ksh {Math.round(totalPrice / 3).toLocaleString()} each ·{' '}
-                      <button className="underline text-[#1a1a1a]">More info</button>
-                    </p>
-                  </div>
-                  <input
-                    type="radio"
-                    name="pay"
-                    checked={payMode === 'instalments'}
-                    onChange={() => setPayMode('instalments')}
-                    className="w-5 h-5 accent-[#1a1a1a]"
-                  />
-                </label>
+                  <button
+                    onClick={() => setInsurance(i => !i)}
+                    className={`px-4 py-1.5 rounded-xl text-xs font-semibold border
+                                transition-all flex-shrink-0
+                      ${insurance
+                        ? 'bg-[#2c4a1e] text-white border-[#2c4a1e]'
+                        : 'bg-white text-[#1a1a1a] border-gray-300'}`}
+                  >
+                    {insurance ? 'Added ✓' : 'Add'}
+                  </button>
+                </div>
               </div>
             </div>
           </>
@@ -579,44 +710,10 @@ function BookingPageContent({ params }: Props) {
                                border-gray-200 rounded-2xl mb-5 hover:bg-gray-50 transition-colors">
               <div className="text-left">
                 <p className="text-sm font-semibold text-[#1a1a1a]">Payment method</p>
-                <p className="text-sm text-gray-400">Credit or Debit Card</p>
+                <p className="text-sm text-gray-400">{paymentMethod === 'card' ? 'Credit or Debit Card' : 'M-Pesa'}</p>
               </div>
               <ChevronRight size={16} color="#aaa" />
             </button>
-
-            {/* Travel insurance */}
-            <div className="mb-5">
-              <h2 className="text-sm font-bold text-[#1a1a1a] mb-3">
-                Add safari/travel insurance?
-              </h2>
-              <div className="border border-gray-200 rounded-2xl p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex-1">
-                    <p className="text-sm font-bold text-[#1a1a1a]">
-                      Yes, add for Ksh {Math.round(insurancePrice).toLocaleString()}
-                    </p>
-                    <p className="text-xs text-gray-400 mb-2">Only available when booking.</p>
-                    <p className="text-xs text-gray-500 leading-relaxed">
-                      Get up to 100% of the cost back if you cancel for covered reasons,
-                      plus coverage for flights and activities.{' '}
-                      <button className="font-semibold text-[#1a1a1a] underline">
-                        What's covered
-                      </button>
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => setInsurance(i => !i)}
-                    className={`px-4 py-1.5 rounded-xl text-xs font-semibold border
-                                transition-all flex-shrink-0
-                      ${insurance
-                        ? 'bg-[#2c4a1e] text-white border-[#2c4a1e]'
-                        : 'bg-white text-[#1a1a1a] border-gray-300'}`}
-                  >
-                    {insurance ? 'Added ✓' : 'Add'}
-                  </button>
-                </div>
-              </div>
-            </div>
 
             {/* Price details */}
             <div className="mb-5">
@@ -655,6 +752,102 @@ function BookingPageContent({ params }: Props) {
           </>
         )}
 
+                {/* ── STEP 4: Payment details ── */}
+                {step === 'payment' && (
+          <>
+            <SummaryCard highlighted />
+
+            {submitError && (
+              <div className="mb-4 px-4 py-3 rounded-xl bg-red-50 text-red-600 text-sm">
+                {submitError}
+              </div>
+            )}
+
+            <div className="flex gap-2 mb-5">
+              <button onClick={() => setPaymentMethod('card')}
+                className={`flex-1 py-3 rounded-xl text-sm font-semibold border transition-colors
+                  ${paymentMethod === 'card' ? 'bg-[#1a1a1a] text-white border-[#1a1a1a]' : 'bg-white text-[#1a1a1a] border-gray-200'}`}>
+                Card
+              </button>
+              <button onClick={() => setPaymentMethod('mpesa')}
+                className={`flex-1 py-3 rounded-xl text-sm font-semibold border transition-colors
+                  ${paymentMethod === 'mpesa' ? 'bg-[#1a1a1a] text-white border-[#1a1a1a]' : 'bg-white text-[#1a1a1a] border-gray-200'}`}>
+                M-Pesa
+              </button>
+            </div>
+
+            {paymentMethod === 'card' ? (
+              <div className="flex flex-col gap-3 mb-5">
+                <div>
+                  <p className="text-xs text-gray-500 mb-1">Name on card</p>
+                  <input value={cardName}
+                    onChange={(e) => { setCardName(e.target.value); setPaymentFieldErrors(fe => ({ ...fe, cardName: undefined })) }}
+                    placeholder="Jane Traveller" autoComplete="cc-name"
+                    className={`w-full border rounded-xl px-4 py-3 text-sm
+                               text-[#1a1a1a] outline-none focus:border-[#1a1a1a] transition-colors
+                               ${paymentFieldErrors.cardName ? 'border-red-400' : 'border-gray-300'}`} />
+                  {paymentFieldErrors.cardName && <p className="text-xs text-red-500 mt-1">{paymentFieldErrors.cardName}</p>}
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 mb-1">Card number</p>
+                  <input value={cardNumber}
+                    onChange={(e) => { setCardNumber(formatCardNumber(e.target.value)); setPaymentFieldErrors(fe => ({ ...fe, cardNumber: undefined })) }}
+                    placeholder="4242 4242 4242 4242" inputMode="numeric" autoComplete="cc-number" maxLength={23}
+                    className={`w-full border rounded-xl px-4 py-3 text-sm
+                               text-[#1a1a1a] outline-none focus:border-[#1a1a1a] transition-colors
+                               ${paymentFieldErrors.cardNumber ? 'border-red-400' : 'border-gray-300'}`} />
+                  {paymentFieldErrors.cardNumber && <p className="text-xs text-red-500 mt-1">{paymentFieldErrors.cardNumber}</p>}
+                </div>
+                <div className="flex gap-3">
+                  <div className="flex-1">
+                    <p className="text-xs text-gray-500 mb-1">Expiry</p>
+                    <input value={cardExpiry}
+                      onChange={(e) => { setCardExpiry(formatCardExpiry(e.target.value)); setPaymentFieldErrors(fe => ({ ...fe, cardExpiry: undefined })) }}
+                      placeholder="MM/YY" inputMode="numeric" autoComplete="cc-exp" maxLength={5}
+                      className={`w-full border rounded-xl px-4 py-3 text-sm
+                                 text-[#1a1a1a] outline-none focus:border-[#1a1a1a] transition-colors
+                                 ${paymentFieldErrors.cardExpiry ? 'border-red-400' : 'border-gray-300'}`} />
+                    {paymentFieldErrors.cardExpiry && <p className="text-xs text-red-500 mt-1">{paymentFieldErrors.cardExpiry}</p>}
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-xs text-gray-500 mb-1">CVV</p>
+                    <input value={cardCvv}
+                      onChange={(e) => { setCardCvv(e.target.value.replace(/\D/g, '').slice(0, 4)); setPaymentFieldErrors(fe => ({ ...fe, cardCvv: undefined })) }}
+                      placeholder="123" inputMode="numeric" autoComplete="cc-csc" maxLength={4}
+                      className={`w-full border rounded-xl px-4 py-3 text-sm
+                                 text-[#1a1a1a] outline-none focus:border-[#1a1a1a] transition-colors
+                                 ${paymentFieldErrors.cardCvv ? 'border-red-400' : 'border-gray-300'}`} />
+                    {paymentFieldErrors.cardCvv && <p className="text-xs text-red-500 mt-1">{paymentFieldErrors.cardCvv}</p>}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-3 mb-5">
+                <div>
+                  <p className="text-xs text-gray-500 mb-1">M-Pesa phone number</p>
+                  <input value={mpesaPhone}
+                    onChange={(e) => { setMpesaPhone(e.target.value.replace(/[^\d+\s]/g, '')); setPaymentFieldErrors(fe => ({ ...fe, mpesaPhone: undefined })) }}
+                    placeholder="07XX XXX XXX" inputMode="tel" autoComplete="tel" maxLength={13}
+                    className={`w-full border rounded-xl px-4 py-3 text-sm
+                               text-[#1a1a1a] outline-none focus:border-[#1a1a1a] transition-colors
+                               ${paymentFieldErrors.mpesaPhone ? 'border-red-400' : 'border-gray-300'}`} />
+                  {paymentFieldErrors.mpesaPhone && <p className="text-xs text-red-500 mt-1">{paymentFieldErrors.mpesaPhone}</p>}
+                </div>
+                <p className="text-xs text-gray-500">
+                  You&apos;ll receive an M-Pesa prompt on this number to complete the payment.
+                </p>
+              </div>
+            )}
+
+            <div className="flex items-center gap-2 mb-5 p-3 bg-gray-50 rounded-xl">
+              <Shield size={16} color="#2c4a1e" />
+              <p className="text-xs text-gray-500">
+                🔒 To help protect your payment, always book through Erranza.
+              </p>
+            </div>
+          </>
+        )}
+
       </div>
 
       {/* ── PROGRESS + NEXT BUTTON ── */}
@@ -666,12 +859,32 @@ function BookingPageContent({ params }: Props) {
             <>
               <button
                 onClick={goNext}
-                disabled={submitting || !dateReady || !reachedBottom}
+                disabled={!dateReady || !reachedBottom}
                 className="w-full bg-[#1a1a1a] text-white py-4 rounded-2xl font-bold
                            text-base hover:bg-[#333] transition-colors active:scale-[0.99]
                            disabled:opacity-40 disabled:cursor-not-allowed"
               >
-                {submitting ? 'Booking…' : 'Pay with Credit card'}
+                {`Continue to payment · Ksh ${Math.round(finalTotal).toLocaleString()}`}
+              </button>
+              <p className="text-xs text-gray-400 text-center mt-3 leading-relaxed">
+                By selecting the button, I agree to the{' '}
+                <button className="text-[#1a1a1a] underline">booking terms</button>
+                {' '}and{' '}
+                <button className="text-[#1a1a1a] underline">Terms of Service</button>.
+                View{' '}
+                <button className="text-[#1a1a1a] underline">Privacy Policy</button>.
+              </p>
+            </>
+          ) : step === 'payment' ? (
+            <>
+              <button
+                onClick={goNext}
+                disabled={submitting || !paymentDetailsValid}
+                className="w-full bg-[#1a1a1a] text-white py-4 rounded-2xl font-bold
+                           text-base hover:bg-[#333] transition-colors active:scale-[0.99]
+                           disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                {submitting ? 'Booking…' : `Pay Ksh ${Math.round(finalTotal).toLocaleString()}`}
               </button>
               <p className="text-xs text-gray-400 text-center mt-3 leading-relaxed">
                 By selecting the button, I agree to the{' '}
@@ -694,6 +907,7 @@ function BookingPageContent({ params }: Props) {
             </button>
           )}
         </div>
+
       </div>
 
       {/* ── DATE CHANGE SHEET ── */}
@@ -753,7 +967,7 @@ function BookingPageContent({ params }: Props) {
               You&apos;ll need to log in or create an account before you can book this tour.
             </p>
             <div className="flex gap-2">
-            <button onClick={() => router.push(`/login?redirect=${encodeURIComponent(`/listings/${id}/vendor/${vendorId}/book${searchParams.toString() ? '?' + searchParams.toString() : ''}`)}`)}
+              <button onClick={() => router.push(`/login?redirect=${encodeURIComponent(`/listings/${id}/vendor/${vendorId}/book${searchParams.toString() ? '?' + searchParams.toString() : ''}`)}`)}
                 className="flex-1 py-3 rounded-xl border border-gray-200 text-sm font-semibold text-[#1a1a1a] hover:bg-gray-50 transition-colors">
                 Create account
               </button>

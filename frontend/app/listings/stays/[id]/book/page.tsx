@@ -38,6 +38,75 @@ function toDateStr(d: Date): string {
   return `${y}-${m}-${day}`
 }
 
+function formatCardNumber(v: string): string {
+  const digits = v.replace(/\D/g, '').slice(0, 19)
+  return digits.replace(/(.{4})/g, '$1 ').trim()
+}
+
+function formatCardExpiry(v: string): string {
+  const digits = v.replace(/\D/g, '').slice(0, 4)
+  return digits.length >= 3 ? `${digits.slice(0, 2)}/${digits.slice(2)}` : digits
+}
+
+function luhnCheck(digits: string): boolean {
+  let sum = 0
+  let alt = false
+  for (let i = digits.length - 1; i >= 0; i--) {
+    let n = parseInt(digits[i], 10)
+    if (alt) { n *= 2; if (n > 9) n -= 9 }
+    sum += n
+    alt = !alt
+  }
+  return sum % 10 === 0
+}
+
+type PaymentFieldErrors = Partial<Record<'cardName' | 'cardNumber' | 'cardExpiry' | 'cardCvv' | 'mpesaPhone', string>>
+
+// Payment step formatting and validation
+function validatePayment(
+  method: 'card' | 'mpesa',
+  cardName: string, cardNumber: string, cardExpiry: string, cardCvv: string, mpesaPhone: string
+): PaymentFieldErrors {
+  const errors: PaymentFieldErrors = {}
+
+  if (method === 'card') {
+    if (!cardName.trim()) errors.cardName = 'Name on card is required'
+
+    const digits = cardNumber.replace(/\s/g, '')
+    if (digits.length < 13 || digits.length > 19) {
+      errors.cardNumber = 'Enter a valid card number'
+    } else if (!luhnCheck(digits)) {
+      errors.cardNumber = 'Card number looks incorrect'
+    }
+
+    const [mm, yy] = cardExpiry.split('/')
+    const month = Number(mm)
+    const year = Number(yy)
+    if (!mm || !yy || month < 1 || month > 12 || mm.length !== 2 || yy.length !== 2) {
+      errors.cardExpiry = 'Enter a valid expiry (MM/YY)'
+    } else {
+      const now = new Date()
+      const currentYear = now.getFullYear() % 100
+      const currentMonth = now.getMonth() + 1
+      if (year < currentYear || (year === currentYear && month < currentMonth)) {
+        errors.cardExpiry = 'This card has expired'
+      }
+    }
+
+    if (cardCvv.trim().length < 3 || cardCvv.trim().length > 4) {
+      errors.cardCvv = 'Enter a valid CVV'
+    }
+  } else {
+    const digits = mpesaPhone.replace(/\D/g, '')
+    if (!/^(?:254|0)?[71]\d{8}$/.test(digits)) {
+      errors.mpesaPhone = 'Enter a valid Safaricom number'
+    }
+  }
+
+  return errors
+}
+
+
 type DateRange = { start: Date; end: Date }
 
 function parseUnavailable(ranges: { start: string; end: string }[]): DateRange[] {
@@ -212,6 +281,7 @@ function StayBookingPageContent({ params }: Props) {
   const [cardCvv, setCardCvv] = useState('')
   const [cardName, setCardName] = useState('')
   const [mpesaPhone, setMpesaPhone] = useState('')
+  const [paymentFieldErrors, setPaymentFieldErrors] = useState<PaymentFieldErrors>({})
   const [message, setMessage] = useState('')
   const [insurance, setInsurance] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -288,7 +358,13 @@ function StayBookingPageContent({ params }: Props) {
       return
     }
     if (step === 'payment') {
-      if (!paymentDetailsValid) return
+      const errors = validatePayment(paymentMethod, cardName, cardNumber, cardExpiry, cardCvv, mpesaPhone)
+      if (Object.keys(errors).length > 0) {
+        setPaymentFieldErrors(errors)
+        return
+      }
+      setPaymentFieldErrors({})
+
 
       setSubmitting(true)
       setSubmitError('')
@@ -534,102 +610,37 @@ function StayBookingPageContent({ params }: Props) {
                 Add your check-in and check-out dates to continue.
               </p>
             )}
-            <div className="mb-4">
-              <h2 className="text-base font-bold text-[#1a1a1a] mb-3">Choose how to pay</h2>
-              <div className="border border-gray-200 rounded-2xl overflow-hidden">
-                <label className="flex items-center justify-between p-4 cursor-pointer
-                                  hover:bg-gray-50 transition-colors">
-                  <div>
-                    <p className="text-sm font-semibold text-[#1a1a1a]">
-                      Pay Ksh {total.toLocaleString()} now
-                    </p>
-                  </div>
-                  <input type="radio" name="pay" checked={payMode === 'full'}
-                    onChange={() => setPayMode('full')}
-                    className="w-5 h-5 accent-[#1a1a1a]" />
-                </label>
-                <div className="border-t border-gray-100" />
-                <label className="flex items-center justify-between p-4 cursor-pointer
-                                  hover:bg-gray-50 transition-colors">
-                  <div>
-                    <p className="text-sm font-semibold text-[#1a1a1a]">Pay in 3 instalments</p>
-                    <p className="text-xs text-gray-400">
-                      3 payments of Ksh {Math.round(total / 3).toLocaleString()} each
-                    </p>
-                  </div>
-                  <input type="radio" name="pay" checked={payMode === 'instalments'}
-                    onChange={() => setPayMode('instalments')}
-                    className="w-5 h-5 accent-[#1a1a1a]" />
-                </label>
-              </div>
-            </div>
-          </>
-        )}
-
-        {/* STEP 2 — Message */}
-        {step === 'message' && (
-          <>
-            <p className="text-lg font-bold text-[#1a1a1a] mb-2">
-              Write a message to the host
-            </p>
-            <p className="text-sm text-gray-500 mb-5">
-              Before you continue, let{' '}
-              <span className="font-semibold text-[#1a1a1a]">{hostName}</span>{' '}
-              know about your trip and why this stay is a great fit.
-            </p>
-            <textarea
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              placeholder={`Hi! I'm excited about staying at your place. I'm travelling to ${listing.location} and…`}
-              rows={6}
-              className="w-full border border-gray-300 rounded-2xl p-4 text-sm
-                         text-[#1a1a1a] placeholder:text-gray-400 outline-none
-                         focus:border-[#2c4a1e] transition-colors resize-none"
-            />
-            <p className="text-xs text-gray-400 mt-1 text-right">
-              {message.length} characters
-            </p>
-          </>
-        )}
-
-        {/* STEP 3 — Confirm & Pay */}
-        {step === 'confirm' && (
-          <>
-            <SummaryCard highlighted />
-
-            {submitError && (
-              <div className="mb-4 px-4 py-3 rounded-xl bg-red-50 text-red-600 text-sm">
-                {submitError}
+            {false && (
+              <div className="mb-4">
+                <h2 className="text-base font-bold text-[#1a1a1a] mb-3">Choose how to pay</h2>
+                <div className="border border-gray-200 rounded-2xl overflow-hidden">
+                  <label className="flex items-center justify-between p-4 cursor-pointer
+                                    hover:bg-gray-50 transition-colors">
+                    <div>
+                      <p className="text-sm font-semibold text-[#1a1a1a]">
+                        Pay Ksh {total.toLocaleString()} now
+                      </p>
+                    </div>
+                    <input type="radio" name="pay" checked={payMode === 'full'}
+                      onChange={() => setPayMode('full')}
+                      className="w-5 h-5 accent-[#1a1a1a]" />
+                  </label>
+                  <div className="border-t border-gray-100" />
+                  <label className="flex items-center justify-between p-4 cursor-pointer
+                                    hover:bg-gray-50 transition-colors">
+                    <div>
+                      <p className="text-sm font-semibold text-[#1a1a1a]">Pay in 3 instalments</p>
+                      <p className="text-xs text-gray-400">
+                        3 payments of Ksh {Math.round(total / 3).toLocaleString()} each
+                      </p>
+                    </div>
+                    <input type="radio" name="pay" checked={payMode === 'instalments'}
+                      onChange={() => setPayMode('instalments')}
+                      className="w-5 h-5 accent-[#1a1a1a]" />
+                  </label>
+                </div>
               </div>
             )}
-
-            {/* Payment method */}
-            <button onClick={() => setShowPayModeSheet(true)}
-              className="w-full flex items-center justify-between p-4 border
-                               border-gray-200 rounded-2xl mb-3 hover:bg-gray-50
-                               transition-colors text-left">
-              <div>
-                <p className="text-sm font-semibold text-[#1a1a1a]">How you'll pay</p>
-                <p className="text-sm text-gray-400">
-                  {payMode === 'full'
-                    ? `Ksh ${total.toLocaleString()} now`
-                    : `3 × Ksh ${Math.round(total / 3).toLocaleString()}`}
-                </p>
-              </div>
-              <ChevronRight size={16} color="#aaa" />
-            </button>
-
-            <button onClick={() => setShowPaymentMethodSheet(true)}
-              className="w-full flex items-center justify-between p-4 border
-                               border-gray-200 rounded-2xl mb-5 hover:bg-gray-50
-                               transition-colors text-left">
-              <div>
-                <p className="text-sm font-semibold text-[#1a1a1a]">Payment method</p>
-                <p className="text-sm text-gray-400">{paymentMethod === 'card' ? 'Credit or Debit Card' : 'M-Pesa'}</p>
-              </div>
-              <ChevronRight size={16} color="#aaa" />
-            </button>
-
 
             {/* Travel insurance */}
             <div className="mb-5">
@@ -665,451 +676,546 @@ function StayBookingPageContent({ params }: Props) {
               </div>
             </div>
 
-            {/* Price details */}
-            <div className="mb-5">
-              <h2 className="text-sm font-bold text-[#1a1a1a] mb-3">Price details</h2>
-              <div className="flex flex-col gap-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-500 underline">
-                    Ksh {priceNum.toLocaleString()} × {effectiveNights} night{effectiveNights !== 1 ? 's' : ''} × {guests} guest{guests !== 1 ? 's' : ''}
-                  </span>
-                  <span className="text-[#1a1a1a]">Ksh {total.toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-500 underline">Erranza service fee</span>
-                  <span className="text-[#1a1a1a]">Ksh {fee.toLocaleString()}</span>
-                </div>
-                {insurance && (
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-500">Travel insurance</span>
-                    <span className="text-[#1a1a1a]">Ksh {insureFee.toLocaleString()}</span>
-                  </div>
-                )}
-                <div className="border-t border-gray-100 pt-2 flex justify-between">
-                  <span className="text-sm font-bold text-[#1a1a1a]">Total (KES)</span>
-                  <span className="text-sm font-bold text-[#1a1a1a]">
-                    Ksh {grandTotal.toLocaleString()}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Trust badge */}
-            <div className="flex items-center gap-2 mb-4 p-3 bg-gray-50 rounded-xl">
-              <Shield size={16} color="#2c4a1e" />
-              <p className="text-xs text-gray-500">
-                To protect your payment, always book through Erranza.
-              </p>
-            </div>
           </>
         )}
 
-        {/* STEP 4 — Payment details */}
-        {step === 'payment' && (
-          <>
-            <SummaryCard highlighted />
-
-            {submitError && (
-              <div className="mb-4 px-4 py-3 rounded-xl bg-red-50 text-red-600 text-sm">
-                {submitError}
-              </div>
-            )}
-
-            <div className="flex gap-2 mb-5">
-              <button onClick={() => setPaymentMethod('card')}
-                className={`flex-1 py-3 rounded-xl text-sm font-semibold border transition-colors
-                  ${paymentMethod === 'card' ? 'bg-[#2c4a1e] text-white border-[#2c4a1e]' : 'bg-white text-[#1a1a1a] border-gray-200'}`}>
-                Card
-              </button>
-              <button onClick={() => setPaymentMethod('mpesa')}
-                className={`flex-1 py-3 rounded-xl text-sm font-semibold border transition-colors
-                  ${paymentMethod === 'mpesa' ? 'bg-[#2c4a1e] text-white border-[#2c4a1e]' : 'bg-white text-[#1a1a1a] border-gray-200'}`}>
-                M-Pesa
-              </button>
-            </div>
-
-            {paymentMethod === 'card' ? (
-              <div className="flex flex-col gap-3 mb-5">
-                <div>
-                  <p className="text-xs text-gray-500 mb-1">Name on card</p>
-                  <input value={cardName} onChange={(e) => setCardName(e.target.value)}
-                    placeholder="Jane Traveller"
-                    className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm
-                               text-[#1a1a1a] outline-none focus:border-[#2c4a1e] transition-colors" />
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500 mb-1">Card number</p>
-                  <input value={cardNumber} onChange={(e) => setCardNumber(e.target.value)}
-                    placeholder="4242 4242 4242 4242" inputMode="numeric"
-                    className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm
-                               text-[#1a1a1a] outline-none focus:border-[#2c4a1e] transition-colors" />
-                </div>
-                <div className="flex gap-3">
-                  <div className="flex-1">
-                    <p className="text-xs text-gray-500 mb-1">Expiry</p>
-                    <input value={cardExpiry} onChange={(e) => setCardExpiry(e.target.value)}
-                      placeholder="MM/YY"
-                      className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm
-                                 text-[#1a1a1a] outline-none focus:border-[#2c4a1e] transition-colors" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-xs text-gray-500 mb-1">CVV</p>
-                    <input value={cardCvv} onChange={(e) => setCardCvv(e.target.value)}
-                      placeholder="123" inputMode="numeric"
-                      className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm
-                                 text-[#1a1a1a] outline-none focus:border-[#2c4a1e] transition-colors" />
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="flex flex-col gap-3 mb-5">
-                <div>
-                  <p className="text-xs text-gray-500 mb-1">M-Pesa phone number</p>
-                  <input value={mpesaPhone} onChange={(e) => setMpesaPhone(e.target.value)}
-                    placeholder="07XX XXX XXX" inputMode="tel"
-                    className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm
-                               text-[#1a1a1a] outline-none focus:border-[#2c4a1e] transition-colors" />
-                </div>
-                <p className="text-xs text-gray-500">
-                  You&apos;ll receive an M-Pesa prompt on this number to complete the payment.
-                </p>
-              </div>
-            )}
-
-            <div className="flex items-center gap-2 mb-4 p-3 bg-gray-50 rounded-xl">
-              <Shield size={16} color="#2c4a1e" />
-              <p className="text-xs text-gray-500">
-                To protect your payment, always book through Erranza.
-              </p>
-            </div>
-          </>
-        )}
-
-      </div>
-
-      {/* Progress + CTA */}
-      <div className="fixed bottom-0 left-0 right-0 max-w-lg mx-auto bg-white
-                      border-t border-gray-100">
-        <div className="flex gap-1.5 px-5 pt-3">
-          {STEPS.map((s, i) => (
-            <div key={s}
-              className={`flex-1 h-1 rounded-full transition-all
-                ${i <= stepIndex ? 'bg-[#2c4a1e]' : 'bg-gray-200'}`} />
-          ))}
-        </div>
-
-        <div className="px-5 py-4 pb-8">
-          {step === 'confirm' ? (
-            <>
-              <button
-                onClick={goNext}
-                disabled={!datesReady || !reachedBottom}
-                className="w-full bg-[#2c4a1e] text-white py-4 rounded-2xl font-bold
-                           text-sm hover:bg-[#3d6b28] transition-colors
-                           disabled:opacity-40 disabled:cursor-not-allowed"
-                style={{ WebkitTapHighlightColor: 'transparent' }}
-              >
-                {`Continue to payment · Ksh ${grandTotal.toLocaleString()}`}
-              </button>
-              <p className="text-xs text-gray-400 text-center mt-3 leading-relaxed">
-                By tapping, I agree to the{' '}
-                <button className="underline text-[#1a1a1a]">booking terms</button>
-                {', '}
-                <button className="underline text-[#1a1a1a]">Terms of Service</button>
-                {' and '}
-                <button className="underline text-[#1a1a1a]">Privacy Policy</button>.
-              </p>
-            </>
-          ) : step === 'payment' ? (
-            <>
-              <button
-                onClick={goNext}
-                disabled={submitting || !paymentDetailsValid}
-                className="w-full bg-[#2c4a1e] text-white py-4 rounded-2xl font-bold
-                           text-sm hover:bg-[#3d6b28] transition-colors
-                           disabled:opacity-40 disabled:cursor-not-allowed"
-                style={{ WebkitTapHighlightColor: 'transparent' }}
-              >
-                {submitting
-                  ? 'Processing…'
-                  : payMode === 'instalments'
-                    ? `Pay first instalment · Ksh ${Math.round(total / 3).toLocaleString()}`
-                    : `Pay Ksh ${grandTotal.toLocaleString()}`}
-
-              </button>
-              <p className="text-xs text-gray-400 text-center mt-3 leading-relaxed">
-                By tapping, I agree to the{' '}
-                <button className="underline text-[#1a1a1a]">booking terms</button>
-                {', '}
-                <button className="underline text-[#1a1a1a]">Terms of Service</button>
-                {' and '}
-                <button className="underline text-[#1a1a1a]">Privacy Policy</button>.
-              </p>
-            </>
-          ) : (
-
-            <button
-              onClick={goNext}
-              disabled={step === 'message' && message.trim().length < 10}
-              className="w-full bg-[#2c4a1e] text-white py-4 rounded-2xl font-bold
-                         text-sm hover:bg-[#3d6b28] transition-colors
-                         disabled:opacity-40 disabled:cursor-not-allowed"
-              style={{ WebkitTapHighlightColor: 'transparent' }}
-            >
-              Next
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* Date change bottom sheet */}
-      {showDateSheet && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
-          style={{ background: 'rgba(0,0,0,0.4)' }}
-          onClick={e => e.target === e.currentTarget && setShowDateSheet(false)}>
-          <div className="bg-white w-full sm:max-w-2xl rounded-t-3xl sm:rounded-2xl p-6 h-[85vh] sm:h-auto sm:max-h-[90vh] flex flex-col">
-            <div className="bg-white w-full sm:max-w-2xl rounded-t-3xl sm:rounded-2xl p-6 h-[85vh] sm:h-auto sm:max-h-[90vh] flex flex-col">
-              <div className="flex items-center justify-between mb-1">
-                <h2 className="text-lg font-bold text-[#1a1a1a]">
-                  {!sheetCI ? 'Select check-in date' : !sheetCO ? 'Select checkout date' : 'Change dates'}
-                </h2>
-                <button onClick={() => setShowDateSheet(false)}
-                  className="w-8 h-8 flex items-center justify-center rounded-full"
-                  style={{ background: '#f5f5f5', border: 'none', cursor: 'pointer' }}>
-                  <X size={16} color="#1a1a1a" />
-                </button>
-              </div>
-
-              {!sheetCI && (
-                <p className="text-sm text-gray-500 mb-4">Choose the date you&apos;ll be checking in</p>
-              )}
-              {sheetCI && !sheetCO && (
-                <p className="text-sm text-gray-500 mb-4">Check-in {fmtDate(sheetCI)} — now choose your checkout date</p>
-              )}
-              <div className="overflow-y-auto flex-1">
-                <BookCalendar checkIn={sheetCI} checkOut={sheetCO} onSelect={handleSheetCalSelect} disabledRanges={disabledRanges} />
-              </div>
-              <div className="flex items-center justify-between pt-4 mt-2" style={{ borderTop: '1px solid #f0ede8' }}>
-                <button onClick={() => { setSheetCI(null); setSheetCO(null); setSheetField('checkin') }}
-                  className="text-sm font-semibold text-[#1a1a1a] underline"
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
-                  Clear dates
-                </button>
-                <button onClick={() => { setLocalCheckIn(sheetCI); setLocalCheckOut(sheetCO); setShowDateSheet(false) }}
-                  disabled={!sheetCI || !sheetCO}
-                  className="px-6 py-3 rounded-xl text-sm font-bold text-white disabled:opacity-40 disabled:cursor-not-allowed"
-                  style={{ background: '#1a1a1a', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
-                  Save
-                </button>
-              </div>
-            </div>
-
-          </div>
-        </div>
+      {/* STEP 2 — Message */}
+      {step === 'message' && (
+        <>
+          <p className="text-lg font-bold text-[#1a1a1a] mb-2">
+            Write a message to the host
+          </p>
+          <p className="text-sm text-gray-500 mb-5">
+            Before you continue, let{' '}
+            <span className="font-semibold text-[#1a1a1a]">{hostName}</span>{' '}
+            know about your trip and why this stay is a great fit.
+          </p>
+          <textarea
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            placeholder={`Hi! I'm excited about staying at your place. I'm travelling to ${listing.location} and…`}
+            rows={6}
+            className="w-full border border-gray-300 rounded-2xl p-4 text-sm
+                         text-[#1a1a1a] placeholder:text-gray-400 outline-none
+                         focus:border-[#2c4a1e] transition-colors resize-none"
+          />
+          <p className="text-xs text-gray-400 mt-1 text-right">
+            {message.length} characters
+          </p>
+        </>
       )}
 
-      {/* Guest change bottom sheet */}
-      {showGuestSheet && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
-          style={{ background: 'rgba(0,0,0,0.4)' }}
-          onClick={e => e.target === e.currentTarget && setShowGuestSheet(false)}>
-          <div className="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl p-6">
-            <div className="flex items-center justify-between mb-2">
-              <h2 className="text-lg font-bold text-[#1a1a1a]">Change guests</h2>
-              <button onClick={() => setShowGuestSheet(false)}
+      {/* STEP 3 — Confirm & Pay */}
+      {step === 'confirm' && (
+        <>
+          <SummaryCard highlighted />
+
+          {submitError && (
+            <div className="mb-4 px-4 py-3 rounded-xl bg-red-50 text-red-600 text-sm">
+              {submitError}
+            </div>
+          )}
+
+          {/* Payment method */}
+          <button onClick={() => setShowPayModeSheet(true)}
+            className="w-full flex items-center justify-between p-4 border
+                               border-gray-200 rounded-2xl mb-3 hover:bg-gray-50
+                               transition-colors text-left">
+            <div>
+              <p className="text-sm font-semibold text-[#1a1a1a]">How you'll pay</p>
+              <p className="text-sm text-gray-400">
+                {payMode === 'full'
+                  ? `Ksh ${total.toLocaleString()} now`
+                  : `3 × Ksh ${Math.round(total / 3).toLocaleString()}`}
+              </p>
+            </div>
+            <ChevronRight size={16} color="#aaa" />
+          </button>
+
+          <button onClick={() => setShowPaymentMethodSheet(true)}
+            className="w-full flex items-center justify-between p-4 border
+                               border-gray-200 rounded-2xl mb-5 hover:bg-gray-50
+                               transition-colors text-left">
+            <div>
+              <p className="text-sm font-semibold text-[#1a1a1a]">Payment method</p>
+              <p className="text-sm text-gray-400">{paymentMethod === 'card' ? 'Credit or Debit Card' : 'M-Pesa'}</p>
+            </div>
+            <ChevronRight size={16} color="#aaa" />
+          </button>
+
+          {/* Price details */}
+          <div className="mb-5">
+            <h2 className="text-sm font-bold text-[#1a1a1a] mb-3">Price details</h2>
+            <div className="flex flex-col gap-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-500 underline">
+                  Ksh {priceNum.toLocaleString()} × {effectiveNights} night{effectiveNights !== 1 ? 's' : ''} × {guests} guest{guests !== 1 ? 's' : ''}
+                </span>
+                <span className="text-[#1a1a1a]">Ksh {total.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-500 underline">Erranza service fee</span>
+                <span className="text-[#1a1a1a]">Ksh {fee.toLocaleString()}</span>
+              </div>
+              {insurance && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">Travel insurance</span>
+                  <span className="text-[#1a1a1a]">Ksh {insureFee.toLocaleString()}</span>
+                </div>
+              )}
+              <div className="border-t border-gray-100 pt-2 flex justify-between">
+                <span className="text-sm font-bold text-[#1a1a1a]">Total (KES)</span>
+                <span className="text-sm font-bold text-[#1a1a1a]">
+                  Ksh {grandTotal.toLocaleString()}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Trust badge */}
+          <div className="flex items-center gap-2 mb-4 p-3 bg-gray-50 rounded-xl">
+            <Shield size={16} color="#2c4a1e" />
+            <p className="text-xs text-gray-500">
+              To protect your payment, always book through Erranza.
+            </p>
+          </div>
+        </>
+      )}
+
+      {/* STEP 4 — Payment details */}
+      {step === 'payment' && (
+        <>
+          <SummaryCard highlighted />
+
+          {submitError && (
+            <div className="mb-4 px-4 py-3 rounded-xl bg-red-50 text-red-600 text-sm">
+              {submitError}
+            </div>
+          )}
+
+          <div className="flex gap-2 mb-5">
+            <button onClick={() => setPaymentMethod('card')}
+              className={`flex-1 py-3 rounded-xl text-sm font-semibold border transition-colors
+                  ${paymentMethod === 'card' ? 'bg-[#2c4a1e] text-white border-[#2c4a1e]' : 'bg-white text-[#1a1a1a] border-gray-200'}`}>
+              Card
+            </button>
+            <button onClick={() => setPaymentMethod('mpesa')}
+              className={`flex-1 py-3 rounded-xl text-sm font-semibold border transition-colors
+                  ${paymentMethod === 'mpesa' ? 'bg-[#2c4a1e] text-white border-[#2c4a1e]' : 'bg-white text-[#1a1a1a] border-gray-200'}`}>
+              M-Pesa
+            </button>
+          </div>
+
+          {paymentMethod === 'card' ? (
+            <div className="flex flex-col gap-3 mb-5">
+              <div>
+                <p className="text-xs text-gray-500 mb-1">Name on card</p>
+                <input value={cardName}
+                  onChange={(e) => { setCardName(e.target.value); setPaymentFieldErrors(fe => ({ ...fe, cardName: undefined })) }}
+                  placeholder="Jane Traveller" autoComplete="cc-name"
+                  className={`w-full border rounded-xl px-4 py-3 text-sm
+                               text-[#1a1a1a] outline-none focus:border-[#2c4a1e] transition-colors
+                               ${paymentFieldErrors.cardName ? 'border-red-400' : 'border-gray-300'}`} />
+                {paymentFieldErrors.cardName && <p className="text-xs text-red-500 mt-1">{paymentFieldErrors.cardName}</p>}
+              </div>
+              <div>
+                <p className="text-xs text-gray-500 mb-1">Card number</p>
+                <input value={cardNumber}
+                  onChange={(e) => { setCardNumber(formatCardNumber(e.target.value)); setPaymentFieldErrors(fe => ({ ...fe, cardNumber: undefined })) }}
+                  placeholder="4242 4242 4242 4242" inputMode="numeric" autoComplete="cc-number" maxLength={23}
+                  className={`w-full border rounded-xl px-4 py-3 text-sm
+                               text-[#1a1a1a] outline-none focus:border-[#2c4a1e] transition-colors
+                               ${paymentFieldErrors.cardNumber ? 'border-red-400' : 'border-gray-300'}`} />
+                {paymentFieldErrors.cardNumber && <p className="text-xs text-red-500 mt-1">{paymentFieldErrors.cardNumber}</p>}
+              </div>
+              <div className="flex gap-3">
+                <div className="flex-1">
+                  <p className="text-xs text-gray-500 mb-1">Expiry</p>
+                  <input value={cardExpiry}
+                    onChange={(e) => { setCardExpiry(formatCardExpiry(e.target.value)); setPaymentFieldErrors(fe => ({ ...fe, cardExpiry: undefined })) }}
+                    placeholder="MM/YY" inputMode="numeric" autoComplete="cc-exp" maxLength={5}
+                    className={`w-full border rounded-xl px-4 py-3 text-sm
+                                 text-[#1a1a1a] outline-none focus:border-[#2c4a1e] transition-colors
+                                 ${paymentFieldErrors.cardExpiry ? 'border-red-400' : 'border-gray-300'}`} />
+                  {paymentFieldErrors.cardExpiry && <p className="text-xs text-red-500 mt-1">{paymentFieldErrors.cardExpiry}</p>}
+                </div>
+                <div className="flex-1">
+                  <p className="text-xs text-gray-500 mb-1">CVV</p>
+                  <input value={cardCvv}
+                    onChange={(e) => { setCardCvv(e.target.value.replace(/\D/g, '').slice(0, 4)); setPaymentFieldErrors(fe => ({ ...fe, cardCvv: undefined })) }}
+                    placeholder="123" inputMode="numeric" autoComplete="cc-csc" maxLength={4}
+                    className={`w-full border rounded-xl px-4 py-3 text-sm
+                                 text-[#1a1a1a] outline-none focus:border-[#2c4a1e] transition-colors
+                                 ${paymentFieldErrors.cardCvv ? 'border-red-400' : 'border-gray-300'}`} />
+                  {paymentFieldErrors.cardCvv && <p className="text-xs text-red-500 mt-1">{paymentFieldErrors.cardCvv}</p>}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-3 mb-5">
+              <div>
+                <p className="text-xs text-gray-500 mb-1">M-Pesa phone number</p>
+                <input value={mpesaPhone}
+                  onChange={(e) => { setMpesaPhone(e.target.value.replace(/[^\d+\s]/g, '')); setPaymentFieldErrors(fe => ({ ...fe, mpesaPhone: undefined })) }}
+                  placeholder="07XX XXX XXX" inputMode="tel" autoComplete="tel" maxLength={13}
+                  className={`w-full border rounded-xl px-4 py-3 text-sm
+                               text-[#1a1a1a] outline-none focus:border-[#2c4a1e] transition-colors
+                               ${paymentFieldErrors.mpesaPhone ? 'border-red-400' : 'border-gray-300'}`} />
+                {paymentFieldErrors.mpesaPhone && <p className="text-xs text-red-500 mt-1">{paymentFieldErrors.mpesaPhone}</p>}
+              </div>
+              <p className="text-xs text-gray-500">
+                You&apos;ll receive an M-Pesa prompt on this number to complete the payment.
+              </p>
+            </div>
+          )}
+
+
+          <div className="flex items-center gap-2 mb-4 p-3 bg-gray-50 rounded-xl">
+            <Shield size={16} color="#2c4a1e" />
+            <p className="text-xs text-gray-500">
+              To protect your payment, always book through Erranza.
+            </p>
+          </div>
+        </>
+      )}
+
+    </div>
+
+      {/* Progress + CTA */ }
+  <div className="fixed bottom-0 left-0 right-0 max-w-lg mx-auto bg-white
+                      border-t border-gray-100">
+    <div className="flex gap-1.5 px-5 pt-3">
+      {STEPS.map((s, i) => (
+        <div key={s}
+          className={`flex-1 h-1 rounded-full transition-all
+                ${i <= stepIndex ? 'bg-[#2c4a1e]' : 'bg-gray-200'}`} />
+      ))}
+    </div>
+
+    <div className="px-5 py-4 pb-8">
+      {step === 'confirm' ? (
+        <>
+          <button
+            onClick={goNext}
+            disabled={!datesReady || !reachedBottom}
+            className="w-full bg-[#2c4a1e] text-white py-4 rounded-2xl font-bold
+                           text-sm hover:bg-[#3d6b28] transition-colors
+                           disabled:opacity-40 disabled:cursor-not-allowed"
+            style={{ WebkitTapHighlightColor: 'transparent' }}
+          >
+            {`Continue to payment · Ksh ${grandTotal.toLocaleString()}`}
+          </button>
+          <p className="text-xs text-gray-400 text-center mt-3 leading-relaxed">
+            By tapping, I agree to the{' '}
+            <button className="underline text-[#1a1a1a]">booking terms</button>
+            {', '}
+            <button className="underline text-[#1a1a1a]">Terms of Service</button>
+            {' and '}
+            <button className="underline text-[#1a1a1a]">Privacy Policy</button>.
+          </p>
+        </>
+      ) : step === 'payment' ? (
+        <>
+          <button
+            onClick={goNext}
+            disabled={submitting || !paymentDetailsValid}
+            className="w-full bg-[#2c4a1e] text-white py-4 rounded-2xl font-bold
+                           text-sm hover:bg-[#3d6b28] transition-colors
+                           disabled:opacity-40 disabled:cursor-not-allowed"
+            style={{ WebkitTapHighlightColor: 'transparent' }}
+          >
+            {submitting
+              ? 'Processing…'
+              : payMode === 'instalments'
+                ? `Pay first instalment · Ksh ${Math.round(total / 3).toLocaleString()}`
+                : `Pay Ksh ${grandTotal.toLocaleString()}`}
+
+          </button>
+          <p className="text-xs text-gray-400 text-center mt-3 leading-relaxed">
+            By tapping, I agree to the{' '}
+            <button className="underline text-[#1a1a1a]">booking terms</button>
+            {', '}
+            <button className="underline text-[#1a1a1a]">Terms of Service</button>
+            {' and '}
+            <button className="underline text-[#1a1a1a]">Privacy Policy</button>.
+          </p>
+        </>
+      ) : (
+
+        <button
+          onClick={goNext}
+          disabled={step === 'message' && message.trim().length < 10}
+          className="w-full bg-[#2c4a1e] text-white py-4 rounded-2xl font-bold
+                         text-sm hover:bg-[#3d6b28] transition-colors
+                         disabled:opacity-40 disabled:cursor-not-allowed"
+          style={{ WebkitTapHighlightColor: 'transparent' }}
+        >
+          Next
+        </button>
+      )}
+    </div>
+  </div>
+
+  {/* Date change bottom sheet */ }
+  {
+    showDateSheet && (
+      <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
+        style={{ background: 'rgba(0,0,0,0.4)' }}
+        onClick={e => e.target === e.currentTarget && setShowDateSheet(false)}>
+        <div className="bg-white w-full sm:max-w-2xl rounded-t-3xl sm:rounded-2xl p-6 h-[85vh] sm:h-auto sm:max-h-[90vh] flex flex-col">
+          <div className="bg-white w-full sm:max-w-2xl rounded-t-3xl sm:rounded-2xl p-6 h-[85vh] sm:h-auto sm:max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between mb-1">
+              <h2 className="text-lg font-bold text-[#1a1a1a]">
+                {!sheetCI ? 'Select check-in date' : !sheetCO ? 'Select checkout date' : 'Change dates'}
+              </h2>
+              <button onClick={() => setShowDateSheet(false)}
                 className="w-8 h-8 flex items-center justify-center rounded-full"
                 style={{ background: '#f5f5f5', border: 'none', cursor: 'pointer' }}>
                 <X size={16} color="#1a1a1a" />
               </button>
             </div>
-            <p className="text-sm text-gray-500 mb-4">
-              {listing.max_guests
-                ? `This place has a maximum of ${listing.max_guests} guests, not including infants. Pets aren't allowed.`
-                : "Pets aren't allowed."}
-            </p>
-            {[
-              { label: 'Adults', sub: 'Age 13+', count: sheetAdults, set: setSheetAdults, min: 1, max: listing.max_guests ?? 10 },
-              { label: 'Children', sub: 'Ages 2–12', count: sheetChildren, set: setSheetChildren, min: 0, max: Math.max(0, (listing.max_guests ?? 10) - sheetAdults) },
-              { label: 'Infants', sub: 'Under 2', count: sheetInfants, set: setSheetInfants, min: 0, max: 5 },
-              { label: 'Pets', sub: 'Bringing a service animal?', count: sheetPets, set: setSheetPets, min: 0, max: 5 },
-            ].map(({ label, sub, count, set, min, max }) => (
-              <div key={label} className="flex items-center justify-between py-4" style={{ borderBottom: '1px solid #f5f5f5' }}>
-                <div>
-                  <p className="text-sm font-bold text-[#1a1a1a]">{label}</p>
-                  <p className="text-sm text-gray-500">{sub}</p>
-                </div>
-                <div className="flex items-center gap-3">
-                  <button onClick={() => set((c: number) => Math.max(min, c - 1))}
-                    className="w-9 h-9 rounded-full flex items-center justify-center"
-                    style={{ background: '#f5f5f5', border: 'none', cursor: count <= min ? 'not-allowed' : 'pointer', opacity: count <= min ? 0.4 : 1, fontFamily: 'inherit', fontSize: 18, color: '#1a1a1a' }}>
-                    −
-                  </button>
-                  <span className="text-sm font-semibold text-[#1a1a1a] w-4 text-center">{count}</span>
-                  <button onClick={() => set((c: number) => Math.min(max, c + 1))}
-                    className="w-9 h-9 rounded-full flex items-center justify-center"
-                    style={{ background: '#f5f5f5', border: 'none', cursor: count >= max ? 'not-allowed' : 'pointer', opacity: count >= max ? 0.4 : 1, fontFamily: 'inherit', fontSize: 18, color: '#1a1a1a' }}>
-                    +
-                  </button>
-                </div>
-              </div>
-            ))}
-            <div className="flex items-center justify-between pt-4 mt-2">
-              <button onClick={() => setShowGuestSheet(false)}
+
+            {!sheetCI && (
+              <p className="text-sm text-gray-500 mb-4">Choose the date you&apos;ll be checking in</p>
+            )}
+            {sheetCI && !sheetCO && (
+              <p className="text-sm text-gray-500 mb-4">Check-in {fmtDate(sheetCI)} — now choose your checkout date</p>
+            )}
+            <div className="overflow-y-auto flex-1">
+              <BookCalendar checkIn={sheetCI} checkOut={sheetCO} onSelect={handleSheetCalSelect} disabledRanges={disabledRanges} />
+            </div>
+            <div className="flex items-center justify-between pt-4 mt-2" style={{ borderTop: '1px solid #f0ede8' }}>
+              <button onClick={() => { setSheetCI(null); setSheetCO(null); setSheetField('checkin') }}
                 className="text-sm font-semibold text-[#1a1a1a] underline"
                 style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
-                Cancel
+                Clear dates
               </button>
-              <button onClick={() => setShowGuestSheet(false)}
-                className="px-6 py-3 rounded-xl text-sm font-bold text-white"
+              <button onClick={() => { setLocalCheckIn(sheetCI); setLocalCheckOut(sheetCO); setShowDateSheet(false) }}
+                disabled={!sheetCI || !sheetCO}
+                className="px-6 py-3 rounded-xl text-sm font-bold text-white disabled:opacity-40 disabled:cursor-not-allowed"
                 style={{ background: '#1a1a1a', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
                 Save
               </button>
             </div>
           </div>
-        </div>
-      )}
 
-      {/* How you'll pay sheet */}
-      {showPayModeSheet && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
-          style={{ background: 'rgba(0,0,0,0.4)' }}
-          onClick={(e) => { if (e.target === e.currentTarget) setShowPayModeSheet(false) }}>
-          <div className="bg-white w-full sm:max-w-sm rounded-t-3xl sm:rounded-2xl p-6">
-            <h2 className="text-lg font-bold text-[#1a1a1a] mb-4">How you&apos;ll pay</h2>
-            <div className="flex flex-col gap-2 mb-5">
-              <label className={`flex items-center justify-between p-4 rounded-xl border cursor-pointer
+        </div>
+      </div>
+    )
+  }
+
+  {/* Guest change bottom sheet */ }
+  {
+    showGuestSheet && (
+      <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
+        style={{ background: 'rgba(0,0,0,0.4)' }}
+        onClick={e => e.target === e.currentTarget && setShowGuestSheet(false)}>
+        <div className="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl p-6">
+          <div className="flex items-center justify-between mb-2">
+            <h2 className="text-lg font-bold text-[#1a1a1a]">Change guests</h2>
+            <button onClick={() => setShowGuestSheet(false)}
+              className="w-8 h-8 flex items-center justify-center rounded-full"
+              style={{ background: '#f5f5f5', border: 'none', cursor: 'pointer' }}>
+              <X size={16} color="#1a1a1a" />
+            </button>
+          </div>
+          <p className="text-sm text-gray-500 mb-4">
+            {listing.max_guests
+              ? `This place has a maximum of ${listing.max_guests} guests, not including infants. Pets aren't allowed.`
+              : "Pets aren't allowed."}
+          </p>
+          {[
+            { label: 'Adults', sub: 'Age 13+', count: sheetAdults, set: setSheetAdults, min: 1, max: listing.max_guests ?? 10 },
+            { label: 'Children', sub: 'Ages 2–12', count: sheetChildren, set: setSheetChildren, min: 0, max: Math.max(0, (listing.max_guests ?? 10) - sheetAdults) },
+            { label: 'Infants', sub: 'Under 2', count: sheetInfants, set: setSheetInfants, min: 0, max: 5 },
+            { label: 'Pets', sub: 'Bringing a service animal?', count: sheetPets, set: setSheetPets, min: 0, max: 5 },
+          ].map(({ label, sub, count, set, min, max }) => (
+            <div key={label} className="flex items-center justify-between py-4" style={{ borderBottom: '1px solid #f5f5f5' }}>
+              <div>
+                <p className="text-sm font-bold text-[#1a1a1a]">{label}</p>
+                <p className="text-sm text-gray-500">{sub}</p>
+              </div>
+              <div className="flex items-center gap-3">
+                <button onClick={() => set((c: number) => Math.max(min, c - 1))}
+                  className="w-9 h-9 rounded-full flex items-center justify-center"
+                  style={{ background: '#f5f5f5', border: 'none', cursor: count <= min ? 'not-allowed' : 'pointer', opacity: count <= min ? 0.4 : 1, fontFamily: 'inherit', fontSize: 18, color: '#1a1a1a' }}>
+                  −
+                </button>
+                <span className="text-sm font-semibold text-[#1a1a1a] w-4 text-center">{count}</span>
+                <button onClick={() => set((c: number) => Math.min(max, c + 1))}
+                  className="w-9 h-9 rounded-full flex items-center justify-center"
+                  style={{ background: '#f5f5f5', border: 'none', cursor: count >= max ? 'not-allowed' : 'pointer', opacity: count >= max ? 0.4 : 1, fontFamily: 'inherit', fontSize: 18, color: '#1a1a1a' }}>
+                  +
+                </button>
+              </div>
+            </div>
+          ))}
+          <div className="flex items-center justify-between pt-4 mt-2">
+            <button onClick={() => setShowGuestSheet(false)}
+              className="text-sm font-semibold text-[#1a1a1a] underline"
+              style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
+              Cancel
+            </button>
+            <button onClick={() => setShowGuestSheet(false)}
+              className="px-6 py-3 rounded-xl text-sm font-bold text-white"
+              style={{ background: '#1a1a1a', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
+              Save
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  {/* How you'll pay sheet */ }
+  {
+    showPayModeSheet && (
+      <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
+        style={{ background: 'rgba(0,0,0,0.4)' }}
+        onClick={(e) => { if (e.target === e.currentTarget) setShowPayModeSheet(false) }}>
+        <div className="bg-white w-full sm:max-w-sm rounded-t-3xl sm:rounded-2xl p-6">
+          <h2 className="text-lg font-bold text-[#1a1a1a] mb-4">How you&apos;ll pay</h2>
+          <div className="flex flex-col gap-2 mb-5">
+            <label className={`flex items-center justify-between p-4 rounded-xl border cursor-pointer
                 ${payMode === 'full' ? 'border-[#2c4a1e] bg-[#eaf5e4]' : 'border-gray-200'}`}>
-                <div>
-                  <p className="text-sm font-semibold text-[#1a1a1a]">Pay in full</p>
-                  <p className="text-xs text-gray-500">Ksh {total.toLocaleString()} now</p>
-                </div>
-                <input type="radio" name="payMode" checked={payMode === 'full'} onChange={() => setPayMode('full')} className="w-4 h-4 accent-[#2c4a1e]" />
-              </label>
-              <label className={`flex items-center justify-between p-4 rounded-xl border cursor-pointer
+              <div>
+                <p className="text-sm font-semibold text-[#1a1a1a]">Pay in full</p>
+                <p className="text-xs text-gray-500">Ksh {total.toLocaleString()} now</p>
+              </div>
+              <input type="radio" name="payMode" checked={payMode === 'full'} onChange={() => setPayMode('full')} className="w-4 h-4 accent-[#2c4a1e]" />
+            </label>
+            <label className={`flex items-center justify-between p-4 rounded-xl border cursor-pointer
                 ${payMode === 'instalments' ? 'border-[#2c4a1e] bg-[#eaf5e4]' : 'border-gray-200'}`}>
-                <div>
-                  <p className="text-sm font-semibold text-[#1a1a1a]">Pay in 3 instalments</p>
-                  <p className="text-xs text-gray-500">3 × Ksh {Math.round(total / 3).toLocaleString()}</p>
-                </div>
-                <input type="radio" name="payMode" checked={payMode === 'instalments'} onChange={() => setPayMode('instalments')} className="w-4 h-4 accent-[#2c4a1e]" />
-              </label>
-            </div>
-            <button onClick={() => setShowPayModeSheet(false)}
-              className="w-full py-3 rounded-xl bg-[#2c4a1e] text-white text-sm font-semibold hover:bg-[#3d6b28] transition-colors">
-              Done
-            </button>
+              <div>
+                <p className="text-sm font-semibold text-[#1a1a1a]">Pay in 3 instalments</p>
+                <p className="text-xs text-gray-500">3 × Ksh {Math.round(total / 3).toLocaleString()}</p>
+              </div>
+              <input type="radio" name="payMode" checked={payMode === 'instalments'} onChange={() => setPayMode('instalments')} className="w-4 h-4 accent-[#2c4a1e]" />
+            </label>
           </div>
+          <button onClick={() => setShowPayModeSheet(false)}
+            className="w-full py-3 rounded-xl bg-[#2c4a1e] text-white text-sm font-semibold hover:bg-[#3d6b28] transition-colors">
+            Done
+          </button>
         </div>
-      )}
+      </div>
+    )
+  }
 
-      {/* Payment method sheet */}
-      {showPaymentMethodSheet && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
-          style={{ background: 'rgba(0,0,0,0.4)' }}
-          onClick={(e) => { if (e.target === e.currentTarget) setShowPaymentMethodSheet(false) }}>
-          <div className="bg-white w-full sm:max-w-sm rounded-t-3xl sm:rounded-2xl p-6">
-            <h2 className="text-lg font-bold text-[#1a1a1a] mb-4">Payment method</h2>
-            <div className="flex flex-col gap-2 mb-5">
-              <label className={`flex items-center justify-between p-4 rounded-xl border cursor-pointer
+  {/* Payment method sheet */ }
+  {
+    showPaymentMethodSheet && (
+      <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
+        style={{ background: 'rgba(0,0,0,0.4)' }}
+        onClick={(e) => { if (e.target === e.currentTarget) setShowPaymentMethodSheet(false) }}>
+        <div className="bg-white w-full sm:max-w-sm rounded-t-3xl sm:rounded-2xl p-6">
+          <h2 className="text-lg font-bold text-[#1a1a1a] mb-4">Payment method</h2>
+          <div className="flex flex-col gap-2 mb-5">
+            <label className={`flex items-center justify-between p-4 rounded-xl border cursor-pointer
                 ${paymentMethod === 'card' ? 'border-[#2c4a1e] bg-[#eaf5e4]' : 'border-gray-200'}`}>
-                <p className="text-sm font-semibold text-[#1a1a1a]">Credit or Debit Card</p>
-                <input type="radio" name="paymentMethod" checked={paymentMethod === 'card'} onChange={() => setPaymentMethod('card')} className="w-4 h-4 accent-[#2c4a1e]" />
-              </label>
-              <label className={`flex items-center justify-between p-4 rounded-xl border cursor-pointer
+              <p className="text-sm font-semibold text-[#1a1a1a]">Credit or Debit Card</p>
+              <input type="radio" name="paymentMethod" checked={paymentMethod === 'card'} onChange={() => setPaymentMethod('card')} className="w-4 h-4 accent-[#2c4a1e]" />
+            </label>
+            <label className={`flex items-center justify-between p-4 rounded-xl border cursor-pointer
                 ${paymentMethod === 'mpesa' ? 'border-[#2c4a1e] bg-[#eaf5e4]' : 'border-gray-200'}`}>
-                <p className="text-sm font-semibold text-[#1a1a1a]">M-Pesa</p>
-                <input type="radio" name="paymentMethod" checked={paymentMethod === 'mpesa'} onChange={() => setPaymentMethod('mpesa')} className="w-4 h-4 accent-[#2c4a1e]" />
-              </label>
+              <p className="text-sm font-semibold text-[#1a1a1a]">M-Pesa</p>
+              <input type="radio" name="paymentMethod" checked={paymentMethod === 'mpesa'} onChange={() => setPaymentMethod('mpesa')} className="w-4 h-4 accent-[#2c4a1e]" />
+            </label>
+          </div>
+          <button onClick={() => setShowPaymentMethodSheet(false)}
+            className="w-full py-3 rounded-xl bg-[#2c4a1e] text-white text-sm font-semibold hover:bg-[#3d6b28] transition-colors">
+            Done
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  {/* Price details bottom sheet */ }
+  {
+    showPriceSheet && (
+      <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
+        style={{ background: 'rgba(0,0,0,0.4)' }}
+        onClick={e => e.target === e.currentTarget && setShowPriceSheet(false)}>
+        <div className="bg-white w-full sm:max-w-lg rounded-t-3xl sm:rounded-2xl p-6 max-h-[90vh] overflow-y-auto">
+
+          <div className="flex items-center justify-between mb-6 pb-4" style={{ borderBottom: '1px solid #f0f0f0' }}>
+            <div className="w-8" />
+            <h2 className="text-base font-semibold text-[#1a1a1a]">Price breakdown</h2>
+            <button onClick={() => setShowPriceSheet(false)}
+              style={{
+                background: 'none', border: 'none', cursor: 'pointer', fontSize: 22, color: '#1a1a1a',
+                lineHeight: 1, padding: '0 4px', fontFamily: 'inherit', width: 32
+              }}>
+              ×
+            </button>
+          </div>
+
+          <div className="flex flex-col gap-5">
+            <div className="flex justify-between text-sm">
+              <span className="text-[#1a1a1a]">
+                {effectiveNights} night{effectiveNights !== 1 ? 's' : ''}
+                {localCheckIn && localCheckOut
+                  ? ` · ${localCheckIn.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })} – ${localCheckOut.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}`
+                  : ''}
+              </span>
+
+              <span className="text-[#1a1a1a]">Ksh {total.toLocaleString()}</span>
             </div>
-            <button onClick={() => setShowPaymentMethodSheet(false)}
-              className="w-full py-3 rounded-xl bg-[#2c4a1e] text-white text-sm font-semibold hover:bg-[#3d6b28] transition-colors">
-              Done
+
+            <div className="flex justify-between text-sm items-start">
+              <div>
+                <p className="text-[#1a1a1a]">Erranza service fee</p>
+                <p className="text-xs text-gray-400 hidden sm:block mt-0.5">This includes VAT.</p>
+              </div>
+              <span className="text-[#1a1a1a]">Ksh {fee.toLocaleString()}</span>
+            </div>
+
+            {weeklyDiscount > 0 && (
+              <div className="flex justify-between text-sm">
+                <span className="text-[#1a1a1a]">Weekly stay discount</span>
+                <span style={{ color: '#22c55e' }}>-Ksh {weeklyDiscount.toLocaleString()}</span>
+              </div>
+            )}
+
+            <div className="flex justify-between text-sm font-bold pt-4" style={{ borderTop: '1px solid #e8e8e8' }}>
+              <span className="text-[#1a1a1a]">Total <span className="underline font-bold">KES</span></span>
+              <span className="text-[#1a1a1a]">Ksh {(total + fee - weeklyDiscount).toLocaleString()}</span>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    )
+  }
+
+  {
+    showLoginPrompt && (
+      <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
+        style={{ background: 'rgba(0,0,0,0.4)' }}
+        onClick={(e) => { if (e.target === e.currentTarget) setShowLoginPrompt(false) }}>
+        <div className="bg-white w-full sm:max-w-sm rounded-t-3xl sm:rounded-2xl p-6">
+          <h2 className="text-lg font-bold text-[#1a1a1a] mb-2">Log in to continue</h2>
+          <p className="text-sm text-gray-500 mb-5">
+            You&apos;ll need to log in or create an account before you can book this stay.
+          </p>
+          <div className="flex gap-2">
+            <button onClick={() => router.push(`/login?redirect=${encodeURIComponent(`/listings/stays/${id}/book${searchParams.toString() ? '?' + searchParams.toString() : ''}`)}`)}
+              className="flex-1 py-3 rounded-xl border border-gray-200 text-sm font-semibold text-[#1a1a1a] hover:bg-gray-50 transition-colors">
+              Create account
+            </button>
+            <button onClick={() => router.push(`/login?redirect=${encodeURIComponent(`/listings/stays/${id}/book${searchParams.toString() ? '?' + searchParams.toString() : ''}`)}`)}
+              className="flex-1 py-3 rounded-xl bg-[#1a1a1a] text-white text-sm font-semibold hover:bg-[#333] transition-colors">
+              Log in
             </button>
           </div>
         </div>
-      )}
-
-      {/* Price details bottom sheet */}
-      {showPriceSheet && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
-          style={{ background: 'rgba(0,0,0,0.4)' }}
-          onClick={e => e.target === e.currentTarget && setShowPriceSheet(false)}>
-          <div className="bg-white w-full sm:max-w-lg rounded-t-3xl sm:rounded-2xl p-6 max-h-[90vh] overflow-y-auto">
-
-            <div className="flex items-center justify-between mb-6 pb-4" style={{ borderBottom: '1px solid #f0f0f0' }}>
-              <div className="w-8" />
-              <h2 className="text-base font-semibold text-[#1a1a1a]">Price breakdown</h2>
-              <button onClick={() => setShowPriceSheet(false)}
-                style={{
-                  background: 'none', border: 'none', cursor: 'pointer', fontSize: 22, color: '#1a1a1a',
-                  lineHeight: 1, padding: '0 4px', fontFamily: 'inherit', width: 32
-                }}>
-                ×
-              </button>
-            </div>
-
-            <div className="flex flex-col gap-5">
-              <div className="flex justify-between text-sm">
-                <span className="text-[#1a1a1a]">
-                  {effectiveNights} night{effectiveNights !== 1 ? 's' : ''}
-                  {localCheckIn && localCheckOut
-                    ? ` · ${localCheckIn.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })} – ${localCheckOut.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}`
-                    : ''}
-                </span>
-
-                <span className="text-[#1a1a1a]">Ksh {total.toLocaleString()}</span>
-              </div>
-
-              <div className="flex justify-between text-sm items-start">
-                <div>
-                  <p className="text-[#1a1a1a]">Erranza service fee</p>
-                  <p className="text-xs text-gray-400 hidden sm:block mt-0.5">This includes VAT.</p>
-                </div>
-                <span className="text-[#1a1a1a]">Ksh {fee.toLocaleString()}</span>
-              </div>
-
-              {weeklyDiscount > 0 && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-[#1a1a1a]">Weekly stay discount</span>
-                  <span style={{ color: '#22c55e' }}>-Ksh {weeklyDiscount.toLocaleString()}</span>
-                </div>
-              )}
-
-              <div className="flex justify-between text-sm font-bold pt-4" style={{ borderTop: '1px solid #e8e8e8' }}>
-                <span className="text-[#1a1a1a]">Total <span className="underline font-bold">KES</span></span>
-                <span className="text-[#1a1a1a]">Ksh {(total + fee - weeklyDiscount).toLocaleString()}</span>
-              </div>
-            </div>
-
-          </div>
-        </div>
-      )}
-
-      {showLoginPrompt && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
-          style={{ background: 'rgba(0,0,0,0.4)' }}
-          onClick={(e) => { if (e.target === e.currentTarget) setShowLoginPrompt(false) }}>
-          <div className="bg-white w-full sm:max-w-sm rounded-t-3xl sm:rounded-2xl p-6">
-            <h2 className="text-lg font-bold text-[#1a1a1a] mb-2">Log in to continue</h2>
-            <p className="text-sm text-gray-500 mb-5">
-              You&apos;ll need to log in or create an account before you can book this stay.
-            </p>
-            <div className="flex gap-2">
-              <button onClick={() => router.push(`/login?redirect=${encodeURIComponent(`/listings/stays/${id}/book${searchParams.toString() ? '?' + searchParams.toString() : ''}`)}`)}
-                className="flex-1 py-3 rounded-xl border border-gray-200 text-sm font-semibold text-[#1a1a1a] hover:bg-gray-50 transition-colors">
-                Create account
-              </button>
-              <button onClick={() => router.push(`/login?redirect=${encodeURIComponent(`/listings/stays/${id}/book${searchParams.toString() ? '?' + searchParams.toString() : ''}`)}`)}
-                className="flex-1 py-3 rounded-xl bg-[#1a1a1a] text-white text-sm font-semibold hover:bg-[#333] transition-colors">
-                Log in
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      </div>
+    )
+  }
 
 
-    </div>
+    </div >
   )
 }
 
