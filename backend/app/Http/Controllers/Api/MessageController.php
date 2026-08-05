@@ -30,7 +30,16 @@ class MessageController extends Controller
             }
 
             $last = Message::where('vendor_id', $vendorId)->where('traveller_id', $user->id)
-                ->with(['listing:id,title', 'sender:id,name,avatar_url'])
+                ->with('listing:id,title')
+                ->latest()
+                ->first();
+
+            // Independent of whichever message is most recent overall — this
+            // persists the last staff member's identity even after the
+            // traveller has since replied.
+            $lastVendorMessage = Message::where('vendor_id', $vendorId)->where('traveller_id', $user->id)
+                ->where('sender_type', 'vendor')
+                ->with('sender:id,name,avatar_url')
                 ->latest()
                 ->first();
 
@@ -41,10 +50,8 @@ class MessageController extends Controller
                 'listing_title' => $last?->listing?->title,
                 'last_message' => $last?->text,
                 'last_message_at' => $last?->created_at,
-                // Only surfaced once an actual staff member has replied —
-                // before that there's no "who" to show, just the vendor.
-                'last_sender_name' => $last?->sender_type === 'vendor' ? $last?->sender?->name : null,
-                'last_sender_avatar' => $last?->sender_type === 'vendor' ? $last?->sender?->avatar_url : null,
+                'last_sender_name' => $lastVendorMessage?->sender?->name,
+                'last_sender_avatar' => $lastVendorMessage?->sender?->avatar_url,
                 'unread' => Message::where('vendor_id', $vendorId)->where('traveller_id', $user->id)
                     ->where('sender_type', 'vendor')->whereNull('read_at')->exists(),
             ];

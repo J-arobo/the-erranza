@@ -36,6 +36,7 @@ type ThreadMessage = {
   text: string
   created_at: string
   listing: { id: number; title: string } | null
+  sender: { name: string; avatar_url: string | null } | null
 }
 
 type ThreadDetail = {
@@ -60,14 +61,11 @@ type ConversationListProps = {
   filtered: Thread[]
   activeVendorId: number | null
   onSelectThread: (t: Thread) => void
-  tooltipVendorId: number | null
-  onToggleTooltip: (v: number | null) => void
 }
 
 function ConversationList({
   showSearch, onShowSearch, search, onSearchChange,
   filter, onFilterChange, filtered, activeVendorId, onSelectThread,
-  tooltipVendorId, onToggleTooltip,
 }: ConversationListProps) {
   return (
     <div className="flex flex-col h-full">
@@ -132,21 +130,11 @@ function ConversationList({
                     style={t.vendor_avatar ? { backgroundImage: `url(${t.vendor_avatar})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}>
                     {!t.vendor_avatar && t.vendor_name[0]}
                   </div>
-                  {/* Only shown once an actual staff member has replied — before that it's just the vendor. Tap (not just hover) reveals who, since hover-only tooltips don't work on touch devices. */}
+                  {/* Only shown once an actual staff member has replied — before that it's just the vendor. */}
                   {t.last_sender_name && (
-                    <div className="absolute bottom-0 right-0">
-                      <div
-                        onClick={(e) => { e.stopPropagation(); onToggleTooltip(tooltipVendorId === t.vendor_id ? null : t.vendor_id) }}
-                        className="w-6 h-6 rounded-full border-2 border-white flex items-center justify-center text-[10px] font-bold text-white bg-gray-400 cursor-pointer"
-                        style={t.last_sender_avatar ? { backgroundImage: `url(${t.last_sender_avatar})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}>
-                        {!t.last_sender_avatar && t.last_sender_name[0]}
-                      </div>
-                      {tooltipVendorId === t.vendor_id && (
-                        <div className="absolute z-20 bottom-7 right-0 bg-[#1a1a1a] text-white text-xs px-2.5 py-1.5 rounded-lg whitespace-nowrap shadow-lg">
-                          {t.last_sender_name}
-                          <div className="absolute -bottom-1 right-2 w-2 h-2 bg-[#1a1a1a] rotate-45" />
-                        </div>
-                      )}
+                    <div className="absolute -bottom-1 -right-1 w-[34px] h-[34px] rounded-full border-2 border-white flex items-center justify-center text-xs font-bold text-white bg-gray-400"
+                      style={t.last_sender_avatar ? { backgroundImage: `url(${t.last_sender_avatar})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}>
+                      {!t.last_sender_avatar && t.last_sender_name[0]}
                     </div>
                   )}
 
@@ -183,6 +171,7 @@ type ThreadViewProps = {
 
 function ThreadView({ thread, onBack, onShowDetails, reply, onReplyChange, onSend, sending }: ThreadViewProps) {
   const lastListingTitle = thread.messages.length > 0 ? thread.messages[thread.messages.length - 1].listing?.title ?? null : null
+  const lastVendorSender = [...thread.messages].reverse().find(m => m.sender_type === 'vendor')?.sender ?? null
   const bottomRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -199,10 +188,21 @@ function ThreadView({ thread, onBack, onShowDetails, reply, onReplyChange, onSen
           </button>
           <div className="hidden md:block w-9" />
 
-          <div className="absolute left-1/2 top-1/2 w-10 h-10 rounded-full overflow-hidden bg-[#2c4a1e] border-2 border-white shadow-sm flex items-center justify-center text-white text-sm font-bold"
-            style={{ transform: 'translate(-50%, -50%)', ...(thread.vendor_avatar ? { backgroundImage: `url(${thread.vendor_avatar})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {}) }}>
-            {!thread.vendor_avatar && thread.vendor_name[0]}
+          <div className="absolute left-1/2 top-1/2" style={{ transform: 'translate(-50%, -50%)' }}>
+            <div className="relative w-10 h-10">
+              <div className="w-10 h-10 rounded-full overflow-hidden bg-[#2c4a1e] border-2 border-white shadow-sm flex items-center justify-center text-white text-sm font-bold"
+                style={thread.vendor_avatar ? { backgroundImage: `url(${thread.vendor_avatar})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}>
+                {!thread.vendor_avatar && thread.vendor_name[0]}
+              </div>
+              {lastVendorSender && (
+                <div className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full border-2 border-white flex items-center justify-center text-[10px] font-bold text-white bg-gray-400"
+                  style={lastVendorSender.avatar_url ? { backgroundImage: `url(${lastVendorSender.avatar_url})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}>
+                  {!lastVendorSender.avatar_url && lastVendorSender.name[0]}
+                </div>
+              )}
+            </div>
           </div>
+
 
           <button onClick={onShowDetails}
             className="px-4 py-2 rounded-xl text-xs font-semibold text-[#304333] md:hidden relative z-10"
@@ -244,7 +244,7 @@ function ThreadView({ thread, onBack, onShowDetails, reply, onReplyChange, onSen
                   <p>{msg.text}</p>
                   <p className={`text-[10px] mt-1 ${msg.sender_type === 'guest' ? 'text-white/60' : 'text-gray-400'}`}>{formatTimestamp(msg.created_at)}</p>
                 </div>
-                </div>
+              </div>
             </div>
           )
         })}
@@ -374,8 +374,6 @@ function MessagesPageContent() {
   const [showSearch, setShowSearch] = useState(false)
   const [search, setSearch] = useState('')
   const [showDetailsSheet, setShowDetailsSheet] = useState(false)
-  const [tooltipVendorId, setTooltipVendorId] = useState<number | null>(null)
-
 
   useEffect(() => {
     if (!isLoggedIn) { setLoading(false); return }
@@ -470,53 +468,52 @@ function MessagesPageContent() {
     <div className="flex h-screen bg-white">
       <div className={`w-full md:w-[380px] md:flex-shrink-0 md:border-r md:border-gray-100 h-full
         ${activeVendorId !== null ? 'hidden md:block' : 'block'}`}>
-                <ConversationList
+        <ConversationList
           showSearch={showSearch} onShowSearch={setShowSearch}
           search={search} onSearchChange={setSearch}
           filter={filter} onFilterChange={setFilter}
           filtered={filtered} activeVendorId={activeVendorId}
           onSelectThread={(t) => { setActiveVendorId(t.vendor_id); setContextListingId(null) }}
-          tooltipVendorId={tooltipVendorId} onToggleTooltip={setTooltipVendorId}
         />
       </div>
 
       <div className={`flex-1 h-full ${activeVendorId !== null ? 'block' : 'hidden md:flex'}`}>
-          {activeVendorId !== null && activeThread && !threadLoading ? (
-            <ThreadView
-              thread={activeThread}
-              onBack={() => setActiveVendorId(null)}
-              onShowDetails={() => setShowDetailsSheet(true)}
-              reply={reply} onReplyChange={setReply}
-              onSend={sendReply} sending={sending}
-            />
-          ) : activeVendorId !== null && threadLoading ? (
-            <div className="flex-1 flex items-center justify-center">
-              <div className="w-8 h-8 rounded-full border-2 border-[#2c4a1e] border-t-transparent animate-spin" />
+        {activeVendorId !== null && activeThread && !threadLoading ? (
+          <ThreadView
+            thread={activeThread}
+            onBack={() => setActiveVendorId(null)}
+            onShowDetails={() => setShowDetailsSheet(true)}
+            reply={reply} onReplyChange={setReply}
+            onSend={sendReply} sending={sending}
+          />
+        ) : activeVendorId !== null && threadLoading ? (
+          <div className="flex-1 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-full border-2 border-[#2c4a1e] border-t-transparent animate-spin" />
+          </div>
+        ) : (
+          <div className="hidden md:flex flex-1 items-center justify-center text-center px-8">
+            <div>
+              <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center text-2xl mx-auto mb-3">💬</div>
+              <p className="text-sm text-gray-500">Select a conversation to start messaging</p>
             </div>
-          ) : (
-            <div className="hidden md:flex flex-1 items-center justify-center text-center px-8">
-              <div>
-                <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center text-2xl mx-auto mb-3">💬</div>
-                <p className="text-sm text-gray-500">Select a conversation to start messaging</p>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {showDetailsSheet && activeThread && (
-          <DetailsSheet thread={activeThread} onClose={() => setShowDetailsSheet(false)} />
+          </div>
         )}
-              {activeVendorId === null && (
+      </div>
+
+      {showDetailsSheet && activeThread && (
+        <DetailsSheet thread={activeThread} onClose={() => setShowDetailsSheet(false)} />
+      )}
+      {activeVendorId === null && (
         <BottomNav active="Messages" onSelect={() => { }} scrollingDown={false} scrolled={false} />
       )}
     </div>
   )
 }
 
-      export default function MessagesPage() {
+export default function MessagesPage() {
   return (
-      <Suspense fallback={null}>
-        <MessagesPageContent />
-      </Suspense>
-      )
+    <Suspense fallback={null}>
+      <MessagesPageContent />
+    </Suspense>
+  )
 }

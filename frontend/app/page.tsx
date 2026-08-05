@@ -59,9 +59,9 @@ function mapSafariItem(l: ApiListing): SectionItem {
 }
 
 const SECTION_META = [
-  { title: 'Popular Stays', slug: 'stays', category: 'Stays', listingCategory: 'stays', color: '#2c4a1e', map: mapItem },
-  { title: 'Safari Destinations', slug: 'safari', category: 'Safari', listingCategory: 'safari', color: '#5a3e10', map: mapSafariItem },
-  { title: 'Travel Packages', slug: 'packages', category: 'Packages', listingCategory: 'packages', color: '#163a4a', map: mapItem },
+  { title: 'Popular Stays', slug: 'stays', category: 'Stays', listingCategory: 'stays', color: '#2c4a1e', map: mapItem, sectionTitle: 'All stays' },
+  { title: 'Safari Destinations', slug: 'safari', category: 'Safari', listingCategory: 'safari', color: '#5a3e10', map: mapSafariItem, sectionTitle: 'All safaris' },
+  { title: 'Travel Packages', slug: 'packages', category: 'Packages', listingCategory: 'packages', color: '#163a4a', map: mapItem, sectionTitle: null },
 ]
 
 export default function Home() {
@@ -80,9 +80,10 @@ export default function Home() {
     // showCollapse=true so homepage collapses bar on scroll
     <AppShell showCollapse={true}>
 
-      {SECTION_META.map(({ title, slug, color, listingCategory }) => {
+      {SECTION_META.map(({ title, slug, color, listingCategory, sectionTitle }) => {
         const data = sectionData[slug]
         if (!data || data.length === 0) return null
+        const seeAllHref = sectionTitle ? `/destinations/${slug}?section=${encodeURIComponent(sectionTitle)}` : `/destinations/${slug}`
 
         return (
           <div key={slug}>
@@ -93,7 +94,7 @@ export default function Home() {
                 {title}
               </h2>
               <button
-                onClick={() => router.push(`/destinations/${slug}`)}
+                onClick={() => router.push(seeAllHref)}
                 className="flex items-center gap-1 text-xs font-medium hover:opacity-70 transition-opacity"
                 style={{ color }}
               >
@@ -127,7 +128,7 @@ export default function Home() {
                     const previewImages = [...data].sort(() => Math.random() - 0.5).slice(0, 3)
                     return (
                       <button
-                        onClick={() => router.push(`/destinations/${slug}`)}
+                        onClick={() => router.push(seeAllHref)}
                         className="flex-shrink-0 self-start w-[36vw] sm:w-[26vw] md:w-[22vw] lg:w-[17vw] xl:w-[13vw] aspect-[5/4] rounded-2xl border
                      border-[#e0d9cc] shadow-sm bg-white flex flex-col items-center
                      justify-center gap-2 hover:bg-[#f5f5f5] transition-colors p-4"

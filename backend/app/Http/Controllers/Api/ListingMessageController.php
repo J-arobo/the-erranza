@@ -11,10 +11,15 @@ class ListingMessageController extends Controller
 {
     public function show(Request $request, Listing $listing)
     {
+        // Opening the thread marks the vendor's messages as read.
+        Message::where('listing_id', $listing->id)->where('traveller_id', $request->user()->id)
+            ->where('sender_type', 'vendor')->whereNull('read_at')->update(['read_at' => now()]);
+
         $messages = Message::where('listing_id', $listing->id)
             ->where('traveller_id', $request->user()->id)
             ->oldest()
             ->get();
+
 
             return response()->json([
                 'listing_title' => $listing->title,
