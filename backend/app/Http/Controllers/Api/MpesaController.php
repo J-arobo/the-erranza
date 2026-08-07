@@ -96,7 +96,11 @@ class MpesaController extends Controller
                 'TransactionDesc' => "Booking payment for {$listing->title}",
             ]);
 
-        abort_unless($response->successful(), 502, 'Could not start M-Pesa payment. Please try again.');
+            if (!$response->successful()) {
+                Log::error('Mpesa STK push failed', ['status' => $response->status(), 'body' => $response->body()]);
+            }
+            abort_unless($response->successful(), 502, 'Could not start M-Pesa payment. Please try again.');
+    
 
         $data = $response->json();
         abort_if(($data['ResponseCode'] ?? null) !== '0', 422, $data['ResponseDescription'] ?? 'M-Pesa could not process this request.');
