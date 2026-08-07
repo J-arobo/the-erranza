@@ -13,6 +13,10 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 
+//For debugging
+use Illuminate\Support\Facades\Log;
+
+
 class MpesaController extends Controller
 {
     private function baseUrl(): string
@@ -118,6 +122,9 @@ class MpesaController extends Controller
     // Safaricom will keep retrying the same callback.
     public function callback(Request $request)
     {
+        //Debugging
+        Log::info('Mpesa callback raw payload', ['body' => $request->all()]);
+
         $callback = $request->input('Body.stkCallback');
         if (!$callback) {
             return response()->json(['ResultCode' => 0, 'ResultDesc' => 'Accepted']);

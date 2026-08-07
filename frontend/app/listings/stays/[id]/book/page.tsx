@@ -771,14 +771,16 @@ function StayBookingPageContent({ params }: Props) {
               <ChevronRight size={16} color="#aaa" />
             </button>
 
-            <div className="w-full flex items-center justify-between p-4 border
-                               border-gray-200 rounded-2xl mb-5">
+            <button onClick={() => setShowPaymentMethodSheet(true)}
+              className="w-full flex items-center justify-between p-4 border
+                               border-gray-200 rounded-2xl mb-5 hover:bg-gray-50
+                               transition-colors text-left">
               <div>
                 <p className="text-sm font-semibold text-[#1a1a1a]">Payment method</p>
-                <p className="text-sm text-gray-400">Credit or Debit Card</p>
+                <p className="text-sm text-gray-400">{paymentMethod === 'card' ? 'Credit or Debit Card' : 'M-Pesa'}</p>
               </div>
-
-            </div>
+              <ChevronRight size={16} color="#aaa" />
+            </button>
 
             {/* Price details */}
             <div className="mb-5">
@@ -1110,6 +1112,36 @@ function StayBookingPageContent({ params }: Props) {
           </div>
         )
       }
+
+            {/* Payment method sheet */}
+            {
+        showPaymentMethodSheet && (
+          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
+            style={{ background: 'rgba(0,0,0,0.4)' }}
+            onClick={(e) => { if (e.target === e.currentTarget) setShowPaymentMethodSheet(false) }}>
+            <div className="bg-white w-full sm:max-w-sm rounded-t-3xl sm:rounded-2xl p-6">
+              <h2 className="text-lg font-bold text-[#1a1a1a] mb-4">Payment method</h2>
+              <div className="flex flex-col gap-2 mb-5">
+                <label className={`flex items-center justify-between p-4 rounded-xl border cursor-pointer
+                ${paymentMethod === 'card' ? 'border-[#2c4a1e] bg-[#eaf5e4]' : 'border-gray-200'}`}>
+                  <p className="text-sm font-semibold text-[#1a1a1a]">Credit or Debit Card</p>
+                  <input type="radio" name="paymentMethodChoice" checked={paymentMethod === 'card'} onChange={() => setPaymentMethod('card')} className="w-4 h-4 accent-[#2c4a1e]" />
+                </label>
+                <label className={`flex items-center justify-between p-4 rounded-xl border cursor-pointer
+                ${paymentMethod === 'mpesa' ? 'border-[#2c4a1e] bg-[#eaf5e4]' : 'border-gray-200'}`}>
+                  <p className="text-sm font-semibold text-[#1a1a1a]">M-Pesa</p>
+                  <input type="radio" name="paymentMethodChoice" checked={paymentMethod === 'mpesa'} onChange={() => setPaymentMethod('mpesa')} className="w-4 h-4 accent-[#2c4a1e]" />
+                </label>
+              </div>
+              <button onClick={() => setShowPaymentMethodSheet(false)}
+                className="w-full py-3 rounded-xl bg-[#2c4a1e] text-white text-sm font-semibold hover:bg-[#3d6b28] transition-colors">
+                Done
+              </button>
+            </div>
+          </div>
+        )
+      }
+
 
       {/* Price details bottom sheet */}
       {

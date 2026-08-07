@@ -58,6 +58,9 @@ Route::prefix('auth')->group(function () {
 // Public listing browsing — no auth required.
 Route::get('/listings', [ListingController::class, 'index']);
 Route::get('/listings/{listing}', [ListingController::class, 'show']);
+// Public — Safaricom calls this directly, no auth token available.
+Route::post('/payments/mpesa/callback', [MpesaController::class, 'callback']);
+
 
 // Traveller-facing — any authenticated account.
 Route::middleware('auth:sanctum')->group(function () {
