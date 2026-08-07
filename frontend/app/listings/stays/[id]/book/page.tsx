@@ -206,8 +206,9 @@ function StayBookingPageContent({ params }: Props) {
   const [step, setStep] = useState<Step>('review')
   const [payMode, setPayMode] = useState<'full' | 'instalments'>('full')
   const [showPayModeSheet, setShowPayModeSheet] = useState(false)
-  const [createdBooking, setCreatedBooking] = useState<{ id: number; payments: { id: number; amount: string; status: string }[] } | null>(null)
+  // booking created after confirming, used for payment
   const [payingViaGateway, setPayingViaGateway] = useState(false)
+  const payingRef = useRef(false)
   const [message, setMessage] = useState('')
   const [insurance, setInsurance] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -215,9 +216,6 @@ function StayBookingPageContent({ params }: Props) {
   // client need to reach the bottom to activate the book button
   const [reachedBottom, setReachedBottom] = useState(false)
   const contentRef = useRef<HTMLDivElement>(null)
-
-  // plain ref-based guard
-  const payingRef = useRef(false)
 
   useEffect(() => {
     if (step !== 'confirm') { setReachedBottom(false); return }
@@ -280,57 +278,40 @@ function StayBookingPageContent({ params }: Props) {
         setSubmitError('Please select your check-in and check-out dates first.')
         return
       }
-
-      setSubmitting(true)
       setSubmitError('')
-      try {
-        const { booking } = await apiFetch<{ booking: { id: number; payments: { id: number; amount: string; status: string }[] } }>('/bookings', {
+      setStep('payment')
+      return
+    }
+  }
+
+  // Payment via Paystack
+  async function handlePaystackPayment() {
+    if (payingRef.current) return
+    if (!localCheckIn || !localCheckOut) {
+      setSubmitError('Please select your check-in and check-out dates first.')
+      return
+    }
+
+    payingRef.current = true
+    setPayingViaGateway(true)
+    setSubmitError('')
+    try {
+      const { reference, amount, email } = await apiFetch<{ reference: string; amount: number; email: string }>(
+        '/payments/initialize',
+        {
           method: 'POST',
           body: JSON.stringify({
             listing_id: listing!.id,
             guests,
             check_in: toDateStr(localCheckIn!),
             check_out: toDateStr(localCheckOut!),
-            payment_plan: payMode,
           }),
-        })
-
-        if (message.trim()) {
-          await apiFetch(`/vendors/${listing!.vendor.id}/messages`, {
-            method: 'POST',
-            body: JSON.stringify({ text: message.trim(), listing_id: listing!.id }),
-          })
         }
-
-        setCreatedBooking(booking)
-        setStep('payment')
-      } catch (err) {
-        setSubmitError(apiErrorMessage(err))
-      } finally {
-        setSubmitting(false)
-      }
-    }
-  }
-
-  async function handlePaystackPayment() {
-    if (payingRef.current || !createdBooking) return
-    const payment = createdBooking.payments[0]
-    if (!payment) { setSubmitError('No payment is due for this booking.'); return }
-
-    payingRef.current = true
-    setPayingViaGateway(true)
-
-    setSubmitError('')
-    try {
-      const { reference, amount, email } = await apiFetch<{ reference: string; amount: number; email: string }>(
-        `/bookings/${createdBooking.id}/payments/${payment.id}/initialize`,
-        { method: 'POST' }
       )
 
       const PaystackPop = (window as any).PaystackPop
       if (!PaystackPop) {
         setSubmitError('Payment could not start — please refresh and try again.')
-        payingRef.current = false
         payingRef.current = false
         setPayingViaGateway(false)
         return
@@ -341,13 +322,28 @@ function StayBookingPageContent({ params }: Props) {
         email: email || user?.email,
         amount,
         currency: 'KES',
+        channels: ['card'],
         ref: reference,
         callback: (response: { reference: string }) => {
-          apiFetch(`/bookings/${createdBooking.id}/payments/${payment.id}/pay`, {
+          apiFetch('/bookings/verify-and-create', {
             method: 'POST',
-            body: JSON.stringify({ reference: response.reference }),
+            body: JSON.stringify({
+              reference: response.reference,
+              listing_id: listing!.id,
+              guests,
+              check_in: toDateStr(localCheckIn!),
+              check_out: toDateStr(localCheckOut!),
+            }),
           })
-            .then(() => router.push(`/listings/stays/${id}/book/success`))
+            .then(async () => {
+              if (message.trim()) {
+                await apiFetch(`/vendors/${listing!.vendor.id}/messages`, {
+                  method: 'POST',
+                  body: JSON.stringify({ text: message.trim(), listing_id: listing!.id }),
+                }).catch(() => { })
+              }
+              router.replace(`/listings/stays/${id}/book/success`)
+            })
             .catch((err) => setSubmitError(apiErrorMessage(err)))
             .finally(() => { payingRef.current = false; setPayingViaGateway(false) })
         },
@@ -705,7 +701,7 @@ function StayBookingPageContent({ params }: Props) {
                                border-gray-200 rounded-2xl mb-5">
               <div>
                 <p className="text-sm font-semibold text-[#1a1a1a]">Payment method</p>
-                <p className="text-sm text-gray-400">Card or M-Pesa — choose on the next step</p>
+                <p className="text-sm text-gray-400">Credit or Debit Card</p>
               </div>
 
             </div>
@@ -817,15 +813,13 @@ function StayBookingPageContent({ params }: Props) {
             <>
               <button
                 onClick={handlePaystackPayment}
-                disabled={payingViaGateway || !createdBooking}
+                disabled={payingViaGateway}
                 className="w-full bg-[#2c4a1e] text-white py-4 rounded-2xl font-bold
                                    text-sm hover:bg-[#3d6b28] transition-colors
                                    disabled:opacity-40 disabled:cursor-not-allowed"
                 style={{ WebkitTapHighlightColor: 'transparent' }}
               >
-                {payingViaGateway
-                  ? 'Processing…'
-                  : `Pay Ksh ${createdBooking ? Math.round(Number(createdBooking.payments[0]?.amount ?? 0)).toLocaleString() : grandTotal.toLocaleString()}`}
+                {payingViaGateway ? 'Processing…' : `Pay Ksh ${grandTotal.toLocaleString()}`}
               </button>
               <p className="text-xs text-gray-400 text-center mt-3 leading-relaxed">
                 By tapping, I agree to the{' '}

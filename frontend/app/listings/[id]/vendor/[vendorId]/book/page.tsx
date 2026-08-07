@@ -146,8 +146,7 @@ function BookingPageContent({ params }: Props) {
   const [payMode, setPayMode] = useState<'full' | 'instalments'>('full')
   const [message, setMessage] = useState('')
   const [insurance, setInsurance] = useState(false)
-  // Payment helper
-  const [createdBooking, setCreatedBooking] = useState<{ id: number; payments: { id: number; amount: string; status: string }[] } | null>(null)
+  // Booking created after confirm step, used for payment
   const [payingViaGateway, setPayingViaGateway] = useState(false)
   const payingRef = useRef(false)
 
@@ -256,50 +255,37 @@ function BookingPageContent({ params }: Props) {
         setSubmitError('Please select your tour dates first.')
         return
       }
-
-      setSubmitting(true)
       setSubmitError('')
-      try {
-        const { booking } = await apiFetch<{ booking: { id: number; payments: { id: number; amount: string; status: string }[] } }>('/bookings', {
-          method: 'POST',
-          body: JSON.stringify({
-            listing_id: listing!.id,
-            guests,
-            ...(usesDepartures
-              ? { departure_id: selectedDepartureId }
-              : { check_in: toDateStr(selectedCheckIn!), check_out: toDateStr(selectedCheckOut!) }),
-          }),
-        })
-
-        if (message.trim()) {
-          await apiFetch(`/vendors/${vendorId}/messages`, {
-            method: 'POST',
-            body: JSON.stringify({ text: message.trim(), listing_id: listing!.id }),
-          })
-        }
-
-        setCreatedBooking(booking)
-        setStep('payment')
-      } catch (err) {
-        setSubmitError(apiErrorMessage(err))
-      } finally {
-        setSubmitting(false)
-      }
+      setStep('payment')
+      return
     }
   }
 
   async function handlePaystackPayment() {
-    if (payingRef.current || !createdBooking) return
-    const payment = createdBooking.payments[0]
-    if (!payment) { setSubmitError('No payment is due for this booking.'); return }
+    if (payingRef.current) return
+    if (usesDepartures ? !selectedDepartureId : !(selectedCheckIn && selectedCheckOut)) {
+      setSubmitError('Please select your tour dates first.')
+      return
+    }
 
     payingRef.current = true
     setPayingViaGateway(true)
     setSubmitError('')
     try {
+      const bookingParams = usesDepartures
+        ? { departure_id: selectedDepartureId }
+        : { check_in: toDateStr(selectedCheckIn!), check_out: toDateStr(selectedCheckOut!) }
+
       const { reference, amount, email } = await apiFetch<{ reference: string; amount: number; email: string }>(
-        `/bookings/${createdBooking.id}/payments/${payment.id}/initialize`,
-        { method: 'POST' }
+        '/payments/initialize',
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            listing_id: listing!.id,
+            guests,
+            ...bookingParams,
+          }),
+        }
       )
 
       const PaystackPop = (window as any).PaystackPop
@@ -315,13 +301,27 @@ function BookingPageContent({ params }: Props) {
         email: email || user?.email,
         amount,
         currency: 'KES',
+        channels: ['card'],
         ref: reference,
         callback: (response: { reference: string }) => {
-          apiFetch(`/bookings/${createdBooking.id}/payments/${payment.id}/pay`, {
+          apiFetch('/bookings/verify-and-create', {
             method: 'POST',
-            body: JSON.stringify({ reference: response.reference }),
+            body: JSON.stringify({
+              reference: response.reference,
+              listing_id: listing!.id,
+              guests,
+              ...bookingParams,
+            }),
           })
-            .then(() => router.push(`/listings/${id}/vendor/${vendorId}/book/success`))
+            .then(async () => {
+              if (message.trim()) {
+                await apiFetch(`/vendors/${vendorId}/messages`, {
+                  method: 'POST',
+                  body: JSON.stringify({ text: message.trim(), listing_id: listing!.id }),
+                }).catch(() => { })
+              }
+              router.replace(`/listings/${id}/vendor/${vendorId}/book/success`)
+            })
             .catch((err) => setSubmitError(apiErrorMessage(err)))
             .finally(() => { payingRef.current = false; setPayingViaGateway(false) })
         },
@@ -337,7 +337,6 @@ function BookingPageContent({ params }: Props) {
       setPayingViaGateway(false)
     }
   }
-
 
   function goBack() {
     if (step === 'review') router.back()
@@ -675,7 +674,7 @@ function BookingPageContent({ params }: Props) {
                                border-gray-200 rounded-2xl mb-5 hover:bg-gray-50 transition-colors">
               <div className="text-left">
                 <p className="text-sm font-semibold text-[#1a1a1a]">Payment method</p>
-                <p className="text-sm text-gray-400">Card or M-Pesa — choose on the next step</p>
+                <p className="text-sm text-gray-400">Credit or Debit Card</p>
               </div>
               <ChevronRight size={16} color="#aaa" />
             </button>
@@ -776,12 +775,12 @@ function BookingPageContent({ params }: Props) {
             <>
               <button
                 onClick={handlePaystackPayment}
-                disabled={payingViaGateway || !createdBooking}
+                disabled={payingViaGateway}
                 className="w-full bg-[#1a1a1a] text-white py-4 rounded-2xl font-bold
                                      text-base hover:bg-[#333] transition-colors active:scale-[0.99]
                                      disabled:opacity-40 disabled:cursor-not-allowed"
               >
-                {payingViaGateway ? 'Processing…' : `Pay Ksh ${createdBooking ? Math.round(Number(createdBooking.payments[0]?.amount ?? 0)).toLocaleString() : Math.round(finalTotal).toLocaleString()}`}
+                {payingViaGateway ? 'Processing…' : `Pay Ksh ${Math.round(finalTotal).toLocaleString()}`}
               </button>
               <p className="text-xs text-gray-400 text-center mt-3 leading-relaxed">
                 By selecting the button, I agree to the{' '}
@@ -807,7 +806,7 @@ function BookingPageContent({ params }: Props) {
 
       </div>
 
-        {/* ──Paystack script ── */}
+      {/* ──Paystack script ── */}
       <Script src="https://js.paystack.co/v1/inline.js" strategy="afterInteractive" />
 
       {/* ── DATE CHANGE SHEET ── */}

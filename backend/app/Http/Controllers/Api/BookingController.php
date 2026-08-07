@@ -183,6 +183,167 @@ class BookingController extends Controller
 
         return response()->json(['booking' => $booking], 201);
     }
+    
+    // Dates to be reserved only after booking is confirmed. This endpoint is for initializing the payment process and returning the necessary data to the frontend.
+    public function initializeBookingPayment(Request $request)
+    {
+        $validated = $request->validate([
+            'listing_id' => ['required', 'exists:listings,id'],
+            'guests' => ['required', 'integer', 'min:1'],
+            'check_in' => ['nullable', 'date'],
+            'check_out' => ['nullable', 'date'],
+            'departure_id' => ['nullable', 'exists:listing_departures,id'],
+        ]);
+
+        $listing = Listing::findOrFail($validated['listing_id']);
+        $departure = !empty($validated['departure_id'])
+            ? ListingDeparture::where('id', $validated['departure_id'])->where('listing_id', $listing->id)->first()
+            : null;
+        $effectiveCheckIn = $departure?->date->toDateString() ?? $validated['check_in'] ?? null;
+
+        $nights = !empty($validated['check_out']) && $effectiveCheckIn
+            ? max(1, Carbon::parse($validated['check_out'])->diffInDays(Carbon::parse($effectiveCheckIn)))
+            : 1;
+
+        $total = $listing->price * $validated['guests'] * $nights;
+        $reference = 'booking_' . Str::random(16);
+
+        return response()->json([
+            'reference' => $reference,
+            'amount' => (int) round($total * 100),
+            'email' => $request->user()->email,
+        ]);
+    }
+
+    public function verifyAndCreate(Request $request)
+    {
+        $validated = $request->validate([
+            'reference' => ['required', 'string'],
+            'listing_id' => ['required', 'exists:listings,id'],
+            'guests' => ['required', 'integer', 'min:1'],
+            'check_in' => ['nullable', 'date', 'after_or_equal:today'],
+            'check_out' => ['nullable', 'date', 'after:check_in'],
+            'departure_id' => ['nullable', 'exists:listing_departures,id'],
+            'special_requests' => ['nullable', 'string'],
+        ]);
+
+        $response = Http::withToken(config('services.paystack.secret'))
+            ->get("https://api.paystack.co/transaction/verify/{$validated['reference']}");
+
+        abort_unless($response->successful(), 502, 'Could not reach Paystack to verify this payment.');
+
+        $data = $response->json('data');
+        abort_unless($data['status'] === 'success', 422, 'Payment was not completed.');
+
+        $listing = Listing::findOrFail($validated['listing_id']);
+        abort_unless($listing->status === 'active', 422, 'This listing is not currently bookable.');
+
+        $hasDepartures = $listing->departures()->exists();
+        $departure = null;
+
+        if ($hasDepartures) {
+            if (empty($validated['departure_id'])) {
+                throw ValidationException::withMessages(['departure_id' => ['Please select a departure date.']]);
+            }
+            $departure = ListingDeparture::where('id', $validated['departure_id'])
+                ->where('listing_id', $listing->id)->first();
+            abort_unless($departure, 422, 'Invalid departure selected.');
+        } elseif (empty($validated['check_in'])) {
+            throw ValidationException::withMessages(['check_in' => ['Please select a date.']]);
+        }
+
+        $effectiveCheckIn = $departure?->date->toDateString() ?? $validated['check_in'];
+
+        if ($listing->category === 'Stays' && !empty($validated['check_out'])) {
+            $checkIn = Carbon::parse($effectiveCheckIn);
+            $checkOut = Carbon::parse($validated['check_out']);
+
+            $overlapping = $listing->bookings()
+                ->whereIn('status', ['pending', 'confirmed', 'alternative_proposed'])
+                ->whereNotNull('check_out')
+                ->where('check_in', '<', $checkOut)
+                ->where('check_out', '>', $checkIn)
+                ->exists();
+
+            if ($overlapping) {
+                throw ValidationException::withMessages([
+                    'check_in' => ['These dates are no longer available for this listing.'],
+                ]);
+            }
+        }
+
+        if ($listing->min_guests && $validated['guests'] < $listing->min_guests) {
+            throw ValidationException::withMessages(['guests' => ["Minimum {$listing->min_guests} guests required."]]);
+        }
+        if ($listing->max_guests && $validated['guests'] > $listing->max_guests) {
+            throw ValidationException::withMessages(['guests' => ["Maximum {$listing->max_guests} guests allowed."]]);
+        }
+
+        if ($listing->min_lead_time_days) {
+            $earliest = now()->addDays($listing->min_lead_time_days)->startOfDay();
+            if (Carbon::parse($effectiveCheckIn)->startOfDay()->lt($earliest)) {
+                throw ValidationException::withMessages([
+                    'check_in' => ["This listing requires at least {$listing->min_lead_time_days} days' notice."],
+                ]);
+            }
+        }
+
+        $nights = $validated['check_out'] ?? null
+            ? max(1, Carbon::parse($validated['check_out'])->diffInDays(Carbon::parse($effectiveCheckIn)))
+            : 1;
+        $total = $listing->price * $validated['guests'] * $nights;
+
+        $expectedAmount = (int) round($total * 100);
+        abort_unless((int) $data['amount'] === $expectedAmount, 422, 'Payment amount does not match booking total.');
+
+        $booking = DB::transaction(function () use ($request, $listing, $departure, $effectiveCheckIn, $validated, $total, $data) {
+            if ($departure) {
+                $locked = ListingDeparture::where('id', $departure->id)->lockForUpdate()->first();
+
+                if ($locked->booked >= $locked->capacity) {
+                    throw ValidationException::withMessages([
+                        'departure_id' => ['This departure just sold out. Please pick another date.'],
+                    ]);
+                }
+
+                $locked->increment('booked');
+            }
+
+            $booking = $request->user()->bookings()->create([
+                'listing_id' => $listing->id,
+                'departure_id' => $departure?->id,
+                'status' => 'pending',
+                'guests' => $validated['guests'],
+                'total' => $total,
+                'payment_plan' => 'full',
+                'check_in' => $effectiveCheckIn,
+                'check_out' => $validated['check_out'] ?? null,
+                'special_requests' => $validated['special_requests'] ?? null,
+            ]);
+
+            $booking->payments()->create([
+                'amount' => $total,
+                'due_date' => now()->toDateString(),
+                'status' => 'paid',
+                'paid_at' => now(),
+                'paystack_reference' => $data['reference'],
+            ]);
+
+            return $booking;
+        });
+
+        $listing->vendor->notifications()->create([
+            'type' => 'booking',
+            'title' => 'New booking request',
+            'message' => "{$request->user()->name} requested to book \"{$listing->title}\".",
+            'link' => "/vendor/bookings/{$booking->id}",
+        ]);
+
+        $booking->load('payments');
+
+        return response()->json(['booking' => $booking], 201);
+    }
+
 
     public function show(Request $request, Booking $booking)
     {

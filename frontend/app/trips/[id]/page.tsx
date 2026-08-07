@@ -174,7 +174,11 @@ export default function TripDetailPage({ params }: Props) {
           </div>
           <div>
             <p className="text-xs text-gray-400 mb-0.5">Status</p>
-            <p className="text-sm font-semibold text-[#1a1a1a] capitalize">{booking.status.replace('_', ' ')}</p>
+            <p className="text-sm font-semibold text-[#1a1a1a] capitalize">
+              {booking.status === 'pending' && booking.payments.some(p => p.status === 'paid')
+                ? 'Payment received · awaiting host'
+                : booking.status.replace('_', ' ')}
+            </p>
           </div>
         </div>
 

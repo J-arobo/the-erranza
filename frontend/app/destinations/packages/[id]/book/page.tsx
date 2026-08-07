@@ -46,11 +46,9 @@ function PackageBookingPageContent({ params }: Props) {
   const [payMode, setPayMode] = useState<'full' | 'instalments'>('full')
   const [insurance, setInsurance] = useState(false)
 
-  //Payment State
-  const [createdBooking, setCreatedBooking] = useState<{ id: number; payments: { id: number; amount: string; status: string }[] } | null>(null)
+  // Booking creation & payment
   const [payingViaGateway, setPayingViaGateway] = useState(false)
   const payingRef = useRef(false)
-
 
   const [showGuestSheet, setShowGuestSheet] = useState(false)
   const [adults, setAdults] = useState(() => Number(searchParams.get('adults')) || 1)
@@ -125,40 +123,33 @@ function PackageBookingPageContent({ params }: Props) {
         setSubmitError('Please select a departure date first.')
         return
       }
-
-      setSubmitting(true)
       setSubmitError('')
-      try {
-        const { booking } = await apiFetch<{ booking: { id: number; payments: { id: number; amount: string; status: string }[] } }>('/bookings', {
-          method: 'POST',
-          body: JSON.stringify({
-            listing_id: pkg!.id,
-            guests,
-            departure_id: selectedDeparture,
-          }),
-        })
-        setCreatedBooking(booking)
-        setStep('payment')
-      } catch (err) {
-        setSubmitError(apiErrorMessage(err))
-      } finally {
-        setSubmitting(false)
-      }
+      setStep('payment')
+      return
     }
   }
 
   async function handlePaystackPayment() {
-    if (payingRef.current || !createdBooking) return
-    const payment = createdBooking.payments[0]
-    if (!payment) { setSubmitError('No payment is due for this booking.'); return }
+    if (payingRef.current) return
+    if (!selectedDeparture) {
+      setSubmitError('Please select a departure date first.')
+      return
+    }
 
     payingRef.current = true
     setPayingViaGateway(true)
     setSubmitError('')
     try {
       const { reference, amount, email } = await apiFetch<{ reference: string; amount: number; email: string }>(
-        `/bookings/${createdBooking.id}/payments/${payment.id}/initialize`,
-        { method: 'POST' }
+        '/payments/initialize',
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            listing_id: pkg!.id,
+            guests,
+            departure_id: selectedDeparture,
+          }),
+        }
       )
 
       const PaystackPop = (window as any).PaystackPop
@@ -174,13 +165,19 @@ function PackageBookingPageContent({ params }: Props) {
         email: email || user?.email,
         amount,
         currency: 'KES',
+        channels: ['card'],
         ref: reference,
         callback: (response: { reference: string }) => {
-          apiFetch(`/bookings/${createdBooking.id}/payments/${payment.id}/pay`, {
+          apiFetch('/bookings/verify-and-create', {
             method: 'POST',
-            body: JSON.stringify({ reference: response.reference }),
+            body: JSON.stringify({
+              reference: response.reference,
+              listing_id: pkg!.id,
+              guests,
+              departure_id: selectedDeparture,
+            }),
           })
-            .then(() => router.push(`/destinations/packages/${id}/book/success`))
+            .then(() => router.replace(`/destinations/packages/${id}/book/success`))
             .catch((err) => setSubmitError(apiErrorMessage(err)))
             .finally(() => { payingRef.current = false; setPayingViaGateway(false) })
         },
@@ -412,7 +409,7 @@ function PackageBookingPageContent({ params }: Props) {
             <button className="w-full flex items-center justify-between p-4 border border-gray-200 rounded-2xl mb-5 hover:bg-gray-50 transition-colors">
               <div className="text-left">
                 <p className="text-sm font-semibold text-[#1a1a1a]">Payment method</p>
-                <p className="text-sm text-gray-400">Card or M-Pesa — choose on the next step</p>
+                <p className="text-sm text-gray-400">Credit or Debit Card</p>
               </div>
               <ChevronRight size={16} color="#aaa" />
             </button>
@@ -504,13 +501,13 @@ function PackageBookingPageContent({ params }: Props) {
             <>
               <button
                 onClick={handlePaystackPayment}
-                disabled={payingViaGateway || !createdBooking}
+                disabled={payingViaGateway}
                 className="w-full bg-[#2c4a1e] text-white py-4 rounded-2xl font-bold
                                      text-sm hover:bg-[#3d6b28] transition-colors
                                      disabled:opacity-40 disabled:cursor-not-allowed"
                 style={{ WebkitTapHighlightColor: 'transparent' }}
               >
-                {payingViaGateway ? 'Processing…' : `Pay Ksh ${createdBooking ? Math.round(Number(createdBooking.payments[0]?.amount ?? 0)).toLocaleString() : Math.round(finalTotal).toLocaleString()}`}
+                {payingViaGateway ? 'Processing…' : `Pay Ksh ${Math.round(finalTotal).toLocaleString()}`}
               </button>
               <p className="text-xs text-gray-400 text-center mt-3 leading-relaxed">
                 By tapping, I agree to the{' '}

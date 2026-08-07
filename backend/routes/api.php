@@ -84,6 +84,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/wishlist', [WishlistController::class, 'index']);
     Route::post('/wishlist', [WishlistController::class, 'store']);
     Route::delete('/wishlist/{listing}', [WishlistController::class, 'destroy']);
+    // Payment initialization for booking creation
+    Route::post('/payments/initialize', [BookingController::class, 'initializeBookingPayment']);
+    Route::post('/bookings/verify-and-create', [BookingController::class, 'verifyAndCreate']);
 });
 
 Route::prefix('vendor')->middleware(['auth:sanctum', 'vendor'])->group(function () {
