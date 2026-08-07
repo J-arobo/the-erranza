@@ -36,12 +36,13 @@ use App\Http\Controllers\Api\WishlistController;
 use App\Http\Controllers\Api\ListingMessageController;
 //Password reset 
 use App\Http\Controllers\Api\PasswordResetController;
-
+//M-Pesa
+use App\Http\Controllers\Api\MpesaController;
 
 
 Route::prefix('auth')->group(function () {
     Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:6,1');
-    Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:6,1');
+    Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:6,1');  
     //Password reset
     Route::post('/forgot-password', [PasswordResetController::class, 'sendResetLink'])->middleware('throttle:6,1');
     Route::post('/reset-password', [PasswordResetController::class, 'reset'])->middleware('throttle:6,1');
@@ -87,6 +88,9 @@ Route::middleware('auth:sanctum')->group(function () {
     // Payment initialization for booking creation
     Route::post('/payments/initialize', [BookingController::class, 'initializeBookingPayment']);
     Route::post('/bookings/verify-and-create', [BookingController::class, 'verifyAndCreate']);
+    // M-Pesa payment initialization
+    Route::post('/payments/mpesa/initiate', [MpesaController::class, 'initiate']);
+    Route::get('/payments/mpesa/status/{checkoutRequestId}', [MpesaController::class, 'status']);
 });
 
 Route::prefix('vendor')->middleware(['auth:sanctum', 'vendor'])->group(function () {

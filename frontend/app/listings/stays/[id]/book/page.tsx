@@ -209,6 +209,11 @@ function StayBookingPageContent({ params }: Props) {
   // booking created after confirming, used for payment
   const [payingViaGateway, setPayingViaGateway] = useState(false)
   const payingRef = useRef(false)
+  // payment method: card or mpesa
+  const [paymentMethod, setPaymentMethod] = useState<'card' | 'mpesa'>('card')
+  const [mpesaPhone, setMpesaPhone] = useState('')
+  const [mpesaWaiting, setMpesaWaiting] = useState(false)
+
   const [message, setMessage] = useState('')
   const [insurance, setInsurance] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -359,6 +364,71 @@ function StayBookingPageContent({ params }: Props) {
       setPayingViaGateway(false)
     }
   }
+
+    // Payment via M-Pesa STK Push
+    async function handleMpesaPayment() {
+      if (payingRef.current) return
+      if (!localCheckIn || !localCheckOut) {
+        setSubmitError('Please select your check-in and check-out dates first.')
+        return
+      }
+      if (!mpesaPhone.trim()) {
+        setSubmitError('Enter your M-Pesa phone number.')
+        return
+      }
+  
+      payingRef.current = true
+      setPayingViaGateway(true)
+      setSubmitError('')
+      try {
+        const { checkout_request_id } = await apiFetch<{ checkout_request_id: string }>('/payments/mpesa/initiate', {
+          method: 'POST',
+          body: JSON.stringify({
+            listing_id: listing!.id,
+            guests,
+            check_in: toDateStr(localCheckIn!),
+            check_out: toDateStr(localCheckOut!),
+            phone: mpesaPhone.trim(),
+          }),
+        })
+  
+        setMpesaWaiting(true)
+  
+        const deadline = Date.now() + 90000
+        const poll = async (): Promise<void> => {
+          if (Date.now() > deadline) {
+            throw new Error('Payment timed out. Please check your phone or try again.')
+          }
+          const result = await apiFetch<{ status: string; booking_id: number | null; message: string | null }>(
+            `/payments/mpesa/status/${checkout_request_id}`
+          )
+          if (result.status === 'success') {
+            if (message.trim()) {
+              await apiFetch(`/vendors/${listing!.vendor.id}/messages`, {
+                method: 'POST',
+                body: JSON.stringify({ text: message.trim(), listing_id: listing!.id }),
+              }).catch(() => { })
+            }
+            router.replace(`/listings/stays/${id}/book/success`)
+            return
+          }
+          if (result.status === 'failed') {
+            throw new Error(result.message || 'M-Pesa payment was not completed.')
+          }
+          await new Promise(r => setTimeout(r, 3000))
+          return poll()
+        }
+  
+        await poll()
+      } catch (err) {
+        setSubmitError(apiErrorMessage(err))
+      } finally {
+        payingRef.current = false
+        setPayingViaGateway(false)
+        setMpesaWaiting(false)
+      }
+    }
+  
 
   function goBack() {
     if (step === 'review') router.back()
