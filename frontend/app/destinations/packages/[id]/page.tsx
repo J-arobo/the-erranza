@@ -992,20 +992,6 @@ export default function PackageDetailPage({ params }: Props) {
                         </div>
                       </button>
                     ))}
-                    <button
-                      onClick={() => router.push('/destinations/packages')}
-                      className="relative flex-shrink-0 w-[45vw] h-[130px] rounded-2xl border border-[#e0d9cc] bg-white flex flex-col items-center justify-center gap-1.5"
-                    >
-                      <div className="relative h-10 w-full flex items-center justify-center">
-                        {otherPackages.slice(0, 3).map((p, i) => (
-                          <div key={p.id} className="absolute w-10 h-10 rounded-lg overflow-hidden bg-[#f5f5f5]"
-                            style={{ border: '2px solid white', boxShadow: '0 2px 8px rgba(0,0,0,0.15)', transform: `rotate(${(i - 1) * 10}deg)`, left: `calc(50% - 20px + ${(i - 1) * 16}px)`, zIndex: i === 1 ? 2 : 1 }}>
-                            <Image src={p.images[0]?.url ?? FALLBACK_IMAGE} alt="" fill className="object-cover" sizes="40px" />
-                          </div>
-                        ))}
-                      </div>
-                      <span className="text-xs font-semibold text-[#304333]">See all</span>
-                    </button>
                   </div>
                 </div>
                 <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -1024,20 +1010,6 @@ export default function PackageDetailPage({ params }: Props) {
                       </div>
                     </button>
                   ))}
-                  <button
-                    onClick={() => router.push('/destinations/packages')}
-                    className="relative h-[130px] rounded-2xl border border-[#e0d9cc] bg-white flex flex-col items-center justify-center gap-1.5"
-                  >
-                    <div className="relative h-10 w-full flex items-center justify-center">
-                      {otherPackages.slice(0, 3).map((p, i) => (
-                        <div key={p.id} className="absolute w-10 h-10 rounded-lg overflow-hidden bg-[#f5f5f5]"
-                          style={{ border: '2px solid white', boxShadow: '0 2px 8px rgba(0,0,0,0.15)', transform: `rotate(${(i - 1) * 10}deg)`, left: `calc(50% - 20px + ${(i - 1) * 16}px)`, zIndex: i === 1 ? 2 : 1 }}>
-                          <Image src={p.images[0]?.url ?? FALLBACK_IMAGE} alt="" fill className="object-cover" sizes="40px" />
-                        </div>
-                      ))}
-                    </div>
-                    <span className="text-xs font-semibold text-[#304333]">See all</span>
-                  </button>
                 </div>
               </div>
             </>

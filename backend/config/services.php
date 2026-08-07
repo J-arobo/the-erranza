@@ -35,4 +35,10 @@ return [
         ],
     ],
 
+    //Paystack configuration
+    'paystack' => [
+        'secret' => env('PAYSTACK_SECRET_KEY'),
+    ],
+
+
 ];

@@ -1,5 +1,6 @@
 'use client'
 import { Suspense, use, useEffect, useState, useRef } from 'react'
+import Script from 'next/script'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Image from 'next/image'
 import { ArrowLeft, X, ChevronRight, Shield, Star } from 'lucide-react'
@@ -29,82 +30,13 @@ function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
-//Payment Helper
-function formatCardNumber(v: string): string {
-  const digits = v.replace(/\D/g, '').slice(0, 19)
-  return digits.replace(/(.{4})/g, '$1 ').trim()
-}
-
-function formatCardExpiry(v: string): string {
-  const digits = v.replace(/\D/g, '').slice(0, 4)
-  return digits.length >= 3 ? `${digits.slice(0, 2)}/${digits.slice(2)}` : digits
-}
-
-function luhnCheck(digits: string): boolean {
-  let sum = 0
-  let alt = false
-  for (let i = digits.length - 1; i >= 0; i--) {
-    let n = parseInt(digits[i], 10)
-    if (alt) { n *= 2; if (n > 9) n -= 9 }
-    sum += n
-    alt = !alt
-  }
-  return sum % 10 === 0
-}
-
-type PaymentFieldErrors = Partial<Record<'cardName' | 'cardNumber' | 'cardExpiry' | 'cardCvv' | 'mpesaPhone', string>>
-
-function validatePayment(
-  method: 'card' | 'mpesa',
-  cardName: string, cardNumber: string, cardExpiry: string, cardCvv: string, mpesaPhone: string
-): PaymentFieldErrors {
-  const errors: PaymentFieldErrors = {}
-
-  if (method === 'card') {
-    if (!cardName.trim()) errors.cardName = 'Name on card is required'
-
-    const digits = cardNumber.replace(/\s/g, '')
-    if (digits.length < 13 || digits.length > 19) {
-      errors.cardNumber = 'Enter a valid card number'
-    } else if (!luhnCheck(digits)) {
-      errors.cardNumber = 'Card number looks incorrect'
-    }
-
-    const [mm, yy] = cardExpiry.split('/')
-    const month = Number(mm)
-    const year = Number(yy)
-    if (!mm || !yy || month < 1 || month > 12 || mm.length !== 2 || yy.length !== 2) {
-      errors.cardExpiry = 'Enter a valid expiry (MM/YY)'
-    } else {
-      const now = new Date()
-      const currentYear = now.getFullYear() % 100
-      const currentMonth = now.getMonth() + 1
-      if (year < currentYear || (year === currentYear && month < currentMonth)) {
-        errors.cardExpiry = 'This card has expired'
-      }
-    }
-
-    if (cardCvv.trim().length < 3 || cardCvv.trim().length > 4) {
-      errors.cardCvv = 'Enter a valid CVV'
-    }
-  } else {
-    const digits = mpesaPhone.replace(/\D/g, '')
-    if (!/^(?:254|0)?[71]\d{8}$/.test(digits)) {
-      errors.mpesaPhone = 'Enter a valid Safaricom number'
-    }
-  }
-
-  return errors
-}
-
-
 function PackageBookingPageContent({ params }: Props) {
   const { id } = use(params)
   const router = useRouter()
   const searchParams = useSearchParams()
 
   const [pkg, setPkg] = useState<ApiListingDetail | null>(null)
-  const { isLoggedIn } = useAuth()
+  const { isLoggedIn, user } = useAuth()
   const [showLoginPrompt, setShowLoginPrompt] = useState(false)
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
@@ -115,13 +47,10 @@ function PackageBookingPageContent({ params }: Props) {
   const [insurance, setInsurance] = useState(false)
 
   //Payment State
-  const [paymentMethod, setPaymentMethod] = useState<'card' | 'mpesa'>('card')
-  const [cardNumber, setCardNumber] = useState('')
-  const [cardExpiry, setCardExpiry] = useState('')
-  const [cardCvv, setCardCvv] = useState('')
-  const [cardName, setCardName] = useState('')
-  const [mpesaPhone, setMpesaPhone] = useState('')
-  const [paymentFieldErrors, setPaymentFieldErrors] = useState<PaymentFieldErrors>({})
+  const [createdBooking, setCreatedBooking] = useState<{ id: number; payments: { id: number; amount: string; status: string }[] } | null>(null)
+  const [payingViaGateway, setPayingViaGateway] = useState(false)
+  const payingRef = useRef(false)
+
 
   const [showGuestSheet, setShowGuestSheet] = useState(false)
   const [adults, setAdults] = useState(() => Number(searchParams.get('adults')) || 1)
@@ -185,58 +114,94 @@ function PackageBookingPageContent({ params }: Props) {
   const insurancePrice = totalPrice * 0.12
   const finalTotal = insurance ? totalPrice + insurancePrice : totalPrice
   const packageImage = pkg.images[0]?.url ?? FALLBACK_IMAGE
-  const paymentDetailsValid = paymentMethod === 'card'
-    ? cardNumber.replace(/\s/g, '').length >= 15 && cardExpiry.trim().length >= 4 && cardCvv.trim().length >= 3 && cardName.trim().length > 0
-    : mpesaPhone.trim().length >= 9
 
-    async function goNext() {
-      if (step === 'review') {
-        if (!isLoggedIn) { setShowLoginPrompt(true); return }
-        setStep('confirm'); return
-      }
-      if (step === 'confirm') {
-        if (!selectedDeparture) {
-          setSubmitError('Please select a departure date first.')
-          return
-        }
-        setSubmitError('')
-        setStep('payment')
+  async function goNext() {
+    if (step === 'review') {
+      if (!isLoggedIn) { setShowLoginPrompt(true); return }
+      setStep('confirm'); return
+    }
+    if (step === 'confirm') {
+      if (!selectedDeparture) {
+        setSubmitError('Please select a departure date first.')
         return
       }
-      if (step === 'payment') {
-        const errors = validatePayment(paymentMethod, cardName, cardNumber, cardExpiry, cardCvv, mpesaPhone)
-        if (Object.keys(errors).length > 0) {
-          setPaymentFieldErrors(errors)
-          return
-        }
-        setPaymentFieldErrors({})
-  
-        setSubmitting(true)
-        setSubmitError('')
-        try {
-          await apiFetch('/bookings', {
-            method: 'POST',
-            body: JSON.stringify({
-              listing_id: pkg!.id,
-              guests,
-              departure_id: selectedDeparture,
-            }),
-          })
-          router.push(`/destinations/packages/${id}/book/success`)
-        } catch (err) {
-          setSubmitError(apiErrorMessage(err))
-        } finally {
-          setSubmitting(false)
-        }
+
+      setSubmitting(true)
+      setSubmitError('')
+      try {
+        const { booking } = await apiFetch<{ booking: { id: number; payments: { id: number; amount: string; status: string }[] } }>('/bookings', {
+          method: 'POST',
+          body: JSON.stringify({
+            listing_id: pkg!.id,
+            guests,
+            departure_id: selectedDeparture,
+          }),
+        })
+        setCreatedBooking(booking)
+        setStep('payment')
+      } catch (err) {
+        setSubmitError(apiErrorMessage(err))
+      } finally {
+        setSubmitting(false)
       }
     }
-  
+  }
 
-    function goBack() {
-      if (step === 'review') router.back()
-      if (step === 'confirm') setStep('review')
-      if (step === 'payment') setStep('confirm')
-    }  
+  async function handlePaystackPayment() {
+    if (payingRef.current || !createdBooking) return
+    const payment = createdBooking.payments[0]
+    if (!payment) { setSubmitError('No payment is due for this booking.'); return }
+
+    payingRef.current = true
+    setPayingViaGateway(true)
+    setSubmitError('')
+    try {
+      const { reference, amount, email } = await apiFetch<{ reference: string; amount: number; email: string }>(
+        `/bookings/${createdBooking.id}/payments/${payment.id}/initialize`,
+        { method: 'POST' }
+      )
+
+      const PaystackPop = (window as any).PaystackPop
+      if (!PaystackPop) {
+        setSubmitError('Payment could not start — please refresh and try again.')
+        payingRef.current = false
+        setPayingViaGateway(false)
+        return
+      }
+
+      const handler = PaystackPop.setup({
+        key: process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY,
+        email: email || user?.email,
+        amount,
+        currency: 'KES',
+        ref: reference,
+        callback: (response: { reference: string }) => {
+          apiFetch(`/bookings/${createdBooking.id}/payments/${payment.id}/pay`, {
+            method: 'POST',
+            body: JSON.stringify({ reference: response.reference }),
+          })
+            .then(() => router.push(`/destinations/packages/${id}/book/success`))
+            .catch((err) => setSubmitError(apiErrorMessage(err)))
+            .finally(() => { payingRef.current = false; setPayingViaGateway(false) })
+        },
+        onClose: () => {
+          payingRef.current = false
+          setPayingViaGateway(false)
+        },
+      })
+      handler.openIframe()
+    } catch (err) {
+      setSubmitError(apiErrorMessage(err))
+      payingRef.current = false
+      setPayingViaGateway(false)
+    }
+  }
+
+  function goBack() {
+    if (step === 'review') router.back()
+    if (step === 'confirm') setStep('review')
+    if (step === 'payment') setStep('confirm')
+  }
 
   function handleContentScroll(e: React.UIEvent<HTMLDivElement>) {
     if (step !== 'confirm' || reachedBottom) return
@@ -367,8 +332,8 @@ function PackageBookingPageContent({ params }: Props) {
       {/* ── CONTENT ── */}
       <div ref={contentRef} className="flex-1 overflow-y-auto px-5 py-5 pb-40" onScroll={handleContentScroll}>
 
-                {/* ── STEP 1: Review ── */}
-                {step === 'review' && (
+        {/* ── STEP 1: Review ── */}
+        {step === 'review' && (
           <>
             <SummaryCard />
 
@@ -421,8 +386,8 @@ function PackageBookingPageContent({ params }: Props) {
           </>
         )}
 
-                {/* ── STEP 2: Confirm & Pay ── */}
-                {step === 'confirm' && (
+        {/* ── STEP 2: Confirm & Pay ── */}
+        {step === 'confirm' && (
           <>
             <SummaryCard highlighted />
 
@@ -447,7 +412,7 @@ function PackageBookingPageContent({ params }: Props) {
             <button className="w-full flex items-center justify-between p-4 border border-gray-200 rounded-2xl mb-5 hover:bg-gray-50 transition-colors">
               <div className="text-left">
                 <p className="text-sm font-semibold text-[#1a1a1a]">Payment method</p>
-                <p className="text-sm text-gray-400">{paymentMethod === 'card' ? 'Credit or Debit Card' : 'M-Pesa'}</p>
+                <p className="text-sm text-gray-400">Card or M-Pesa — choose on the next step</p>
               </div>
               <ChevronRight size={16} color="#aaa" />
             </button>
@@ -490,81 +455,12 @@ function PackageBookingPageContent({ params }: Props) {
               </div>
             )}
 
-            <div className="flex gap-2 mb-5">
-              <button onClick={() => setPaymentMethod('card')}
-                className={`flex-1 py-3 rounded-xl text-sm font-semibold border transition-colors
-                  ${paymentMethod === 'card' ? 'bg-[#2c4a1e] text-white border-[#2c4a1e]' : 'bg-white text-[#1a1a1a] border-gray-200'}`}>
-                Card
-              </button>
-              <button onClick={() => setPaymentMethod('mpesa')}
-                className={`flex-1 py-3 rounded-xl text-sm font-semibold border transition-colors
-                  ${paymentMethod === 'mpesa' ? 'bg-[#2c4a1e] text-white border-[#2c4a1e]' : 'bg-white text-[#1a1a1a] border-gray-200'}`}>
-                M-Pesa
-              </button>
+            <div className="border border-gray-200 rounded-2xl p-4 mb-5">
+              <p className="text-sm font-semibold text-[#1a1a1a] mb-1">Secure payment via Paystack</p>
+              <p className="text-xs text-gray-500 leading-relaxed">
+                You&apos;ll be able to pay by card or M-Pesa in a secure popup. We never see or store your card details.
+              </p>
             </div>
-
-            {paymentMethod === 'card' ? (
-              <div className="flex flex-col gap-3 mb-5">
-                <div>
-                  <p className="text-xs text-gray-500 mb-1">Name on card</p>
-                  <input value={cardName}
-                    onChange={(e) => { setCardName(e.target.value); setPaymentFieldErrors(fe => ({ ...fe, cardName: undefined })) }}
-                    placeholder="Jane Traveller" autoComplete="cc-name"
-                    className={`w-full border rounded-xl px-4 py-3 text-sm
-                               text-[#1a1a1a] outline-none focus:border-[#2c4a1e] transition-colors
-                               ${paymentFieldErrors.cardName ? 'border-red-400' : 'border-gray-300'}`} />
-                  {paymentFieldErrors.cardName && <p className="text-xs text-red-500 mt-1">{paymentFieldErrors.cardName}</p>}
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500 mb-1">Card number</p>
-                  <input value={cardNumber}
-                    onChange={(e) => { setCardNumber(formatCardNumber(e.target.value)); setPaymentFieldErrors(fe => ({ ...fe, cardNumber: undefined })) }}
-                    placeholder="4242 4242 4242 4242" inputMode="numeric" autoComplete="cc-number" maxLength={23}
-                    className={`w-full border rounded-xl px-4 py-3 text-sm
-                               text-[#1a1a1a] outline-none focus:border-[#2c4a1e] transition-colors
-                               ${paymentFieldErrors.cardNumber ? 'border-red-400' : 'border-gray-300'}`} />
-                  {paymentFieldErrors.cardNumber && <p className="text-xs text-red-500 mt-1">{paymentFieldErrors.cardNumber}</p>}
-                </div>
-                <div className="flex gap-3">
-                  <div className="flex-1">
-                    <p className="text-xs text-gray-500 mb-1">Expiry</p>
-                    <input value={cardExpiry}
-                      onChange={(e) => { setCardExpiry(formatCardExpiry(e.target.value)); setPaymentFieldErrors(fe => ({ ...fe, cardExpiry: undefined })) }}
-                      placeholder="MM/YY" inputMode="numeric" autoComplete="cc-exp" maxLength={5}
-                      className={`w-full border rounded-xl px-4 py-3 text-sm
-                                 text-[#1a1a1a] outline-none focus:border-[#2c4a1e] transition-colors
-                                 ${paymentFieldErrors.cardExpiry ? 'border-red-400' : 'border-gray-300'}`} />
-                    {paymentFieldErrors.cardExpiry && <p className="text-xs text-red-500 mt-1">{paymentFieldErrors.cardExpiry}</p>}
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-xs text-gray-500 mb-1">CVV</p>
-                    <input value={cardCvv}
-                      onChange={(e) => { setCardCvv(e.target.value.replace(/\D/g, '').slice(0, 4)); setPaymentFieldErrors(fe => ({ ...fe, cardCvv: undefined })) }}
-                      placeholder="123" inputMode="numeric" autoComplete="cc-csc" maxLength={4}
-                      className={`w-full border rounded-xl px-4 py-3 text-sm
-                                 text-[#1a1a1a] outline-none focus:border-[#2c4a1e] transition-colors
-                                 ${paymentFieldErrors.cardCvv ? 'border-red-400' : 'border-gray-300'}`} />
-                    {paymentFieldErrors.cardCvv && <p className="text-xs text-red-500 mt-1">{paymentFieldErrors.cardCvv}</p>}
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="flex flex-col gap-3 mb-5">
-                <div>
-                  <p className="text-xs text-gray-500 mb-1">M-Pesa phone number</p>
-                  <input value={mpesaPhone}
-                    onChange={(e) => { setMpesaPhone(e.target.value.replace(/[^\d+\s]/g, '')); setPaymentFieldErrors(fe => ({ ...fe, mpesaPhone: undefined })) }}
-                    placeholder="07XX XXX XXX" inputMode="tel" autoComplete="tel" maxLength={13}
-                    className={`w-full border rounded-xl px-4 py-3 text-sm
-                               text-[#1a1a1a] outline-none focus:border-[#2c4a1e] transition-colors
-                               ${paymentFieldErrors.mpesaPhone ? 'border-red-400' : 'border-gray-300'}`} />
-                  {paymentFieldErrors.mpesaPhone && <p className="text-xs text-red-500 mt-1">{paymentFieldErrors.mpesaPhone}</p>}
-                </div>
-                <p className="text-xs text-gray-500">
-                  You&apos;ll receive an M-Pesa prompt on this number to complete the payment.
-                </p>
-              </div>
-            )}
 
             <div className="flex items-center gap-2 mb-5 p-3 bg-gray-50 rounded-xl">
               <Shield size={16} color="#2c4a1e" />
@@ -607,14 +503,14 @@ function PackageBookingPageContent({ params }: Props) {
           ) : step === 'payment' ? (
             <>
               <button
-                onClick={goNext}
-                disabled={submitting || !paymentDetailsValid}
+                onClick={handlePaystackPayment}
+                disabled={payingViaGateway || !createdBooking}
                 className="w-full bg-[#2c4a1e] text-white py-4 rounded-2xl font-bold
-                           text-sm hover:bg-[#3d6b28] transition-colors
-                           disabled:opacity-40 disabled:cursor-not-allowed"
+                                     text-sm hover:bg-[#3d6b28] transition-colors
+                                     disabled:opacity-40 disabled:cursor-not-allowed"
                 style={{ WebkitTapHighlightColor: 'transparent' }}
               >
-                {submitting ? 'Booking…' : `Pay Ksh ${Math.round(finalTotal).toLocaleString()}`}
+                {payingViaGateway ? 'Processing…' : `Pay Ksh ${createdBooking ? Math.round(Number(createdBooking.payments[0]?.amount ?? 0)).toLocaleString() : Math.round(finalTotal).toLocaleString()}`}
               </button>
               <p className="text-xs text-gray-400 text-center mt-3 leading-relaxed">
                 By tapping, I agree to the{' '}
@@ -635,6 +531,9 @@ function PackageBookingPageContent({ params }: Props) {
         </div>
 
       </div>
+
+      {/* ── Paystack script── */}
+      <Script src="https://js.paystack.co/v1/inline.js" strategy="afterInteractive" />
 
       {/* ── GUEST CHANGE SHEET ── */}
       {showGuestSheet && (

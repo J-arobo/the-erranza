@@ -11,6 +11,9 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+//For Paystack integration
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Str;
 
 class BookingController extends Controller
 {
@@ -146,8 +149,7 @@ class BookingController extends Controller
                 $booking->payments()->create([
                     'amount' => $installmentAmount,
                     'due_date' => now()->toDateString(),
-                    'status' => 'paid',
-                    'paid_at' => now(),
+                    'status' => 'pending',
                 ]);
                 $booking->payments()->create([
                     'amount' => $installmentAmount,
@@ -157,6 +159,12 @@ class BookingController extends Controller
                 $booking->payments()->create([
                     'amount' => $lastAmount,
                     'due_date' => now()->addDays(60)->toDateString(),
+                    'status' => 'pending',
+                ]);
+            } else {
+                $booking->payments()->create([
+                    'amount' => $total,
+                    'due_date' => now()->toDateString(),
                     'status' => 'pending',
                 ]);
             }
@@ -185,6 +193,23 @@ class BookingController extends Controller
         return response()->json(['booking' => $booking]);
     }
 
+    public function initializePayment(Request $request, Booking $booking, BookingPayment $payment)
+    {
+        $this->authorizeOwnership($request, $booking);
+
+        abort_unless($payment->booking_id === $booking->id, 404);
+        abort_unless($payment->status === 'pending', 422, 'This payment has already been made.');
+
+        $reference = 'pay_' . $payment->id . '_' . Str::random(12);
+        $payment->update(['paystack_reference' => $reference]);
+
+        return response()->json([
+            'reference' => $reference,
+            'amount' => (int) round($payment->amount * 100),
+            'email' => $request->user()->email,
+        ]);
+    }
+
     public function payInstallment(Request $request, Booking $booking, BookingPayment $payment)
     {
         $this->authorizeOwnership($request, $booking);
@@ -192,9 +217,26 @@ class BookingController extends Controller
         abort_unless($payment->booking_id === $booking->id, 404);
         abort_unless($payment->status === 'pending', 422, 'This payment has already been made.');
 
+        $validated = $request->validate(['reference' => ['required', 'string']]);
+        abort_unless($payment->paystack_reference === $validated['reference'], 422, 'Payment reference mismatch.');
+
+        $response = Http::withToken(config('services.paystack.secret'))
+            ->get("https://api.paystack.co/transaction/verify/{$validated['reference']}");
+
+        abort_unless($response->successful(), 502, 'Could not reach Paystack to verify this payment.');
+
+        $data = $response->json('data');
+        $expectedAmount = (int) round($payment->amount * 100);
+
+        abort_unless(
+            $data['status'] === 'success' && (int) $data['amount'] === $expectedAmount,
+            422,
+            'Payment could not be verified.'
+        );
+
         $payment->update(['status' => 'paid', 'paid_at' => now()]);
 
-        return response()->json(['payment' => $payment]);
+        return response()->json(['payment' => $payment->fresh()]);
     }
 
     public function cancel(Request $request, Booking $booking)

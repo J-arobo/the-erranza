@@ -64,6 +64,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/bookings', [BookingController::class, 'store']);
     Route::get('/bookings/{booking}', [BookingController::class, 'show']);
     Route::post('/bookings/{booking}/payments/{payment}/pay', [BookingController::class, 'payInstallment']);
+    //Payment initialization route for Paystack
+    Route::post('/bookings/{booking}/payments/{payment}/initialize', [BookingController::class, 'initializePayment']);
+
     Route::post('/bookings/{booking}/cancel', [BookingController::class, 'cancel']);
     Route::post('/bookings/{booking}/messages', [MessageController::class, 'store']);
     Route::get('/messages', [MessageController::class, 'index']);
