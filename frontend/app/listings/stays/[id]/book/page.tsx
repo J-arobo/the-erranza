@@ -213,6 +213,10 @@ function StayBookingPageContent({ params }: Props) {
   const [paymentMethod, setPaymentMethod] = useState<'card' | 'mpesa'>('card')
   const [mpesaPhone, setMpesaPhone] = useState('')
   const [mpesaWaiting, setMpesaWaiting] = useState(false)
+  // show payment method selection sheet
+  const [showPaymentMethodSheet, setShowPaymentMethodSheet] = useState(false)
+
+
 
   const [message, setMessage] = useState('')
   const [insurance, setInsurance] = useState(false)
@@ -365,70 +369,70 @@ function StayBookingPageContent({ params }: Props) {
     }
   }
 
-    // Payment via M-Pesa STK Push
-    async function handleMpesaPayment() {
-      if (payingRef.current) return
-      if (!localCheckIn || !localCheckOut) {
-        setSubmitError('Please select your check-in and check-out dates first.')
-        return
-      }
-      if (!mpesaPhone.trim()) {
-        setSubmitError('Enter your M-Pesa phone number.')
-        return
-      }
-  
-      payingRef.current = true
-      setPayingViaGateway(true)
-      setSubmitError('')
-      try {
-        const { checkout_request_id } = await apiFetch<{ checkout_request_id: string }>('/payments/mpesa/initiate', {
-          method: 'POST',
-          body: JSON.stringify({
-            listing_id: listing!.id,
-            guests,
-            check_in: toDateStr(localCheckIn!),
-            check_out: toDateStr(localCheckOut!),
-            phone: mpesaPhone.trim(),
-          }),
-        })
-  
-        setMpesaWaiting(true)
-  
-        const deadline = Date.now() + 90000
-        const poll = async (): Promise<void> => {
-          if (Date.now() > deadline) {
-            throw new Error('Payment timed out. Please check your phone or try again.')
-          }
-          const result = await apiFetch<{ status: string; booking_id: number | null; message: string | null }>(
-            `/payments/mpesa/status/${checkout_request_id}`
-          )
-          if (result.status === 'success') {
-            if (message.trim()) {
-              await apiFetch(`/vendors/${listing!.vendor.id}/messages`, {
-                method: 'POST',
-                body: JSON.stringify({ text: message.trim(), listing_id: listing!.id }),
-              }).catch(() => { })
-            }
-            router.replace(`/listings/stays/${id}/book/success`)
-            return
-          }
-          if (result.status === 'failed') {
-            throw new Error(result.message || 'M-Pesa payment was not completed.')
-          }
-          await new Promise(r => setTimeout(r, 3000))
-          return poll()
-        }
-  
-        await poll()
-      } catch (err) {
-        setSubmitError(apiErrorMessage(err))
-      } finally {
-        payingRef.current = false
-        setPayingViaGateway(false)
-        setMpesaWaiting(false)
-      }
+  // Payment via M-Pesa STK Push
+  async function handleMpesaPayment() {
+    if (payingRef.current) return
+    if (!localCheckIn || !localCheckOut) {
+      setSubmitError('Please select your check-in and check-out dates first.')
+      return
     }
-  
+    if (!mpesaPhone.trim()) {
+      setSubmitError('Enter your M-Pesa phone number.')
+      return
+    }
+
+    payingRef.current = true
+    setPayingViaGateway(true)
+    setSubmitError('')
+    try {
+      const { checkout_request_id } = await apiFetch<{ checkout_request_id: string }>('/payments/mpesa/initiate', {
+        method: 'POST',
+        body: JSON.stringify({
+          listing_id: listing!.id,
+          guests,
+          check_in: toDateStr(localCheckIn!),
+          check_out: toDateStr(localCheckOut!),
+          phone: mpesaPhone.trim(),
+        }),
+      })
+
+      setMpesaWaiting(true)
+
+      const deadline = Date.now() + 90000
+      const poll = async (): Promise<void> => {
+        if (Date.now() > deadline) {
+          throw new Error('Payment timed out. Please check your phone or try again.')
+        }
+        const result = await apiFetch<{ status: string; booking_id: number | null; message: string | null }>(
+          `/payments/mpesa/status/${checkout_request_id}`
+        )
+        if (result.status === 'success') {
+          if (message.trim()) {
+            await apiFetch(`/vendors/${listing!.vendor.id}/messages`, {
+              method: 'POST',
+              body: JSON.stringify({ text: message.trim(), listing_id: listing!.id }),
+            }).catch(() => { })
+          }
+          router.replace(`/listings/stays/${id}/book/success`)
+          return
+        }
+        if (result.status === 'failed') {
+          throw new Error(result.message || 'M-Pesa payment was not completed.')
+        }
+        await new Promise(r => setTimeout(r, 3000))
+        return poll()
+      }
+
+      await poll()
+    } catch (err) {
+      setSubmitError(apiErrorMessage(err))
+    } finally {
+      payingRef.current = false
+      setPayingViaGateway(false)
+      setMpesaWaiting(false)
+    }
+  }
+
 
   function goBack() {
     if (step === 'review') router.back()
@@ -826,12 +830,48 @@ function StayBookingPageContent({ params }: Props) {
               </div>
             )}
 
-            <div className="border border-gray-200 rounded-2xl p-4 mb-5">
-              <p className="text-sm font-semibold text-[#1a1a1a] mb-1">Secure payment via Paystack</p>
-              <p className="text-xs text-gray-500 leading-relaxed">
-                You&apos;ll be able to pay by card or M-Pesa in a secure popup. We never see or store your card details.
-              </p>
+            <div className="flex gap-2 mb-5">
+              <button onClick={() => setPaymentMethod('card')}
+                className={`flex-1 py-3 rounded-xl text-sm font-semibold border transition-colors
+                  ${paymentMethod === 'card' ? 'bg-[#2c4a1e] text-white border-[#2c4a1e]' : 'bg-white text-[#1a1a1a] border-gray-200'}`}>
+                Card
+              </button>
+              <button onClick={() => setPaymentMethod('mpesa')}
+                className={`flex-1 py-3 rounded-xl text-sm font-semibold border transition-colors
+                  ${paymentMethod === 'mpesa' ? 'bg-[#2c4a1e] text-white border-[#2c4a1e]' : 'bg-white text-[#1a1a1a] border-gray-200'}`}>
+                M-Pesa
+              </button>
             </div>
+
+            {paymentMethod === 'card' ? (
+              <div className="border border-gray-200 rounded-2xl p-4 mb-5">
+                <p className="text-sm font-semibold text-[#1a1a1a] mb-1">Secure payment via Paystack</p>
+                <p className="text-xs text-gray-500 leading-relaxed">
+                  You&apos;ll be able to pay by card in a secure popup. We never see or store your card details.
+                </p>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-3 mb-5">
+                <div>
+                  <p className="text-xs text-gray-500 mb-1">M-Pesa phone number</p>
+                  <input value={mpesaPhone}
+                    onChange={(e) => setMpesaPhone(e.target.value.replace(/[^\d+\s]/g, ''))}
+                    placeholder="07XX XXX XXX" inputMode="tel" autoComplete="tel" maxLength={13}
+                    disabled={mpesaWaiting}
+                    className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm
+                               text-[#1a1a1a] outline-none focus:border-[#2c4a1e] transition-colors disabled:opacity-60" />
+                </div>
+                {mpesaWaiting ? (
+                  <p className="text-xs text-[#2c4a1e] font-medium">
+                    Check your phone and enter your M-Pesa PIN to complete payment…
+                  </p>
+                ) : (
+                  <p className="text-xs text-gray-500">
+                    You&apos;ll receive an M-Pesa prompt on this number to complete the payment.
+                  </p>
+                )}
+              </div>
+            )}
 
             <div className="flex items-center gap-2 mb-4 p-3 bg-gray-50 rounded-xl">
               <Shield size={16} color="#2c4a1e" />
@@ -841,8 +881,6 @@ function StayBookingPageContent({ params }: Props) {
             </div>
           </>
         )}
-
-
 
       </div>
 
@@ -882,15 +920,18 @@ function StayBookingPageContent({ params }: Props) {
           ) : step === 'payment' ? (
             <>
               <button
-                onClick={handlePaystackPayment}
+                onClick={paymentMethod === 'card' ? handlePaystackPayment : handleMpesaPayment}
                 disabled={payingViaGateway}
                 className="w-full bg-[#2c4a1e] text-white py-4 rounded-2xl font-bold
                                    text-sm hover:bg-[#3d6b28] transition-colors
                                    disabled:opacity-40 disabled:cursor-not-allowed"
                 style={{ WebkitTapHighlightColor: 'transparent' }}
               >
-                {payingViaGateway ? 'Processing…' : `Pay Ksh ${grandTotal.toLocaleString()}`}
+                {payingViaGateway
+                  ? (mpesaWaiting ? 'Check your phone…' : 'Processing…')
+                  : `Pay Ksh ${grandTotal.toLocaleString()}`}
               </button>
+
               <p className="text-xs text-gray-400 text-center mt-3 leading-relaxed">
                 By tapping, I agree to the{' '}
                 <button className="underline text-[#1a1a1a]">booking terms</button>

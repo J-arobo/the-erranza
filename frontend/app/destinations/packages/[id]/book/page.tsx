@@ -49,6 +49,12 @@ function PackageBookingPageContent({ params }: Props) {
   // Booking creation & payment
   const [payingViaGateway, setPayingViaGateway] = useState(false)
   const payingRef = useRef(false)
+  // Payment method selection
+  const [paymentMethod, setPaymentMethod] = useState<'card' | 'mpesa'>('card')
+  const [mpesaPhone, setMpesaPhone] = useState('')
+  const [mpesaWaiting, setMpesaWaiting] = useState(false)
+  // Sheets
+  const [showPaymentMethodSheet, setShowPaymentMethodSheet] = useState(false)
 
   const [showGuestSheet, setShowGuestSheet] = useState(false)
   const [adults, setAdults] = useState(() => Number(searchParams.get('adults')) || 1)
@@ -193,6 +199,63 @@ function PackageBookingPageContent({ params }: Props) {
       setPayingViaGateway(false)
     }
   }
+
+  async function handleMpesaPayment() {
+    if (payingRef.current) return
+    if (!selectedDeparture) {
+      setSubmitError('Please select a departure date first.')
+      return
+    }
+    if (!mpesaPhone.trim()) {
+      setSubmitError('Enter your M-Pesa phone number.')
+      return
+    }
+
+    payingRef.current = true
+    setPayingViaGateway(true)
+    setSubmitError('')
+    try {
+      const { checkout_request_id } = await apiFetch<{ checkout_request_id: string }>('/payments/mpesa/initiate', {
+        method: 'POST',
+        body: JSON.stringify({
+          listing_id: pkg!.id,
+          guests,
+          phone: mpesaPhone.trim(),
+          departure_id: selectedDeparture,
+        }),
+      })
+
+      setMpesaWaiting(true)
+
+      const deadline = Date.now() + 90000
+      const poll = async (): Promise<void> => {
+        if (Date.now() > deadline) {
+          throw new Error('Payment timed out. Please check your phone or try again.')
+        }
+        const result = await apiFetch<{ status: string; booking_id: number | null; message: string | null }>(
+          `/payments/mpesa/status/${checkout_request_id}`
+        )
+        if (result.status === 'success') {
+          router.replace(`/destinations/packages/${id}/book/success`)
+          return
+        }
+        if (result.status === 'failed') {
+          throw new Error(result.message || 'M-Pesa payment was not completed.')
+        }
+        await new Promise(r => setTimeout(r, 3000))
+        return poll()
+      }
+
+      await poll()
+    } catch (err) {
+      setSubmitError(apiErrorMessage(err))
+    } finally {
+      payingRef.current = false
+      setPayingViaGateway(false)
+      setMpesaWaiting(false)
+    }
+  }
+
 
   function goBack() {
     if (step === 'review') router.back()
@@ -406,10 +469,11 @@ function PackageBookingPageContent({ params }: Props) {
               <ChevronRight size={16} color="#aaa" />
             </button>
 
-            <button className="w-full flex items-center justify-between p-4 border border-gray-200 rounded-2xl mb-5 hover:bg-gray-50 transition-colors">
+            <button onClick={() => setShowPaymentMethodSheet(true)}
+              className="w-full flex items-center justify-between p-4 border border-gray-200 rounded-2xl mb-5 hover:bg-gray-50 transition-colors">
               <div className="text-left">
                 <p className="text-sm font-semibold text-[#1a1a1a]">Payment method</p>
-                <p className="text-sm text-gray-400">Credit or Debit Card</p>
+                <p className="text-sm text-gray-400">{paymentMethod === 'card' ? 'Credit or Debit Card' : 'M-Pesa'}</p>
               </div>
               <ChevronRight size={16} color="#aaa" />
             </button>
@@ -452,12 +516,48 @@ function PackageBookingPageContent({ params }: Props) {
               </div>
             )}
 
-            <div className="border border-gray-200 rounded-2xl p-4 mb-5">
-              <p className="text-sm font-semibold text-[#1a1a1a] mb-1">Secure payment via Paystack</p>
-              <p className="text-xs text-gray-500 leading-relaxed">
-                You&apos;ll be able to pay by card or M-Pesa in a secure popup. We never see or store your card details.
-              </p>
+            <div className="flex gap-2 mb-5">
+              <button onClick={() => setPaymentMethod('card')}
+                className={`flex-1 py-3 rounded-xl text-sm font-semibold border transition-colors
+                  ${paymentMethod === 'card' ? 'bg-[#2c4a1e] text-white border-[#2c4a1e]' : 'bg-white text-[#1a1a1a] border-gray-200'}`}>
+                Card
+              </button>
+              <button onClick={() => setPaymentMethod('mpesa')}
+                className={`flex-1 py-3 rounded-xl text-sm font-semibold border transition-colors
+                  ${paymentMethod === 'mpesa' ? 'bg-[#2c4a1e] text-white border-[#2c4a1e]' : 'bg-white text-[#1a1a1a] border-gray-200'}`}>
+                M-Pesa
+              </button>
             </div>
+
+            {paymentMethod === 'card' ? (
+              <div className="border border-gray-200 rounded-2xl p-4 mb-5">
+                <p className="text-sm font-semibold text-[#1a1a1a] mb-1">Secure payment via Paystack</p>
+                <p className="text-xs text-gray-500 leading-relaxed">
+                  You&apos;ll be able to pay by card in a secure popup. We never see or store your card details.
+                </p>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-3 mb-5">
+                <div>
+                  <p className="text-xs text-gray-500 mb-1">M-Pesa phone number</p>
+                  <input value={mpesaPhone}
+                    onChange={(e) => setMpesaPhone(e.target.value.replace(/[^\d+\s]/g, ''))}
+                    placeholder="07XX XXX XXX" inputMode="tel" autoComplete="tel" maxLength={13}
+                    disabled={mpesaWaiting}
+                    className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm
+                               text-[#1a1a1a] outline-none focus:border-[#2c4a1e] transition-colors disabled:opacity-60" />
+                </div>
+                {mpesaWaiting ? (
+                  <p className="text-xs text-[#2c4a1e] font-medium">
+                    Check your phone and enter your M-Pesa PIN to complete payment…
+                  </p>
+                ) : (
+                  <p className="text-xs text-gray-500">
+                    You&apos;ll receive an M-Pesa prompt on this number to complete the payment.
+                  </p>
+                )}
+              </div>
+            )}
 
             <div className="flex items-center gap-2 mb-5 p-3 bg-gray-50 rounded-xl">
               <Shield size={16} color="#2c4a1e" />
@@ -500,15 +600,18 @@ function PackageBookingPageContent({ params }: Props) {
           ) : step === 'payment' ? (
             <>
               <button
-                onClick={handlePaystackPayment}
+                onClick={paymentMethod === 'card' ? handlePaystackPayment : handleMpesaPayment}
                 disabled={payingViaGateway}
                 className="w-full bg-[#2c4a1e] text-white py-4 rounded-2xl font-bold
                                      text-sm hover:bg-[#3d6b28] transition-colors
                                      disabled:opacity-40 disabled:cursor-not-allowed"
                 style={{ WebkitTapHighlightColor: 'transparent' }}
               >
-                {payingViaGateway ? 'Processing…' : `Pay Ksh ${Math.round(finalTotal).toLocaleString()}`}
+                {payingViaGateway
+                  ? (mpesaWaiting ? 'Check your phone…' : 'Processing…')
+                  : `Pay Ksh ${Math.round(finalTotal).toLocaleString()}`}
               </button>
+
               <p className="text-xs text-gray-400 text-center mt-3 leading-relaxed">
                 By tapping, I agree to the{' '}
                 <button className="underline text-[#1a1a1a]">booking terms</button>
@@ -531,6 +634,36 @@ function PackageBookingPageContent({ params }: Props) {
 
       {/* ── Paystack script── */}
       <Script src="https://js.paystack.co/v1/inline.js" strategy="afterInteractive" />
+
+      {/* ── PAYMENT METHOD SHEET ── */}
+      {showPaymentMethodSheet && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
+          style={{ background: 'rgba(0,0,0,0.4)' }}
+          onClick={(e) => { if (e.target === e.currentTarget) setShowPaymentMethodSheet(false) }}>
+          <div className="bg-white w-full sm:max-w-sm rounded-t-3xl sm:rounded-2xl p-6">
+            <h2 className="text-lg font-bold text-[#1a1a1a] mb-4">Payment method</h2>
+            <div className="flex flex-col gap-2 mb-5">
+              <label className={`flex items-center justify-between p-4 rounded-xl border cursor-pointer
+                ${paymentMethod === 'card' ? 'border-[#2c4a1e] bg-[#F1F5E4]' : 'border-gray-200'}`}>
+                <p className="text-sm font-semibold text-[#1a1a1a]">Credit or Debit Card</p>
+                <input type="radio" name="paymentMethodChoice" checked={paymentMethod === 'card'}
+                  onChange={() => setPaymentMethod('card')} className="w-4 h-4 accent-[#2c4a1e]" />
+              </label>
+              <label className={`flex items-center justify-between p-4 rounded-xl border cursor-pointer
+                ${paymentMethod === 'mpesa' ? 'border-[#2c4a1e] bg-[#F1F5E4]' : 'border-gray-200'}`}>
+                <p className="text-sm font-semibold text-[#1a1a1a]">M-Pesa</p>
+                <input type="radio" name="paymentMethodChoice" checked={paymentMethod === 'mpesa'}
+                  onChange={() => setPaymentMethod('mpesa')} className="w-4 h-4 accent-[#2c4a1e]" />
+              </label>
+            </div>
+            <button onClick={() => setShowPaymentMethodSheet(false)}
+              className="w-full py-3 rounded-xl bg-[#2c4a1e] text-white text-sm font-semibold hover:bg-[#3d6b28] transition-colors">
+              Done
+            </button>
+          </div>
+        </div>
+      )}
+
 
       {/* ── GUEST CHANGE SHEET ── */}
       {showGuestSheet && (
