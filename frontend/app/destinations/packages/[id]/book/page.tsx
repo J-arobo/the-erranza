@@ -49,6 +49,8 @@ function PackageBookingPageContent({ params }: Props) {
   // Booking creation & payment
   const [payingViaGateway, setPayingViaGateway] = useState(false)
   const payingRef = useRef(false)
+  // Mpesa STK cancellation button
+  const mpesaCancelRef = useRef(false)
   // Payment method selection
   const [paymentMethod, setPaymentMethod] = useState<'card' | 'mpesa'>('card')
   const [mpesaPhone, setMpesaPhone] = useState('')
@@ -73,6 +75,13 @@ function PackageBookingPageContent({ params }: Props) {
     setReachedBottom(!!el && el.scrollHeight - el.clientHeight < 60)
   }, [step])
 
+  useEffect(() => {
+    function handlePageShow(event: PageTransitionEvent) {
+      if (event.persisted) window.location.reload()
+    }
+    window.addEventListener('pageshow', handlePageShow)
+    return () => window.removeEventListener('pageshow', handlePageShow)
+  }, [])
 
   const guests = adults + children
 
@@ -174,7 +183,7 @@ function PackageBookingPageContent({ params }: Props) {
         channels: ['card'],
         ref: reference,
         callback: (response: { reference: string }) => {
-          apiFetch('/bookings/verify-and-create', {
+          apiFetch<{ booking: { id: number } }>('/bookings/verify-and-create', {
             method: 'POST',
             body: JSON.stringify({
               reference: response.reference,
@@ -183,7 +192,7 @@ function PackageBookingPageContent({ params }: Props) {
               departure_id: selectedDeparture,
             }),
           })
-            .then(() => router.replace(`/destinations/packages/${id}/book/success`))
+            .then(({ booking }) => router.replace(`/destinations/packages/${id}/book/success?booking=${booking.id}`))
             .catch((err) => setSubmitError(apiErrorMessage(err)))
             .finally(() => { payingRef.current = false; setPayingViaGateway(false) })
         },
@@ -212,6 +221,7 @@ function PackageBookingPageContent({ params }: Props) {
     }
 
     payingRef.current = true
+    mpesaCancelRef.current = false
     setPayingViaGateway(true)
     setSubmitError('')
     try {
@@ -227,33 +237,40 @@ function PackageBookingPageContent({ params }: Props) {
 
       setMpesaWaiting(true)
 
-      const deadline = Date.now() + 90000
+      const deadline = Date.now() + 45000
       const poll = async (): Promise<void> => {
+        if (mpesaCancelRef.current) return
         if (Date.now() > deadline) {
-          throw new Error('Payment timed out. Please check your phone or try again.')
+          throw new Error('This is taking longer than expected. Check your phone — if you weren\'t charged, please try again.')
         }
         const result = await apiFetch<{ status: string; booking_id: number | null; message: string | null }>(
           `/payments/mpesa/status/${checkout_request_id}`
         )
+        if (mpesaCancelRef.current) return
         if (result.status === 'success') {
-          router.replace(`/destinations/packages/${id}/book/success`)
+          router.replace(`/destinations/packages/${id}/book/success?booking=${result.booking_id}`)
           return
         }
         if (result.status === 'failed') {
           throw new Error(result.message || 'M-Pesa payment was not completed.')
         }
-        await new Promise(r => setTimeout(r, 3000))
+        await new Promise(r => setTimeout(r, 2000))
         return poll()
       }
 
       await poll()
     } catch (err) {
-      setSubmitError(apiErrorMessage(err))
+      if (!mpesaCancelRef.current) setSubmitError(apiErrorMessage(err))
     } finally {
       payingRef.current = false
       setPayingViaGateway(false)
       setMpesaWaiting(false)
     }
+  }
+
+  function cancelMpesaWait() {
+    mpesaCancelRef.current = true
+    setSubmitError('Payment cancelled. You can try again or choose a different payment method.')
   }
 
 
@@ -548,10 +565,17 @@ function PackageBookingPageContent({ params }: Props) {
                                text-[#1a1a1a] outline-none focus:border-[#2c4a1e] transition-colors disabled:opacity-60" />
                 </div>
                 {mpesaWaiting ? (
-                  <p className="text-xs text-[#2c4a1e] font-medium">
-                    Check your phone and enter your M-Pesa PIN to complete payment…
-                  </p>
+                  <div className="flex flex-col gap-2">
+                    <p className="text-xs text-[#2c4a1e] font-medium">
+                      Check your phone and enter your M-Pesa PIN to complete payment…
+                    </p>
+                    <button type="button" onClick={cancelMpesaWait}
+                      className="text-xs text-gray-500 underline self-start">
+                      Taking too long? Cancel and try again
+                    </button>
+                  </div>
                 ) : (
+
                   <p className="text-xs text-gray-500">
                     You&apos;ll receive an M-Pesa prompt on this number to complete the payment.
                   </p>
@@ -720,7 +744,7 @@ function PackageBookingPageContent({ params }: Props) {
               You&apos;ll need to log in or create an account before you can book this package.
             </p>
             <div className="flex gap-2">
-              <button onClick={() => router.push(`/login?redirect=${encodeURIComponent(`/destinations/packages/${id}/book${searchParams.toString() ? '?' + searchParams.toString() : ''}`)}`)}
+              <button onClick={() => router.push(`/signup?redirect=${encodeURIComponent(`/destinations/packages/${id}/book${searchParams.toString() ? '?' + searchParams.toString() : ''}`)}`)}
                 className="flex-1 py-3 rounded-xl border border-gray-200 text-sm font-semibold text-[#1a1a1a] hover:bg-gray-50 transition-colors">
                 Create account
               </button>

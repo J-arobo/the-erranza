@@ -119,6 +119,18 @@ export default function TripDetailPage({ params }: Props) {
   const image = listing.images[0]?.url ?? 'https://images.unsplash.com/photo-1547471080-7cc2caa01a7e?w=800&q=80'
   const canCancel = booking.status === 'pending' || booking.status === 'confirmed' || booking.status === 'alternative_proposed'
 
+  const checkInDate = booking.check_in
+  const checkOutDate = booking.check_out
+  const guestCount = booking.guests
+
+  function handleMessageHost() {
+    const checkIn = checkInDate ? new Date(checkInDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : null
+    const checkOut = checkOutDate ? new Date(checkOutDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : null
+    const dates = checkIn ? (checkOut ? `${checkIn} – ${checkOut}` : checkIn) : null
+    const text = `Hi! I just booked "${listing.title}" for ${guestCount} guest${guestCount === 1 ? '' : 's'}${dates ? ` (${dates})` : ''}. Looking forward to it!`
+    router.push(`/messages?vendor=${listing.vendor.id}&listing=${listing.id}&text=${encodeURIComponent(text)}`)
+  }
+
   let cancelWindowText = ''
   if (booking.check_in) {
     const checkIn = new Date(booking.check_in)
@@ -275,8 +287,8 @@ export default function TripDetailPage({ params }: Props) {
         )}
 
         <div className="flex flex-col gap-3 mt-6">
-          <button
-            onClick={() => router.push(`/messages?booking=${booking.id}`)}
+        <button
+            onClick={handleMessageHost}
             className="w-full flex items-center justify-center gap-2 border border-[#1a1a1a] text-[#1a1a1a] py-3.5 rounded-xl font-semibold text-sm hover:bg-gray-50 transition-colors"
           >
             <MessageCircle size={16} /> Message host

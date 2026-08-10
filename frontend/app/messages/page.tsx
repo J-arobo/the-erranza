@@ -361,15 +361,18 @@ function MessagesPageContent() {
   useEffect(() => {
     const v = searchParams.get('vendor')
     const l = searchParams.get('listing')
+    const t = searchParams.get('text')
     if (v) setActiveVendorId(Number(v))
     if (l) setContextListingId(Number(l))
+    if (t) setReply(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams])
 
   const [activeThread, setActiveThread] = useState<ThreadDetail | null>(null)
   const [threadLoading, setThreadLoading] = useState(false)
 
-  const [reply, setReply] = useState('')
+  const [reply, setReply] = useState(() => searchParams.get('text') ?? '')
+
   const [sending, setSending] = useState(false)
   const [showSearch, setShowSearch] = useState(false)
   const [search, setSearch] = useState('')

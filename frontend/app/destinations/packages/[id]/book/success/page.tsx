@@ -1,12 +1,41 @@
 'use client'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Check } from 'lucide-react'
-import { Suspense } from 'react'
+import { Suspense, useEffect, useState } from 'react'
+import { apiFetch } from '@/lib/api'
+
+type BookingSummary = {
+  guests: number
+  check_in: string | null
+  check_out: string | null
+  listing: { id: number; title: string; vendor: { id: number } }
+}
+
+function formatShort(v: string | null) {
+  return v ? new Date(v).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : null
+}
 
 function PackageBookingSuccessPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const bookingId = searchParams.get('booking')
+  const [booking, setBooking] = useState<BookingSummary | null>(null)
+
+  useEffect(() => {
+    if (!bookingId) return
+    apiFetch<{ booking: BookingSummary }>(`/bookings/${bookingId}`)
+      .then(({ booking }) => setBooking(booking))
+      .catch(() => { })
+  }, [bookingId])
+
+  function handleMessageOperator() {
+    if (!booking) { router.push('/messages'); return }
+    const checkIn = formatShort(booking.check_in)
+    const checkOut = formatShort(booking.check_out)
+    const dates = checkIn ? (checkOut ? `${checkIn} – ${checkOut}` : checkIn) : null
+    const text = `Hi! I just booked "${booking.listing.title}" for ${booking.guests} guest${booking.guests === 1 ? '' : 's'}${dates ? ` (${dates})` : ''}. Looking forward to it!`
+    router.push(`/messages?vendor=${booking.listing.vendor.id}&listing=${booking.listing.id}&text=${encodeURIComponent(text)}`)
+  }
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-white
@@ -30,7 +59,7 @@ function PackageBookingSuccessPageContent() {
           View my trips
         </button>
         <button
-          onClick={() => router.push(bookingId ? `/messages?booking=${bookingId}` : '/messages')}
+          onClick={handleMessageOperator}
           className="w-full border border-[#1a1a1a] text-[#1a1a1a] px-8 py-3.5 rounded-xl
                      font-semibold text-sm hover:bg-gray-50 transition-colors"
         >

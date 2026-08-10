@@ -320,7 +320,7 @@ function DesktopCalendar({ selected, onSelect, stacked = false }: {
 }
 
 export default function VendorDetailPage({ params }: Props) {
-  const { vendorId } = use(params)
+  const { id, vendorId } = use(params)
   const router = useRouter()
   const { isLoggedIn } = useAuth()
 
@@ -1460,11 +1460,11 @@ export default function VendorDetailPage({ params }: Props) {
               You&apos;ll need to log in or create an account before you can message the tour operator.
             </p>
             <div className="flex gap-2">
-              <button onClick={() => router.push(`/login?redirect=${encodeURIComponent(`/listings/${vendorId}/vendor/${vendorId}`)}`)}
+              <button onClick={() => router.push(`/signup?redirect=${encodeURIComponent(`/listings/${id}/vendor/${vendorId}`)}`)}
                 className="flex-1 py-3 rounded-xl border border-gray-200 text-sm font-semibold text-[#1a1a1a] hover:bg-gray-50 transition-colors">
                 Create account
               </button>
-              <button onClick={() => router.push(`/login?redirect=${encodeURIComponent(`/listings/${vendorId}/vendor/${vendorId}`)}`)}
+              <button onClick={() => router.push(`/login?redirect=${encodeURIComponent(`/listings/${id}/vendor/${vendorId}`)}`)}
                 className="flex-1 py-3 rounded-xl bg-[#1a1a1a] text-white text-sm font-semibold hover:bg-[#333] transition-colors">
                 Log in
               </button>

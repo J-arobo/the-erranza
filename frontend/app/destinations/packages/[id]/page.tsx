@@ -1087,7 +1087,7 @@ export default function PackageDetailPage({ params }: Props) {
               You&apos;ll need to log in or create an account before you can message the tour operator.
             </p>
             <div className="flex gap-2">
-              <button onClick={() => router.push(`/login?redirect=${encodeURIComponent(`/destinations/packages/${id}`)}`)}
+              <button onClick={() => router.push(`/signup?redirect=${encodeURIComponent(`/destinations/packages/${id}`)}`)}
                 className="flex-1 py-3 rounded-xl border border-gray-200 text-sm font-semibold text-[#1a1a1a] hover:bg-gray-50 transition-colors">
                 Create account
               </button>

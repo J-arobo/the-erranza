@@ -1795,7 +1795,8 @@ export default function StayDetailPage({ params }: Props) {
                       You&apos;ll need to log in or create an account before you can message the host.
                     </p>
                     <div className="flex gap-2">
-                      <button onClick={() => router.push(`/login?redirect=${encodeURIComponent(`/listings/stays/${id}`)}`)}
+                    <div className="flex gap-2">
+                      <button onClick={() => router.push(`/signup?redirect=${encodeURIComponent(`/listings/stays/${id}`)}`)}
                         className="flex-1 py-3 rounded-xl border border-gray-200 text-sm font-semibold text-[#1a1a1a] hover:bg-gray-50 transition-colors">
                         Create account
                       </button>
@@ -1803,6 +1804,7 @@ export default function StayDetailPage({ params }: Props) {
                         className="flex-1 py-3 rounded-xl bg-[#1a1a1a] text-white text-sm font-semibold hover:bg-[#333] transition-colors">
                         Log in
                       </button>
+                    </div>
                     </div>
                   </div>
                 </div>
