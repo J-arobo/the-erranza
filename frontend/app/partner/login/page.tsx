@@ -3,7 +3,7 @@ import { Suspense, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/context/AuthContext'
 import { ApiError, apiErrorMessage } from '@/lib/api'
-import { Eye, EyeOff } from 'lucide-react'
+import { Eye, EyeOff, ArrowLeft } from 'lucide-react'
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -57,7 +57,11 @@ function PartnerLoginInner() {
   return (
     <div className="min-h-screen bg-white flex flex-col">
 
-      <div className="px-6 sm:px-8 py-4 border-b border-gray-200 flex items-center">
+      <div className="px-6 sm:px-8 py-4 border-b border-gray-200 flex items-center gap-3">
+        <button onClick={() => router.back()} className="text-gray-400 hover:text-gray-600"
+          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+          <ArrowLeft size={20} />
+        </button>
         <span
           onClick={() => router.push('/')}
           className="text-[var(--dark-green)] text-41 font-bold text-buenard tracking-tight cursor-pointer"
@@ -65,6 +69,7 @@ function PartnerLoginInner() {
           Erranza
         </span>
       </div>
+
 
       <div className="flex-1 flex items-start justify-center px-4 py-8 sm:py-12">
         <div className="w-full max-w-[480px]">

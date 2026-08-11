@@ -144,6 +144,7 @@ function BookingPageContent({ params }: Props) {
 
   const [step, setStep] = useState<Step>('review')
   const [payMode, setPayMode] = useState<'full' | 'instalments'>('full')
+  const [showPayModeSheet, setShowPayModeSheet] = useState(false)
   const [message, setMessage] = useState('')
   const [insurance, setInsurance] = useState(false)
   // Booking created after confirm step, used for payment
@@ -201,6 +202,11 @@ function BookingPageContent({ params }: Props) {
       .finally(() => setLoading(false))
   })
 
+  //Clamp - guest minimum to be shown early
+  useEffect(() => {
+    if (listing?.min_guests && guests < listing.min_guests) setGuests(listing.min_guests)
+  }, [listing])
+
 
   if (loading) {
     return (
@@ -246,7 +252,7 @@ function BookingPageContent({ params }: Props) {
   const guideName = listing.vendor.business_name
   const rating = listing.reviews_avg_rating ? Number(listing.reviews_avg_rating).toFixed(2) : '4.50'
   // Payment
-  const dateReady = usesDepartures ? !!selectedDepartureId : !!(selectedCheckIn && selectedCheckOut)
+  const dateReady = usesDepartures ? !!selectedDepartureId : !!selectedCheckIn
 
   function handleSheetCalSelect(date: Date) {
     if (!sheetCheckIn || (sheetCheckIn && sheetCheckOut)) {
@@ -265,8 +271,12 @@ function BookingPageContent({ params }: Props) {
     }
     if (step === 'message') { setStep('confirm'); return }
     if (step === 'confirm') {
-      if (usesDepartures ? !selectedDepartureId : !(selectedCheckIn && selectedCheckOut)) {
+      if (usesDepartures ? !selectedDepartureId : !selectedCheckIn) {
         setSubmitError('Please select your tour dates first.')
+        return
+      }
+      if (listing!.min_guests && guests < listing!.min_guests) {
+        setSubmitError(`This tour requires a minimum of ${listing!.min_guests} guests.`)
         return
       }
       setSubmitError('')
@@ -277,7 +287,7 @@ function BookingPageContent({ params }: Props) {
 
   async function handlePaystackPayment() {
     if (payingRef.current) return
-    if (usesDepartures ? !selectedDepartureId : !(selectedCheckIn && selectedCheckOut)) {
+    if (usesDepartures ? !selectedDepartureId : !selectedCheckIn) {
       setSubmitError('Please select your tour dates first.')
       return
     }
@@ -288,7 +298,7 @@ function BookingPageContent({ params }: Props) {
     try {
       const bookingParams = usesDepartures
         ? { departure_id: selectedDepartureId }
-        : { check_in: toDateStr(selectedCheckIn!), check_out: toDateStr(selectedCheckOut!) }
+        : { check_in: toDateStr(selectedCheckIn!), check_out: selectedCheckOut ? toDateStr(selectedCheckOut) : null }
 
       const { reference, amount, email } = await apiFetch<{ reference: string; amount: number; email: string }>(
         '/payments/initialize',
@@ -338,7 +348,7 @@ function BookingPageContent({ params }: Props) {
             })
             .catch((err) => setSubmitError(apiErrorMessage(err)))
             .finally(() => { payingRef.current = false; setPayingViaGateway(false) })
-          },
+        },
         onClose: () => {
           payingRef.current = false
           setPayingViaGateway(false)
@@ -354,7 +364,7 @@ function BookingPageContent({ params }: Props) {
 
   async function handleMpesaPayment() {
     if (payingRef.current) return
-    if (usesDepartures ? !selectedDepartureId : !(selectedCheckIn && selectedCheckOut)) {
+    if (usesDepartures ? !selectedDepartureId : !selectedCheckIn) {
       setSubmitError('Please select your tour dates first.')
       return
     }
@@ -370,7 +380,7 @@ function BookingPageContent({ params }: Props) {
     try {
       const bookingParams = usesDepartures
         ? { departure_id: selectedDepartureId }
-        : { check_in: toDateStr(selectedCheckIn!), check_out: toDateStr(selectedCheckOut!) }
+        : { check_in: toDateStr(selectedCheckIn!), check_out: selectedCheckOut ? toDateStr(selectedCheckOut) : null }
 
       const { checkout_request_id } = await apiFetch<{ checkout_request_id: string }>('/payments/mpesa/initiate', {
         method: 'POST',
@@ -514,14 +524,14 @@ function BookingPageContent({ params }: Props) {
         ) : (
           <div>
             <p className="text-sm font-semibold text-[#1a1a1a] mb-0.5">
-              {selectedCheckIn && !selectedCheckOut ? 'Select checkout date' : 'Tour dates'}
+              Tour dates
             </p>
             <div className="flex items-center justify-between gap-2">
               <p className="text-sm text-gray-500">
                 {selectedCheckIn && selectedCheckOut
                   ? `${formatDisplayDate(selectedCheckIn)} – ${formatDisplayDate(selectedCheckOut)}`
                   : selectedCheckIn
-                    ? `Check-in ${formatDisplayDate(selectedCheckIn)} — now choose checkout`
+                    ? `${formatDisplayDate(selectedCheckIn)} · 1 day`
                     : 'Add dates'}
               </p>
               <button
@@ -555,6 +565,10 @@ function BookingPageContent({ params }: Props) {
             >+</button>
           </div>
         </div>
+        {listing.min_guests ? (
+          <p className="text-xs text-gray-400 -mt-2">Minimum {listing.min_guests} guests for this tour.</p>
+        ) : null}
+
 
         {/* Price */}
         <div className="flex items-center justify-between">
@@ -745,7 +759,8 @@ function BookingPageContent({ params }: Props) {
             )}
 
             {/* How you'll pay */}
-            <button className="w-full flex items-center justify-between p-4 border
+            <button onClick={() => setShowPayModeSheet(true)}
+              className="w-full flex items-center justify-between p-4 border
                                border-gray-200 rounded-2xl mb-3 hover:bg-gray-50 transition-colors">
               <div className="text-left">
                 <p className="text-sm font-semibold text-[#1a1a1a]">How you'll pay</p>
@@ -757,6 +772,7 @@ function BookingPageContent({ params }: Props) {
               </div>
               <ChevronRight size={16} color="#aaa" />
             </button>
+
 
             {/* Payment method */}
             <button onClick={() => setShowPaymentMethodSheet(true)}
@@ -849,14 +865,21 @@ function BookingPageContent({ params }: Props) {
                                text-[#1a1a1a] outline-none focus:border-[#1a1a1a] transition-colors disabled:opacity-60" />
                 </div>
                 {mpesaWaiting ? (
-                  <p className="text-xs text-[#1a1a1a] font-medium">
-                    Check your phone and enter your M-Pesa PIN to complete payment…
-                  </p>
+                  <div className="flex flex-col gap-2">
+                    <p className="text-xs text-[#1a1a1a] font-medium">
+                      Check your phone and enter your M-Pesa PIN. Don&apos;t refresh or close this page — we&apos;ll confirm automatically once you approve it.
+                    </p>
+                    <button type="button" onClick={cancelMpesaWait}
+                      className="text-xs text-gray-500 underline self-start">
+                      Taking too long? Cancel and try again
+                    </button>
+                  </div>
                 ) : (
                   <p className="text-xs text-gray-500">
                     You&apos;ll receive an M-Pesa prompt on this number to complete the payment.
                   </p>
                 )}
+
               </div>
             )}
 
@@ -944,7 +967,7 @@ function BookingPageContent({ params }: Props) {
           <div className="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl p-6 h-[85vh] sm:h-auto sm:max-h-[90vh] flex flex-col">
             <div className="flex items-center justify-between mb-1">
               <h2 className="text-lg font-bold text-[#1a1a1a]">
-                {sheetCheckIn && !sheetCheckOut ? 'Select checkout date' : 'Choose tour dates'}
+                Choose tour dates
               </h2>
               <button onClick={() => setShowDateSheet(false)}
                 className="w-8 h-8 flex items-center justify-center rounded-full"
@@ -954,7 +977,8 @@ function BookingPageContent({ params }: Props) {
             </div>
             {sheetCheckIn && !sheetCheckOut && (
               <p className="text-sm text-gray-500 mb-3">
-                Check-in {formatDisplayDate(sheetCheckIn)} — now choose your checkout date
+                Check-in {formatDisplayDate(sheetCheckIn)} — this tour can run for just this one day,
+                or pick another date to book a longer trip.
               </p>
             )}
             {listing.min_lead_time_days ? (
@@ -972,38 +996,42 @@ function BookingPageContent({ params }: Props) {
                 Clear dates
               </button>
               <button onClick={() => { setSelectedCheckIn(sheetCheckIn); setSelectedCheckOut(sheetCheckOut); setShowDateSheet(false) }}
-                disabled={!sheetCheckIn || !sheetCheckOut}
+                disabled={!sheetCheckIn}
                 className="px-6 py-3 rounded-xl text-sm font-bold text-white disabled:opacity-40 disabled:cursor-not-allowed"
                 style={{ background: '#1a1a1a', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
-                Save
+                {sheetCheckIn && !sheetCheckOut ? 'Book for 1 day' : 'Save'}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* ── PAYMENT METHOD SHEET ── */}
-      {showPaymentMethodSheet && (
+      {/* ── HOW YOU'LL PAY SHEET ── */}
+      {showPayModeSheet && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
           style={{ background: 'rgba(0,0,0,0.4)' }}
-          onClick={(e) => { if (e.target === e.currentTarget) setShowPaymentMethodSheet(false) }}>
+          onClick={(e) => { if (e.target === e.currentTarget) setShowPayModeSheet(false) }}>
           <div className="bg-white w-full sm:max-w-sm rounded-t-3xl sm:rounded-2xl p-6">
-            <h2 className="text-lg font-bold text-[#1a1a1a] mb-4">Payment method</h2>
+            <h2 className="text-lg font-bold text-[#1a1a1a] mb-4">How you&apos;ll pay</h2>
             <div className="flex flex-col gap-2 mb-5">
               <label className={`flex items-center justify-between p-4 rounded-xl border cursor-pointer
-                ${paymentMethod === 'card' ? 'border-[#1a1a1a] bg-gray-50' : 'border-gray-200'}`}>
-                <p className="text-sm font-semibold text-[#1a1a1a]">Credit or Debit Card</p>
-                <input type="radio" name="paymentMethodChoice" checked={paymentMethod === 'card'}
-                  onChange={() => setPaymentMethod('card')} className="w-4 h-4 accent-[#1a1a1a]" />
+                ${payMode === 'full' ? 'border-[#1a1a1a] bg-gray-50' : 'border-gray-200'}`}>
+                <div>
+                  <p className="text-sm font-semibold text-[#1a1a1a]">Pay in full</p>
+                  <p className="text-xs text-gray-500">Ksh {totalPrice.toLocaleString()} now</p>
+                </div>
+                <input type="radio" name="payMode" checked={payMode === 'full'} onChange={() => setPayMode('full')} className="w-4 h-4 accent-[#1a1a1a]" />
               </label>
               <label className={`flex items-center justify-between p-4 rounded-xl border cursor-pointer
-                ${paymentMethod === 'mpesa' ? 'border-[#1a1a1a] bg-gray-50' : 'border-gray-200'}`}>
-                <p className="text-sm font-semibold text-[#1a1a1a]">M-Pesa</p>
-                <input type="radio" name="paymentMethodChoice" checked={paymentMethod === 'mpesa'}
-                  onChange={() => setPaymentMethod('mpesa')} className="w-4 h-4 accent-[#1a1a1a]" />
+                ${payMode === 'instalments' ? 'border-[#1a1a1a] bg-gray-50' : 'border-gray-200'}`}>
+                <div>
+                  <p className="text-sm font-semibold text-[#1a1a1a]">Pay in 3 instalments</p>
+                  <p className="text-xs text-gray-500">3 × Ksh {Math.round(totalPrice / 3).toLocaleString()}</p>
+                </div>
+                <input type="radio" name="payMode" checked={payMode === 'instalments'} onChange={() => setPayMode('instalments')} className="w-4 h-4 accent-[#1a1a1a]" />
               </label>
             </div>
-            <button onClick={() => setShowPaymentMethodSheet(false)}
+            <button onClick={() => setShowPayModeSheet(false)}
               className="w-full py-3 rounded-xl bg-[#1a1a1a] text-white text-sm font-semibold hover:bg-[#333] transition-colors">
               Done
             </button>

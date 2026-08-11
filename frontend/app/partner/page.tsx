@@ -1,6 +1,6 @@
 'use client'
 import { useRouter } from 'next/navigation'
-import { CheckCircle2, Briefcase, CreditCard } from 'lucide-react'
+import { CheckCircle2, Briefcase, CreditCard, ArrowLeft } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 
 const VALUE_PROPS = [
@@ -23,26 +23,33 @@ const VALUE_PROPS = [
 
 export default function PartnerLandingPage() {
   const router = useRouter()
-  const { isLoggedIn } = useAuth()
+  const { isLoggedIn, user } = useAuth()
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
 
       {/* Header */}
       <div className="px-6 sm:px-8 py-4 border-b border-gray-200 flex items-center justify-between">
-        <span
-          onClick={() => router.push('/')}
-          className="text-[var(--dark-green)] text-41 font-bold text-buenard tracking-tight cursor-pointer"
-        >
-          Erranza
-        </span>
+        <div className="flex items-center gap-3">
+          <button onClick={() => router.back()} className="text-gray-400 hover:text-gray-600"
+            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+            <ArrowLeft size={20} />
+          </button>
+          <span
+            onClick={() => router.push('/')}
+            className="text-[var(--dark-green)] text-41 font-bold text-buenard tracking-tight cursor-pointer"
+          >
+            Erranza
+          </span>
+        </div>
         <button
-          onClick={() => router.push(isLoggedIn ? '/partner/signup' : '/login?redirect=/vendor')}
+          onClick={() => router.push(isLoggedIn ? '/partner/signup' : '/partner/login')}
           className="text-sm font-semibold text-[#304333] hover:text-[#2c4a1e] transition-colors"
         >
           Sign in
         </button>
       </div>
+
 
       <div className="flex-1 flex items-start justify-center px-4 py-6 sm:py-10">
         <div className="w-full max-w-[568px]">
@@ -81,7 +88,6 @@ export default function PartnerLandingPage() {
               </div>
             ))}
           </div>
-
           {/* Value props */}
           <div className="flex flex-col divide-y divide-gray-100 mb-8">
             {VALUE_PROPS.map(({ Icon, title, description }) => (
@@ -97,19 +103,29 @@ export default function PartnerLandingPage() {
             ))}
           </div>
 
+          {isLoggedIn && user ? (
+            <p className="text-sm text-gray-500 mb-4 leading-relaxed">
+              You're logged in as <span className="font-semibold text-[#1a1a1a]">{user.name}</span>.
+              Continue to add partner access to this account, or{' '}
+              <button onClick={() => router.push('/login?redirect=/partner')} className="text-[#304333] font-semibold underline">
+                log in as someone else
+              </button> to create a separate one.
+            </p>
+          ) : null}
+
           <button
             onClick={() => router.push('/partner/signup')}
             className="w-full py-3.5 rounded-xl text-white text-sm font-semibold
                        transition-colors mb-4"
             style={{ background: 'linear-gradient(to right, #f98a66, #f36336)' }}
           >
-            Get started →
+            {isLoggedIn ? 'Continue with this account →' : 'Get started →'}
           </button>
 
           <p className="text-center text-sm text-gray-500">
             Already listing with us?{' '}
             <button
-              onClick={() => router.push('/login?redirect=/vendor')}
+              onClick={() => router.push('/partner/login')}
               className="text-[#304333] font-semibold underline"
             >
               Sign in

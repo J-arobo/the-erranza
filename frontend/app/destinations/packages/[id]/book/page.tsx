@@ -24,6 +24,8 @@ type ApiListingDetail = {
   images: { url: string }[]
   reviews_count: number
   departures: { id: number; date: string; capacity: number; booked: number }[]
+  min_guests: number | null
+  max_guests: number | null
 }
 
 function formatDate(iso: string) {
@@ -97,6 +99,12 @@ function PackageBookingPageContent({ params }: Props) {
       .finally(() => setLoading(false))
   }, [id])
 
+  // Guests show clamp
+  useEffect(() => {
+    if (pkg?.min_guests && adults < pkg.min_guests) setAdults(pkg.min_guests)
+  }, [pkg])
+
+
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center h-screen gap-4 bg-white">
@@ -136,6 +144,10 @@ function PackageBookingPageContent({ params }: Props) {
     if (step === 'confirm') {
       if (!selectedDeparture) {
         setSubmitError('Please select a departure date first.')
+        return
+      }
+      if (pkg!.min_guests && guests < pkg!.min_guests) {
+        setSubmitError(`This package requires a minimum of ${pkg!.min_guests} guests.`)
         return
       }
       setSubmitError('')
@@ -355,6 +367,9 @@ function PackageBookingPageContent({ params }: Props) {
               {infants > 0 ? `, ${infants} infant${infants > 1 ? 's' : ''}` : ''}
               {pets > 0 ? `, ${pets} pet${pets > 1 ? 's' : ''}` : ''}
             </p>
+            {pkg.min_guests ? (
+              <p className="text-xs text-gray-400 mt-0.5">Minimum {pkg.min_guests} guests required.</p>
+            ) : null}
           </div>
           <button onClick={() => setShowGuestSheet(true)}
             className="px-4 py-2 rounded-xl text-sm font-semibold text-[#304333]"
@@ -567,13 +582,14 @@ function PackageBookingPageContent({ params }: Props) {
                 {mpesaWaiting ? (
                   <div className="flex flex-col gap-2">
                     <p className="text-xs text-[#2c4a1e] font-medium">
-                      Check your phone and enter your M-Pesa PIN to complete payment…
+                      Check your phone and enter your M-Pesa PIN. Don&apos;t refresh or close this page — we&apos;ll confirm automatically once you approve it.
                     </p>
                     <button type="button" onClick={cancelMpesaWait}
                       className="text-xs text-gray-500 underline self-start">
                       Taking too long? Cancel and try again
                     </button>
                   </div>
+
                 ) : (
 
                   <p className="text-xs text-gray-500">
@@ -688,7 +704,6 @@ function PackageBookingPageContent({ params }: Props) {
         </div>
       )}
 
-
       {/* ── GUEST CHANGE SHEET ── */}
       {showGuestSheet && (
         <div className="fixed inset-0 z-[300] flex items-end sm:items-center justify-center"
@@ -703,7 +718,7 @@ function PackageBookingPageContent({ params }: Props) {
               </button>
             </div>
             {[
-              { label: 'Adults', sub: 'Age 13+', count: adults, set: setAdults, min: 1, max: 16 },
+              { label: 'Adults', sub: 'Age 13+', count: adults, set: setAdults, min: Math.max(1, pkg.min_guests ?? 1), max: pkg.max_guests ?? 16 },
               { label: 'Children', sub: 'Ages 2–12', count: children, set: setChildren, min: 0, max: Math.max(0, 16 - adults) },
               { label: 'Infants', sub: 'Under 2', count: infants, set: setInfants, min: 0, max: 5 },
               { label: 'Pets', sub: 'Bringing a service animal?', count: pets, set: setPets, min: 0, max: 5 },

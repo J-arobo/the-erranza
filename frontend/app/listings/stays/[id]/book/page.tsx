@@ -245,6 +245,12 @@ function StayBookingPageContent({ params }: Props) {
     return () => window.removeEventListener('pageshow', handlePageShow)
   }, [])
 
+  //Clamp for guest minimum show too late
+  useEffect(() => {
+    if (listing?.min_guests && sheetAdults < listing.min_guests) setSheetAdults(listing.min_guests)
+  }, [listing])
+
+
   const dateDiff = (localCheckIn && localCheckOut) ? Math.max(1, Math.round((localCheckOut.getTime() - localCheckIn.getTime()) / 86400000)) : null
   const [nights, setNights] = useState(2)
   const effectiveNights = dateDiff ?? nights
@@ -298,6 +304,10 @@ function StayBookingPageContent({ params }: Props) {
     if (step === 'confirm') {
       if (!localCheckIn || !localCheckOut) {
         setSubmitError('Please select your check-in and check-out dates first.')
+        return
+      }
+      if (listing!.min_guests && guests < listing!.min_guests) {
+        setSubmitError(`This place requires a minimum of ${listing!.min_guests} guests.`)
         return
       }
       setSubmitError('')
@@ -526,6 +536,9 @@ function StayBookingPageContent({ params }: Props) {
           <div>
             <p className="text-sm font-semibold text-[#1a1a1a]">Guests</p>
             <p className="text-sm text-gray-500">{sheetAdults} adult{sheetAdults > 1 ? 's' : ''}{sheetChildren > 0 ? `, ${sheetChildren} child${sheetChildren > 1 ? 'ren' : ''}` : ''}</p>
+            {listing.min_guests ? (
+              <p className="text-xs text-gray-400 mt-0.5">Minimum {listing.min_guests} guests required.</p>
+            ) : null}
           </div>
           <button onClick={() => setShowGuestSheet(true)}
             className="px-4 py-2 rounded-xl text-sm font-semibold text-[#304333]"
@@ -887,7 +900,7 @@ function StayBookingPageContent({ params }: Props) {
                 {mpesaWaiting ? (
                   <div className="flex flex-col gap-2">
                     <p className="text-xs text-[#2c4a1e] font-medium">
-                      Check your phone and enter your M-Pesa PIN to complete payment…
+                      Check your phone and enter your M-Pesa PIN. Don&apos;t refresh or close this page — we&apos;ll confirm automatically once you approve it.
                     </p>
                     <button type="button" onClick={cancelMpesaWait}
                       className="text-xs text-gray-500 underline self-start">
@@ -1063,7 +1076,7 @@ function StayBookingPageContent({ params }: Props) {
                   : "Pets aren't allowed."}
               </p>
               {[
-                { label: 'Adults', sub: 'Age 13+', count: sheetAdults, set: setSheetAdults, min: 1, max: listing.max_guests ?? 10 },
+                { label: 'Adults', sub: 'Age 13+', count: sheetAdults, set: setSheetAdults, min: Math.max(1, listing.min_guests ?? 1), max: listing.max_guests ?? 10 },
                 { label: 'Children', sub: 'Ages 2–12', count: sheetChildren, set: setSheetChildren, min: 0, max: Math.max(0, (listing.max_guests ?? 10) - sheetAdults) },
                 { label: 'Infants', sub: 'Under 2', count: sheetInfants, set: setSheetInfants, min: 0, max: 5 },
                 { label: 'Pets', sub: 'Bringing a service animal?', count: sheetPets, set: setSheetPets, min: 0, max: 5 },

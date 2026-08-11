@@ -1382,7 +1382,7 @@ export default function VendorDetailPage({ params }: Props) {
             <button
               onClick={() => {
                 if (selectedDate) {
-                  router.push(`/listings/${vendorId}/vendor/${vendorId}/book?guests=${guests}&date=${selectedDate.toISOString()}`)
+                  router.push(`/listings/${id}/vendor/${vendorId}/book?guests=${guests}&date=${selectedDate.toISOString()}`)
                 } else {
                   setShowMobileDatePicker(true)
                 }
