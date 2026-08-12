@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Validation\Rules\Password as PasswordRule;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Facades\Log;
 
 class PasswordResetController extends Controller
 {
@@ -16,7 +17,13 @@ class PasswordResetController extends Controller
         $request->validate(['email' => ['required', 'string', 'email']]);
 
         // Same response either way, so we don't leak which emails have accounts.
-        Password::sendResetLink($request->only('email'));
+        // Swallow (but log) any mail-transport failure so a Resend hiccup doesn't
+        // 500 this endpoint — the client always gets the same generic message.
+        try {
+            Password::sendResetLink($request->only('email'));
+        } catch (\Throwable $e) {
+            Log::error('Password reset email failed to send', ['message' => $e->getMessage()]);
+        }
 
         return response()->json([
             'message' => 'If an account exists for that email, a reset link is on its way.',
