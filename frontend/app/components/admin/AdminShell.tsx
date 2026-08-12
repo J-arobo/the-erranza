@@ -2,17 +2,18 @@
 import { useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import {
-  LayoutDashboard, ShieldAlert, Building2, Scale, History,
+  LayoutDashboard, ShieldAlert, Building2, Scale, History, FileCheck2,
   LogOut, Menu, X,
 } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 
 const NAV_ITEMS = [
-  { label: 'Dashboard',   Icon: LayoutDashboard, path: '/admin' },
-  { label: 'Moderation',  Icon: ShieldAlert,      path: '/admin/moderation' },
-  { label: 'Vendors',     Icon: Building2,        path: '/admin/vendors' },
-  { label: 'Disputes',    Icon: Scale,            path: '/admin/disputes' },
-  { label: 'Audit Log',   Icon: History,          path: '/admin/audit-log' },
+  { label: 'Dashboard',      Icon: LayoutDashboard, path: '/admin' },
+  { label: 'Moderation',     Icon: ShieldAlert,      path: '/admin/moderation' },
+  { label: 'Vendors',        Icon: Building2,        path: '/admin/vendors' },
+  { label: 'Verifications',  Icon: FileCheck2,       path: '/admin/verifications' },
+  { label: 'Disputes',       Icon: Scale,            path: '/admin/disputes' },
+  { label: 'Audit Log',      Icon: History,          path: '/admin/audit-log' },
 ]
 
 export default function AdminShell({ children }: { children: React.ReactNode }) {

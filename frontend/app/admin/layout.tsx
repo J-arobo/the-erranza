@@ -7,10 +7,14 @@ import AdminShell from '@/components/admin/AdminShell'
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const { isLoggedIn, user } = useAuth()
   const router = useRouter()
-  const isAdmin = !!user?.roles?.includes('admin')
+  const isAdmin = !!user?.roles?.includes('admin') || !!user?.roles?.includes('super_admin')
 
   useEffect(() => {
-    if (!isLoggedIn || !isAdmin) {
+    if (!isLoggedIn) {
+      router.push('/login?redirect=/admin')
+      return
+    }
+    if (!isAdmin) {
       router.push('/')
     }
   }, [isLoggedIn, isAdmin])

@@ -113,7 +113,6 @@ class AuthController extends Controller
             'user' => $this->formatUser($request->user()),
         ]);
     }
-
     private function formatUser(User $user): array
     {
         $user->loadMissing('roles', 'vendor');
@@ -127,6 +126,7 @@ class AuthController extends Controller
             'roles' => $user->roles->pluck('name')->values(),
             'activeRole' => $user->active_role,
             'onboardingComplete' => $user->vendor?->onboarding_complete ?? false,
+            'verificationStatus' => $user->vendor?->verification_status ?? null,
             'createdAt' => $user->created_at,
         ];
     }

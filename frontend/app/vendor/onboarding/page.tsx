@@ -1,9 +1,9 @@
 'use client'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Building2, Layers, Package, CreditCard, Clock,
-  Plus, X, Check, LogOut
+  X, Check, LogOut
 } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { apiFetch, apiErrorMessage } from '@/lib/api'
@@ -12,6 +12,17 @@ const STEP_LABELS = ['Business details', 'Categories', 'Plan', 'Payment', 'Pendi
 const STEP_ICONS = [Building2, Layers, Package, CreditCard, Clock]
 
 const CATEGORY_OPTIONS = ['Safari', 'Stays', 'Experiences', 'Packages']
+
+// Must match backend VendorProfileController::REGIONS exactly — the server
+// rejects any region not in this list.
+const REGION_OPTIONS = [
+  'Nairobi', 'Maasai Mara', 'Amboseli', 'Tsavo East', 'Tsavo West', 'Lake Nakuru',
+  'Diani Beach', 'Mombasa', 'Malindi', 'Watamu', 'Lamu', 'Nanyuki', 'Naivasha',
+  'Samburu', 'Meru', 'Kisumu', 'Nyeri', 'Laikipia', "Hell's Gate", 'Ol Pejeta',
+]
+
+const KRA_PIN_REGEX = /^[A-Za-z]\d{9}[A-Za-z]$/
+const KENYA_PHONE_REGEX = /^(?:\+?254|0)[17]\d{8}$/
 
 const CANCELLATION_OPTIONS: { id: 'flexible' | 'moderate' | 'strict'; label: string; description: string }[] = [
   { id: 'flexible', label: 'Flexible', description: 'Full refund up to 24 hours before the start date.' },
@@ -47,17 +58,21 @@ export default function VendorOnboardingPage() {
   const [taxPin, setTaxPin] = useState('')
   const [contactPhone, setContactPhone] = useState('')
   const [payoutMethod, setPayoutMethod] = useState<'mobile' | 'bank'>('mobile')
+  const [payoutBankName, setPayoutBankName] = useState('')
   const [payoutDetails, setPayoutDetails] = useState('')
   const [idUploaded, setIdUploaded] = useState(false)
   const [insuranceUploaded, setInsuranceUploaded] = useState(false)
   const [uploadingId, setUploadingId] = useState(false)
   const [uploadingInsurance, setUploadingInsurance] = useState(false)
   const [uploadError, setUploadError] = useState('')
+  const idInputRef = useRef<HTMLInputElement>(null)
+  const insuranceInputRef = useRef<HTMLInputElement>(null)
 
   // Step 2 — Categories
   const [selectedCategories, setSelectedCategories] = useState<string[]>([])
   const [regions, setRegions] = useState<string[]>([])
-  const [regionInput, setRegionInput] = useState('')
+  const [regionQuery, setRegionQuery] = useState('')
+  const [showRegionDropdown, setShowRegionDropdown] = useState(false)
 
   // Step 3 — Plan
   const [plan, setPlan] = useState<'standard' | 'plus'>('standard')
@@ -79,23 +94,29 @@ export default function VendorOnboardingPage() {
   function toggleCategory(cat: string) {
     setSelectedCategories(c => c.includes(cat) ? c.filter(x => x !== cat) : [...c, cat])
   }
-  function addRegion() {
-    const val = regionInput.trim()
-    if (val && !regions.includes(val)) setRegions(r => [...r, val])
-    setRegionInput('')
+  function addRegion(region: string) {
+    if (!regions.includes(region)) setRegions(r => [...r, region])
+    setRegionQuery('')
+    setShowRegionDropdown(false)
   }
   function removeRegion(region: string) {
     setRegions(r => r.filter(x => x !== region))
   }
+  const filteredRegionOptions = REGION_OPTIONS.filter(
+    r => r.toLowerCase().includes(regionQuery.toLowerCase()) && !regions.includes(r)
+  )
 
-  async function handleUploadId() {
+  async function handleUploadId(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
     setUploadingId(true)
     setUploadError('')
     try {
-      await apiFetch('/vendor/verification-submissions', {
-        method: 'POST',
-        body: JSON.stringify({ doc_type: 'Government ID' }),
-      })
+      const formData = new FormData()
+      formData.append('doc_type', 'Government ID')
+      formData.append('document', file)
+      await apiFetch('/vendor/verification-submissions', { method: 'POST', body: formData })
       setIdUploaded(true)
     } catch (err) {
       setUploadError(apiErrorMessage(err))
@@ -104,14 +125,17 @@ export default function VendorOnboardingPage() {
     }
   }
 
-  async function handleUploadInsurance() {
+  async function handleUploadInsurance(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
     setUploadingInsurance(true)
     setUploadError('')
     try {
-      await apiFetch('/vendor/verification-submissions', {
-        method: 'POST',
-        body: JSON.stringify({ doc_type: 'Insurance certificate' }),
-      })
+      const formData = new FormData()
+      formData.append('doc_type', 'Insurance certificate')
+      formData.append('document', file)
+      await apiFetch('/vendor/verification-submissions', { method: 'POST', body: formData })
       setInsuranceUploaded(true)
     } catch (err) {
       setUploadError(apiErrorMessage(err))
@@ -120,8 +144,14 @@ export default function VendorOnboardingPage() {
     }
   }
 
+  const taxPinValid = !taxPin.trim() || KRA_PIN_REGEX.test(taxPin.trim())
+  const payoutDetailsValid = payoutMethod === 'mobile'
+    ? KENYA_PHONE_REGEX.test(payoutDetails.trim())
+    : !!payoutDetails.trim()
+  const payoutBankValid = payoutMethod === 'bank' ? !!payoutBankName.trim() : true
+
   const canContinue = [
-    !!companyName.trim() && !!contactPhone.trim() && !!payoutDetails.trim() && idUploaded,
+    !!companyName.trim() && !!contactPhone.trim() && taxPinValid && payoutDetailsValid && payoutBankValid && idUploaded,
     selectedCategories.length > 0,
     agreedTerms && agreedLiability,
     plan === 'standard' || (!!cardName.trim() && !!cardNumber.trim() && !!cardExpiry.trim() && !!cardCvc.trim()),
@@ -148,6 +178,7 @@ export default function VendorOnboardingPage() {
             tax_pin: taxPin.trim() || null,
             phone: contactPhone.trim(),
             payout_method: payoutMethod,
+            payout_bank_name: payoutMethod === 'bank' ? payoutBankName.trim() : null,
             payout_details: payoutDetails.trim(),
             categories: selectedCategories,
             regions,
@@ -240,10 +271,14 @@ export default function VendorOnboardingPage() {
                 </div>
                 <div>
                   <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">KRA PIN</label>
-                  <input value={taxPin} onChange={(e) => setTaxPin(e.target.value)}
+                  <input value={taxPin} onChange={(e) => setTaxPin(e.target.value.toUpperCase())}
                     placeholder="e.g. P051234567X"
-                    className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm
-                               outline-none focus:border-[#2c4a1e] transition-colors" />
+                    className={`w-full border rounded-xl px-4 py-2.5 text-sm
+                               outline-none focus:border-[#2c4a1e] transition-colors
+                               ${taxPin.trim() && !taxPinValid ? 'border-red-400' : 'border-gray-200'}`} />
+                  {taxPin.trim() && !taxPinValid && (
+                    <p className="text-xs text-red-500 mt-1">Format: one letter, 9 digits, one letter (e.g. P051234567X).</p>
+                  )}
                 </div>
               </div>
               <div>
@@ -257,7 +292,7 @@ export default function VendorOnboardingPage() {
                 <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">Payout method</label>
                 <div className="flex gap-2 mb-2">
                   {(['mobile', 'bank'] as const).map((m) => (
-                    <button key={m} onClick={() => setPayoutMethod(m)}
+                    <button key={m} onClick={() => { setPayoutMethod(m); setPayoutDetails('') }}
                       className={`px-4 py-1.5 rounded-full text-sm font-semibold border transition-all
                         ${payoutMethod === m
                           ? 'bg-[#2c4a1e] text-white border-[#2c4a1e]'
@@ -266,10 +301,24 @@ export default function VendorOnboardingPage() {
                     </button>
                   ))}
                 </div>
-                <input value={payoutDetails} onChange={(e) => setPayoutDetails(e.target.value)}
-                  placeholder={payoutMethod === 'mobile' ? 'M-Pesa number' : 'Bank account number'}
-                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm
-                             outline-none focus:border-[#2c4a1e] transition-colors" />
+
+                {payoutMethod === 'bank' && (
+                  <input value={payoutBankName} onChange={(e) => setPayoutBankName(e.target.value)}
+                    placeholder="Bank name (e.g. Equity Bank)"
+                    className={`w-full border rounded-xl px-4 py-2.5 text-sm mb-2
+                               outline-none focus:border-[#2c4a1e] transition-colors
+                               ${payoutBankName.trim() === '' && payoutDetails.trim() !== '' ? 'border-red-400' : 'border-gray-200'}`} />
+                )}
+
+                <input value={payoutDetails}
+                  onChange={(e) => setPayoutDetails(payoutMethod === 'mobile' ? e.target.value.replace(/[^\d+\s]/g, '') : e.target.value)}
+                  placeholder={payoutMethod === 'mobile' ? 'M-Pesa number, e.g. 0712345678' : 'Bank account number'}
+                  className={`w-full border rounded-xl px-4 py-2.5 text-sm
+                             outline-none focus:border-[#2c4a1e] transition-colors
+                             ${payoutDetails.trim() && !payoutDetailsValid ? 'border-red-400' : 'border-gray-200'}`} />
+                {payoutMethod === 'mobile' && payoutDetails.trim() && !payoutDetailsValid && (
+                  <p className="text-xs text-red-500 mt-1">Enter a valid Kenyan phone number (e.g. 0712345678).</p>
+                )}
               </div>
 
               <div className="border border-gray-200 rounded-xl p-4 flex items-center justify-between gap-3">
@@ -277,12 +326,13 @@ export default function VendorOnboardingPage() {
                   <p className="text-sm font-semibold text-[#1a1a1a]">Government-issued ID</p>
                   <p className="text-xs text-gray-400 mt-0.5">National ID, passport, or business registration certificate.</p>
                 </div>
+                <input ref={idInputRef} type="file" accept=".jpg,.jpeg,.png,.pdf" className="hidden" onChange={handleUploadId} />
                 {idUploaded ? (
                   <span className="flex items-center gap-1 text-xs font-semibold text-[#2c4a1e] flex-shrink-0">
                     <Check size={14} /> Uploaded
                   </span>
                 ) : (
-                  <button onClick={handleUploadId} disabled={uploadingId}
+                  <button onClick={() => idInputRef.current?.click()} disabled={uploadingId}
                     className="px-3 py-1.5 rounded-lg bg-[#2c4a1e] text-white text-xs font-semibold
                                hover:bg-[#3d6b28] transition-colors flex-shrink-0 disabled:opacity-50">
                     {uploadingId ? 'Uploading…' : 'Upload'}
@@ -297,12 +347,13 @@ export default function VendorOnboardingPage() {
                   </p>
                   <p className="text-xs text-gray-400 mt-0.5">Liability cover for tours involving physical activity.</p>
                 </div>
+                <input ref={insuranceInputRef} type="file" accept=".jpg,.jpeg,.png,.pdf" className="hidden" onChange={handleUploadInsurance} />
                 {insuranceUploaded ? (
                   <span className="flex items-center gap-1 text-xs font-semibold text-[#2c4a1e] flex-shrink-0">
                     <Check size={14} /> Uploaded
                   </span>
                 ) : (
-                  <button onClick={handleUploadInsurance} disabled={uploadingInsurance}
+                  <button onClick={() => insuranceInputRef.current?.click()} disabled={uploadingInsurance}
                     className="px-3 py-1.5 rounded-lg bg-gray-100 text-[#1a1a1a] text-xs font-semibold
                                hover:bg-gray-200 transition-colors flex-shrink-0 disabled:opacity-50">
                     {uploadingInsurance ? 'Uploading…' : 'Upload'}
@@ -343,19 +394,30 @@ export default function VendorOnboardingPage() {
               </div>
               <div>
                 <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">Operating regions</label>
-                <div className="flex gap-2 mb-2">
-                  <input value={regionInput} onChange={(e) => setRegionInput(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addRegion() } }}
-                    placeholder="e.g. Maasai Mara"
-                    className="flex-1 border border-gray-200 rounded-xl px-4 py-2.5 text-sm
+                <div className="relative">
+                  <input value={regionQuery}
+                    onChange={(e) => { setRegionQuery(e.target.value); setShowRegionDropdown(true) }}
+                    onFocus={() => setShowRegionDropdown(true)}
+                    onBlur={() => setTimeout(() => setShowRegionDropdown(false), 150)}
+                    placeholder="Search regions — e.g. Maasai Mara"
+                    className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm
                                outline-none focus:border-[#2c4a1e] transition-colors" />
-                  <button onClick={addRegion}
-                    className="px-4 rounded-xl bg-[#2c4a1e] text-white hover:bg-[#3d6b28] transition-colors">
-                    <Plus size={16} />
-                  </button>
+                  {showRegionDropdown && filteredRegionOptions.length > 0 && (
+                    <div className="absolute z-10 top-full left-0 right-0 mt-1 bg-white border border-gray-200
+                                    rounded-xl shadow-lg max-h-48 overflow-y-auto">
+                      {filteredRegionOptions.map((region) => (
+                        <button key={region} type="button"
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => addRegion(region)}
+                          className="w-full text-left px-4 py-2.5 text-sm text-[#1a1a1a] hover:bg-[#eaf5e4] transition-colors">
+                          {region}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 {regions.length > 0 && (
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap gap-2 mt-2">
                     {regions.map((region) => (
                       <span key={region}
                         className="flex items-center gap-1.5 bg-[#eaf5e4] text-[#2c4a1e]

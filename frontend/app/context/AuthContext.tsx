@@ -14,6 +14,7 @@ type User = {
   phone?: string | null
   avatar?: string | null
   onboardingComplete?: boolean
+  verificationStatus?: 'pending' | 'approved' | 'rejected' | null
   roles: Role[]
   activeRole: Role
   createdAt: string
@@ -158,6 +159,7 @@ type ApiUser = {
   roles: string[]
   activeRole: string
   onboardingComplete: boolean
+  verificationStatus: 'pending' | 'approved' | 'rejected' | null
   createdAt: string
 }
 
@@ -171,6 +173,7 @@ function mapUser(apiUser: ApiUser): User {
     roles: apiUser.roles as Role[],
     activeRole: apiUser.activeRole as Role,
     onboardingComplete: apiUser.onboardingComplete,
+    verificationStatus: apiUser.verificationStatus,
     createdAt: apiUser.createdAt,
   }
 }

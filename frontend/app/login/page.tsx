@@ -35,6 +35,7 @@ type LoginFormProps = {
   onSubmit: () => void
   onForgotPassword: () => void
   onGoToSignup: () => void
+  isAdminLogin: boolean
 }
 
 // Hoisted to module scope so its identity is stable across LoginInner re-renders —
@@ -42,7 +43,7 @@ type LoginFormProps = {
 // every keystroke, killing input focus after each character typed.
 function LoginForm({
   email, onEmailChange, password, onPasswordChange, showPassword, onToggleShowPassword,
-  fieldErrors, error, loading, onSubmit, onForgotPassword, onGoToSignup,
+  fieldErrors, error, loading, onSubmit, onForgotPassword, onGoToSignup, isAdminLogin,
 }: LoginFormProps) {
   return (
     <div>
@@ -103,7 +104,7 @@ function LoginForm({
         disabled={loading}
         className="w-full py-3.5 rounded-xl text-white text-sm font-semibold
                    transition-colors mb-4 disabled:opacity-60"
-        style={{ background: 'linear-gradient(to right, #f98a66, #f36336)' }}
+        style={{ background: isAdminLogin ? '#1e293b' : 'linear-gradient(to right, #f98a66, #f36336)' }}
       >
         {loading ? 'Logging in…' : 'Log in'}
       </button>
@@ -179,6 +180,7 @@ function LoginInner() {
     showPassword, onToggleShowPassword: () => setShowPassword(s => !s),
     fieldErrors, error, loading, onSubmit: handleSubmit,
     onForgotPassword: goToForgotPassword, onGoToSignup: goToSignup,
+    isAdminLogin: redirect.startsWith('/admin'),
   }
 
   return (
