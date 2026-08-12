@@ -66,7 +66,6 @@ type AuthContextType = {
   isLoggedIn: boolean
   completeOnboarding: () => void
   becomePartner: () => Promise<void>
-  addAdminRole: () => void
   addSuperAdminRole: () => void
   setActiveRole: (role: Role) => void
   wishlists: Listing[]
@@ -89,7 +88,6 @@ const AuthContext = createContext<AuthContextType>({
   isLoggedIn: false,
   completeOnboarding: () => { },
   becomePartner: async () => { },
-  addAdminRole: () => { },
   addSuperAdminRole: () => { },
   setActiveRole: () => { },
   wishlists: [],
@@ -286,13 +284,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Admin/super-admin elevation is deliberately not self-service; real accounts
   // are seeded server-side. Pages later wired to the real admin/super-admin API
   // will 403 for accounts "promoted" this way.
-  function addAdminRole() {
-    setUser(u => {
-      if (!u) return u
-      const roles = Array.from(new Set([...u.roles, 'admin' as Role]))
-      return { ...u, roles }
-    })
-  }
 
   function addSuperAdminRole() {
     setUser(u => {
@@ -346,7 +337,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isLoggedIn: !!user,
     completeOnboarding,
     becomePartner,
-    addAdminRole,
     addSuperAdminRole,
     setActiveRole,
     wishlists,
