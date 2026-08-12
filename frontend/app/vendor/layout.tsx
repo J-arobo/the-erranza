@@ -12,7 +12,11 @@ export default function VendorLayout({ children }: { children: React.ReactNode }
   const isPartner = !!user?.roles?.includes('partner')
 
   useEffect(() => {
-    if (!isLoggedIn || !isPartner) {
+    if (!isLoggedIn) {
+      router.push('/')
+      return
+    }
+    if (!isPartner) {
       router.push('/partner')
       return
     }

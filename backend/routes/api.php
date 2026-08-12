@@ -46,12 +46,12 @@ Route::prefix('auth')->group(function () {
     //Password reset
     Route::post('/forgot-password', [PasswordResetController::class, 'sendResetLink'])->middleware('throttle:6,1');
     Route::post('/reset-password', [PasswordResetController::class, 'reset'])->middleware('throttle:6,1');
-    Route::post('/verify-password', [AuthController::class, 'verifyPassword']);
 
     Route::middleware('auth:sanctum')->group(function () {
         Route::post('/logout', [AuthController::class, 'logout']);
         Route::get('/me', [AuthController::class, 'me']);
         Route::patch('/me', [AuthController::class, 'updateProfile']);
+        Route::post('/verify-password', [AuthController::class, 'verifyPassword']);
     });
 });
 
