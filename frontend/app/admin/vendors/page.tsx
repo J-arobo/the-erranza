@@ -5,7 +5,7 @@ import { apiFetch, apiErrorMessage } from '@/lib/api'
 import { useSearchParams } from 'next/navigation'
 import { Suspense } from 'react'
 
-const TABS = ['Verification queue', 'All vendors'] as const
+const TABS = ['Verification queue', 'All vendors', 'Suspended'] as const
 
 type Submission = {
   id: number
@@ -266,28 +266,52 @@ function AdminVendorsPageContent() {
         </div>
       )}
 
-      {tab === 'All vendors' && (
+{tab === 'All vendors' && (
         <div className="flex flex-col gap-3">
-          {vendors.map((v) => (
+          {vendors.filter(v => !v.suspended).length === 0 && (
+            <p className="text-sm text-gray-400 text-center py-6 bg-white rounded-2xl border border-gray-200 shadow-sm">
+              No vendors.
+            </p>
+          )}
+          {vendors.filter(v => !v.suspended).map((v) => (
             <div key={v.id}
               onClick={() => openVendorDetail(v.id)}
               className={`bg-white rounded-2xl border border-gray-200 shadow-sm p-4 cursor-pointer transition-colors hover:bg-white
-                ${CARD_BORDER[v.verification_status] ?? ''} ${HOVER_BORDER[v.verification_status] ?? 'hover:border-gray-300'} ${v.suspended ? 'bg-red-50/40' : ''}`}>
+                ${CARD_BORDER[v.verification_status] ?? ''} ${HOVER_BORDER[v.verification_status] ?? 'hover:border-gray-300'}`}>
               <div className="flex items-center justify-between gap-2 mb-1">
                 <p className="text-sm font-bold text-[#1a1a1a]">{v.business_name}</p>
-                <div className="flex items-center gap-1.5">
-                  {v.suspended && (
-                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-red-50 text-red-500">
-                      Suspended
-                    </span>
-                  )}
-                  <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full capitalize
-                    ${STATUS_STYLES[v.verification_status] ?? 'bg-gray-100 text-gray-500'}`}>
-                    {v.verification_status}
-                  </span>
-                </div>
+                <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full capitalize
+                  ${STATUS_STYLES[v.verification_status] ?? 'bg-gray-100 text-gray-500'}`}>
+                  {v.verification_status}
+                </span>
               </div>
               <p className="text-xs text-gray-400 mb-1">{v.email} · owner: {v.owner?.name}</p>
+              <span className="text-xs text-gray-400">{v.listings_count} listings</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {tab === 'Suspended' && (
+        <div className="flex flex-col gap-3">
+          {vendors.filter(v => v.suspended).length === 0 && (
+            <p className="text-sm text-gray-400 text-center py-6 bg-white rounded-2xl border border-gray-200 shadow-sm">
+              No suspended vendors.
+            </p>
+          )}
+          {vendors.filter(v => v.suspended).map((v) => (
+            <div key={v.id}
+              onClick={() => openVendorDetail(v.id)}
+              className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 cursor-pointer transition-colors
+                border-l-4 border-l-red-500 hover:border-red-500 bg-red-50/40">
+              <div className="flex items-center justify-between gap-2 mb-1">
+                <p className="text-sm font-bold text-[#1a1a1a]">{v.business_name}</p>
+                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-red-50 text-red-500">
+                  Suspended
+                </span>
+              </div>
+              <p className="text-xs text-gray-400 mb-1">{v.email} · owner: {v.owner?.name}</p>
+              {v.suspend_reason && <p className="text-xs text-red-500 mb-1">{v.suspend_reason}</p>}
               <span className="text-xs text-gray-400">{v.listings_count} listings</span>
             </div>
           ))}
