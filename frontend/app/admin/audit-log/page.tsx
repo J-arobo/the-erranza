@@ -1,13 +1,22 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { History } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { History, ChevronRight } from 'lucide-react'
 import { apiFetch, apiErrorMessage } from '@/lib/api'
 
 type AuditEntry = {
   id: number
   action: string
   target: string | null
+  target_type: string | null
+  target_id: number | null
   created_at: string
+}
+
+// Only vendor entries are clickable for now — listing/review/dispute admin
+// pages don't have an equivalent single-entity detail view to deep-link into yet.
+const TARGET_ROUTES: Record<string, string> = {
+  vendor: '/admin/vendors',
 }
 
 function formatTimestamp(ts: string) {
@@ -17,6 +26,7 @@ function formatTimestamp(ts: string) {
 }
 
 export default function AdminAuditLogPage() {
+  const router = useRouter()
   const [entries, setEntries] = useState<AuditEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -27,6 +37,13 @@ export default function AdminAuditLogPage() {
       .catch((err) => setError(apiErrorMessage(err)))
       .finally(() => setLoading(false))
   }, [])
+
+  function openTarget(e: AuditEntry) {
+    if (!e.target_type || !e.target_id) return
+    const base = TARGET_ROUTES[e.target_type]
+    if (!base) return
+    router.push(`${base}?${e.target_type}=${e.target_id}`)
+  }
 
   if (loading) {
     return (
@@ -57,13 +74,21 @@ export default function AdminAuditLogPage() {
         </div>
       ) : (
         <div className="bg-white rounded-2xl border border-gray-200 shadow-sm divide-y divide-gray-100 px-5">
-          {entries.map((e) => (
-            <div key={e.id} className="py-3.5">
-              <p className="text-sm font-semibold text-[#1a1a1a] capitalize">{e.action}</p>
-              {e.target && <p className="text-xs text-gray-500">{e.target}</p>}
-              <p className="text-[10px] text-gray-400 mt-1">{formatTimestamp(e.created_at)}</p>
-            </div>
-          ))}
+          {entries.map((e) => {
+            const clickable = !!e.target_type && !!e.target_id && !!TARGET_ROUTES[e.target_type]
+            return (
+              <div key={e.id}
+                onClick={clickable ? () => openTarget(e) : undefined}
+                className={`py-3.5 flex items-center justify-between gap-3 ${clickable ? 'cursor-pointer hover:bg-gray-50 -mx-5 px-5 transition-colors' : ''}`}>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-[#1a1a1a] capitalize">{e.action}</p>
+                  {e.target && <p className="text-xs text-gray-500 truncate">{e.target}</p>}
+                  <p className="text-[10px] text-gray-400 mt-1">{formatTimestamp(e.created_at)}</p>
+                </div>
+                {clickable && <ChevronRight size={16} color="#aaa" className="flex-shrink-0" />}
+              </div>
+            )
+          })}
         </div>
       )}
     </div>

@@ -32,7 +32,18 @@ class VendorProfileController extends Controller
             'phone' => ['sometimes', 'string', 'max:30'],
             'bio' => ['nullable', 'string'],
             'logo_url' => ['sometimes', 'nullable', 'string'],
-        ]);        
+            'license_number' => ['sometimes', 'nullable', 'string', 'max:100'],
+            'tax_pin' => ['sometimes', 'nullable', 'string', 'regex:/^[A-Za-z]\d{9}[A-Za-z]$/'],
+            'payout_method' => ['sometimes', 'in:mobile,bank'],
+            'payout_bank_name' => ['sometimes', 'nullable', 'string', 'max:100'],
+            'payout_details' => ['sometimes', 'string', 'max:100'],
+            'categories' => ['sometimes', 'array', 'min:1'],
+            'categories.*' => ['string'],
+            'regions' => ['sometimes', 'array'],
+            'regions.*' => ['string', Rule::in(self::REGIONS)],
+        ], [
+            'tax_pin.regex' => 'Enter a valid KRA PIN (e.g. P051234567X).',
+        ]);               
 
         $vendor->update($validated);
 

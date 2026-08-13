@@ -21,6 +21,14 @@ class AdminVendorController extends Controller
 
         return response()->json(['vendors' => $vendors]);
     }
+    // Admin vendor verification
+    public function show(Request $request, Vendor $vendor)
+    {
+        $vendor->load('owner:id,name,email', 'verificationSubmissions');
+        $vendor->loadCount('listings');
+
+        return response()->json(['vendor' => $vendor]);
+    }
 
     public function suspend(Request $request, Vendor $vendor)
     {
@@ -36,7 +44,7 @@ class AdminVendorController extends Controller
         $vendor->load('owner:id,name,email');
         $vendor->loadCount('listings');
 
-        $this->logAdminAction($request, 'suspended vendor', "{$vendor->business_name} — {$validated['reason']}");
+        $this->logAdminAction($request, 'suspended vendor', "{$vendor->business_name} — {$validated['reason']}", 'vendor', $vendor->id);
 
         return response()->json(['vendor' => $vendor]);
     }
@@ -51,7 +59,7 @@ class AdminVendorController extends Controller
         $vendor->load('owner:id,name,email');
         $vendor->loadCount('listings');
 
-        $this->logAdminAction($request, 'reinstated vendor', $vendor->business_name);
+        $this->logAdminAction($request, 'reinstated vendor', $vendor->business_name, 'vendor', $vendor->id);
 
         return response()->json(['vendor' => $vendor]);
     }

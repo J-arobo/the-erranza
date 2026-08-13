@@ -1,9 +1,10 @@
 'use client'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { useAuth } from '@/context/AuthContext'
 import VendorShell from '@/components/vendor/VendorShell'
 import VerificationGate from '@/components/vendor/VerificationGate'
+import VerificationCelebration from '@/components/vendor/VerificationCelebration'
 
 export default function VendorLayout({ children }: { children: React.ReactNode }) {
   const { isLoggedIn, user } = useAuth()
@@ -12,6 +13,17 @@ export default function VendorLayout({ children }: { children: React.ReactNode }
   const isOnboardingRoute = pathname === '/vendor/onboarding'
   const isPartner = !!user?.roles?.includes('partner')
   const isVerified = user?.verificationStatus === 'approved'
+
+  const [showCelebration, setShowCelebration] = useState(false)
+
+  useEffect(() => {
+    if (!isVerified || !user) return
+    const key = `erranza_verified_celebrated_${user.id}`
+    if (!localStorage.getItem(key)) {
+      setShowCelebration(true)
+      localStorage.setItem(key, '1')
+    }
+  }, [isVerified, user?.id])
 
   useEffect(() => {
     if (!isLoggedIn) {
@@ -36,5 +48,10 @@ export default function VendorLayout({ children }: { children: React.ReactNode }
   if (!user?.onboardingComplete) return null
   if (!isVerified) return <VerificationGate />
 
-  return <VendorShell>{children}</VendorShell>
+  return (
+    <>
+      {showCelebration && <VerificationCelebration onDismiss={() => setShowCelebration(false)} />}
+      <VendorShell>{children}</VendorShell>
+    </>
+  )
 }

@@ -33,7 +33,7 @@ class AdminReviewController extends Controller
 
         $review->load(['listing:id,title', 'vendor:id,business_name', 'traveller:id,name,avatar_url']);
 
-        $this->logAdminAction($request, 'removed review', "review #{$review->id} — {$validated['reason']}");
+        $this->logAdminAction($request, 'removed review', "review #{$review->id} — {$validated['reason']}", 'review', $review->id);
 
         return response()->json(['review' => $review]);
     }
@@ -47,7 +47,7 @@ class AdminReviewController extends Controller
 
         $review->load(['listing:id,title', 'vendor:id,business_name', 'traveller:id,name,avatar_url']);
 
-        $this->logAdminAction($request, 'restored review', "review #{$review->id}");
+        $this->logAdminAction($request, 'restored review', "review #{$review->id}", 'review', $review->id);
 
         return response()->json(['review' => $review]);
     }

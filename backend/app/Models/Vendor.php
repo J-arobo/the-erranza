@@ -11,7 +11,7 @@ class Vendor extends Model
     protected $fillable = [
         'user_id', 'business_name', 'email', 'phone', 'bio', 'logo_url', 'languages',
         'verification_status', 'suspended', 'suspend_reason',
-        'license_number', 'tax_pin', 'payout_method', 'payout_details',
+        'license_number', 'tax_pin', 'payout_method', 'payout_bank_name', 'payout_details',
         'categories', 'regions', 'plan', 'default_cancellation_policy',
         'onboarding_complete',
     ];

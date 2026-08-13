@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Message;
 use App\Models\User;
 use Illuminate\Http\Request;
+use App\Services\SupportMessenger;
 
 class VendorMessageController extends Controller
 {
@@ -14,13 +15,16 @@ class VendorMessageController extends Controller
     public function index(Request $request)
     {
         $vendor = $request->attributes->get('vendor');
+        $support = SupportMessenger::supportUser();
 
         $travellerIds = Message::where('vendor_id', $vendor->id)
             ->select('traveller_id')
             ->distinct()
-            ->pluck('traveller_id');
+            ->pluck('traveller_id')
+            ->push($support->id)
+            ->unique();
 
-        $threads = $travellerIds->map(function ($travellerId) use ($vendor) {
+        $threads = $travellerIds->map(function ($travellerId) use ($vendor, $support) {
             $traveller = User::find($travellerId);
             if (! $traveller) {
                 return null;
@@ -35,15 +39,20 @@ class VendorMessageController extends Controller
                 'traveller_id' => $traveller->id,
                 'guest_name' => $traveller->name,
                 'guest_avatar' => $traveller->avatar_url,
+                'is_support' => $traveller->id === $support->id,
                 'listing_title' => $last?->listing?->title,
-                'last_message' => $last?->text,
+                'last_message' => $last?->text ?? ($traveller->id === $support->id ? "Welcome to Erranza — we're here if you need anything." : null),
                 'last_message_at' => $last?->created_at,
                 'unanswered' => Message::where('vendor_id', $vendor->id)->where('traveller_id', $travellerId)
                     ->where('sender_type', 'guest')->whereNull('read_at')->exists(),
             ];
-        })->filter()->sortByDesc('last_message_at')->values();
+        })->filter()->values();
 
-        return response()->json(['threads' => $threads]);
+        $supportThread = $threads->firstWhere('is_support', true);
+        $otherThreads = $threads->where('is_support', false)->sortByDesc('last_message_at')->values();
+        $ordered = $supportThread ? collect([$supportThread])->concat($otherThreads) : $otherThreads;
+
+        return response()->json(['threads' => $ordered->values()]);
     }
 
     public function travellerThread(Request $request, User $traveller)

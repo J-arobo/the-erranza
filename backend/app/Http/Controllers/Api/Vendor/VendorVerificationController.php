@@ -25,13 +25,11 @@ class VendorVerificationController extends Controller
             'document' => ['required', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
         ]);
 
-        /** @var \Illuminate\Filesystem\FilesystemAdapter $disk */
-        $disk = Storage::disk('public');
         $path = $request->file('document')->store('verification-documents', 'public');
 
         $submission = $vendor->verificationSubmissions()->create([
             'doc_type' => $validated['doc_type'],
-            'file_url' => $disk->url($path),
+            'file_url' => $path,
             'status' => 'pending',
         ]);
 

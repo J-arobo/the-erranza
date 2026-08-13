@@ -144,6 +144,13 @@ Route::prefix('admin')->middleware(['auth:sanctum', 'admin'])->group(function ()
     Route::post('/verifications/{submission}/approve', [AdminVerificationController::class, 'approve']);
     Route::post('/verifications/{submission}/reject', [AdminVerificationController::class, 'reject']);
 
+    // Admin vendor verifcation
+    Route::get('/vendors', [AdminVendorController::class, 'index']);
+    Route::get('/vendors/{vendor}', [AdminVendorController::class, 'show']);
+    Route::post('/vendors/{vendor}/suspend', [AdminVendorController::class, 'suspend']);
+    Route::post('/vendors/{vendor}/reinstate', [AdminVendorController::class, 'reinstate']);
+    Route::get('/vendors/{vendor}/performance', [AdminVendorController::class, 'performance']);
+
     Route::get('/vendors', [AdminVendorController::class, 'index']);
     Route::post('/vendors/{vendor}/suspend', [AdminVendorController::class, 'suspend']);
     Route::post('/vendors/{vendor}/reinstate', [AdminVendorController::class, 'reinstate']);

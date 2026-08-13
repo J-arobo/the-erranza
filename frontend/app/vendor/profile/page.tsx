@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { LogOut, Star, TrendingUp, List, Check, ShieldCheck, Users, UserPlus, X, FileClock, Camera } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
@@ -13,6 +13,13 @@ const ROLE_DESCRIPTIONS: Record<Role, string> = {
   Support: 'Can respond to guest messages only.',
 }
 const TEAM_COLORS = ['#c4f0d4', '#f0e4c4', '#d4c4f0', '#c4e8f0']
+const CATEGORY_OPTIONS = ['Safari', 'Stays', 'Experiences', 'Packages']
+const REGION_OPTIONS = [
+
+  'Nairobi', 'Maasai Mara', 'Amboseli', 'Tsavo East', 'Tsavo West', 'Lake Nakuru',
+  'Diani Beach', 'Mombasa', 'Malindi', 'Watamu', 'Lamu', 'Nanyuki', 'Naivasha',
+  'Samburu', 'Meru', 'Kisumu', 'Nyeri', 'Laikipia', "Hell's Gate", 'Ol Pejeta',
+]
 
 type DocStatus = 'unset' | 'valid' | 'expiring' | 'expired'
 
@@ -51,11 +58,18 @@ type ApiVendor = {
   phone: string | null
   bio: string | null
   logo_url: string | null
+  tax_pin: string | null
+  payout_method: string | null
+  payout_bank_name: string | null
   payout_details: string | null
   reviews_count: number
   reviews_avg_rating: string | null
   owner: { id: number; name: string; email: string }
   team_members: TeamMember[]
+  license_number: string | null
+  categories: string[] | null
+  regions: string[] | null
+
 }
 
 type ApiSubmission = {
@@ -84,6 +98,24 @@ export default function VendorProfilePage() {
 
   const [uploading, setUploading] = useState<string | null>(null)
 
+  const govIdInputRef = useRef<HTMLInputElement>(null)
+  const insuranceInputRef = useRef<HTMLInputElement>(null)
+
+  const [editingPayout, setEditingPayout] = useState(false)
+  const [taxPin, setTaxPin] = useState('')
+  const [payoutMethod, setPayoutMethod] = useState<'mobile' | 'bank'>('mobile')
+  const [payoutBankName, setPayoutBankName] = useState('')
+  const [payoutDetails, setPayoutDetails] = useState('')
+  const [savingPayout, setSavingPayout] = useState(false)
+
+  const [editingListing, setEditingListing] = useState(false)
+  const [licenseNumber, setLicenseNumber] = useState('')
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([])
+  const [vendorRegions, setVendorRegions] = useState<string[]>([])
+  const [regionQuery, setRegionQuery] = useState('')
+  const [showRegionDropdown, setShowRegionDropdown] = useState(false)
+  const [savingListing, setSavingListing] = useState(false)
+
   const [showInviteForm, setShowInviteForm] = useState(false)
   const [inviteName, setInviteName] = useState('')
   const [inviteEmail, setInviteEmail] = useState('')
@@ -106,8 +138,15 @@ export default function VendorProfilePage() {
         setBusinessName(vendorRes.vendor.business_name)
         setPhone(vendorRes.vendor.phone ?? '')
         setBio(vendorRes.vendor.bio ?? '')
+        setTaxPin(vendorRes.vendor.tax_pin ?? '')
+        setPayoutMethod((vendorRes.vendor.payout_method as 'mobile' | 'bank') ?? 'mobile')
+        setPayoutBankName(vendorRes.vendor.payout_bank_name ?? '')
+        setPayoutDetails(vendorRes.vendor.payout_details ?? '')
         setSubmissions(subsRes.submissions)
         setListings(listingsRes.listings)
+        setLicenseNumber(vendorRes.vendor.license_number ?? '')
+        setSelectedCategories(vendorRes.vendor.categories ?? [])
+        setVendorRegions(vendorRes.vendor.regions ?? [])
       })
       .catch((err) => setError(apiErrorMessage(err)))
       .finally(() => setLoading(false))
@@ -160,19 +199,94 @@ export default function VendorProfilePage() {
   }
 
 
-  async function uploadDoc(docType: 'Government ID' | 'Insurance certificate') {
+  async function uploadDoc(docType: 'Government ID' | 'Insurance certificate', file: File) {
     setUploading(docType)
     setError('')
     try {
+      const formData = new FormData()
+      formData.append('doc_type', docType)
+      formData.append('document', file)
       const { submission } = await apiFetch<{ submission: ApiSubmission }>('/vendor/verification-submissions', {
         method: 'POST',
-        body: JSON.stringify({ doc_type: docType }),
+        body: formData,
       })
       setSubmissions(s => [...s, submission])
     } catch (err) {
       setError(apiErrorMessage(err))
     } finally {
       setUploading(null)
+    }
+  }
+
+  function handleDocFileChange(docType: 'Government ID' | 'Insurance certificate', e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    uploadDoc(docType, file)
+  }
+
+  async function savePayoutDetails() {
+    setSavingPayout(true)
+    setError('')
+    try {
+      const { vendor: updated } = await apiFetch<{ vendor: ApiVendor }>('/vendor/me', {
+        method: 'PUT',
+        body: JSON.stringify({
+          tax_pin: taxPin.trim() || null,
+          payout_method: payoutMethod,
+          payout_bank_name: payoutMethod === 'bank' ? payoutBankName.trim() : null,
+          payout_details: payoutDetails.trim(),
+        }),
+      })
+      setVendor(v => v ? {
+        ...v,
+        tax_pin: updated.tax_pin,
+        payout_method: updated.payout_method,
+        payout_bank_name: updated.payout_bank_name,
+        payout_details: updated.payout_details,
+      } : v)
+      setEditingPayout(false)
+    } catch (err) {
+      setError(apiErrorMessage(err))
+    } finally {
+      setSavingPayout(false)
+    }
+  }
+
+  //Vendor details modification
+  function toggleCategory(cat: string) {
+    setSelectedCategories(c => c.includes(cat) ? c.filter(x => x !== cat) : [...c, cat])
+  }
+  function addRegion(region: string) {
+    if (!vendorRegions.includes(region)) setVendorRegions(r => [...r, region])
+    setRegionQuery('')
+    setShowRegionDropdown(false)
+  }
+  function removeRegion(region: string) {
+    setVendorRegions(r => r.filter(x => x !== region))
+  }
+  const filteredRegionOptions = REGION_OPTIONS.filter(
+    r => r.toLowerCase().includes(regionQuery.toLowerCase()) && !vendorRegions.includes(r)
+  )
+
+  async function saveListingDetails() {
+    setSavingListing(true)
+    setError('')
+    try {
+      const { vendor: updated } = await apiFetch<{ vendor: ApiVendor }>('/vendor/me', {
+        method: 'PUT',
+        body: JSON.stringify({
+          license_number: licenseNumber.trim() || null,
+          categories: selectedCategories,
+          regions: vendorRegions,
+        }),
+      })
+      setVendor(v => v ? { ...v, license_number: updated.license_number, categories: updated.categories, regions: updated.regions } : v)
+      setEditingListing(false)
+    } catch (err) {
+      setError(apiErrorMessage(err))
+    } finally {
+      setSavingListing(false)
     }
   }
 
@@ -246,14 +360,14 @@ export default function VendorProfilePage() {
     {
       key: 'id', label: 'Upload government ID', done: !!govIdSubmission,
       actionLabel: uploading === 'Government ID' ? 'Uploading…' : 'Upload',
-      action: () => uploadDoc('Government ID'),
+      action: () => govIdInputRef.current?.click(),
     },
     {
       key: 'insurance', label: 'Upload insurance certificate', done: !!insuranceSubmission,
       actionLabel: uploading === 'Insurance certificate' ? 'Uploading…' : 'Upload',
-      action: () => uploadDoc('Insurance certificate'),
+      action: () => insuranceInputRef.current?.click(),
     },
-    { key: 'payout', label: 'Add payout details', done: !!vendor.payout_details, actionLabel: null as string | null, action: () => { } },
+    { key: 'payout', label: 'Add payout details', done: !!vendor.payout_details, actionLabel: vendor.payout_details ? null : 'Add', action: () => setEditingPayout(true) },
     {
       key: 'listing', label: 'Publish your first listing', done: hasActiveListing, actionLabel: 'Add listing',
       action: () => router.push('/vendor/listings/new'),
@@ -277,6 +391,11 @@ export default function VendorProfilePage() {
   return (
     <div className="p-5 lg:p-8 max-w-2xl mx-auto">
       <h1 className="text-2xl font-bold text-[#1a1a1a] mb-6">Profile</h1>
+
+      <input ref={govIdInputRef} type="file" accept=".jpg,.jpeg,.png,.pdf" className="hidden"
+        onChange={(e) => handleDocFileChange('Government ID', e)} />
+      <input ref={insuranceInputRef} type="file" accept=".jpg,.jpeg,.png,.pdf" className="hidden"
+        onChange={(e) => handleDocFileChange('Insurance certificate', e)} />
 
       {error && (
         <div className="mb-4 px-4 py-3 rounded-xl bg-red-50 text-red-600 text-sm">
@@ -506,6 +625,183 @@ export default function VendorProfilePage() {
         )}
       </div>
 
+      <div className="bg-white rounded-2xl border border-[#e0d9cc] shadow-sm p-5 mb-5">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-base font-bold text-[#1a1a1a]">Payout & tax details</h2>
+          <button onClick={() => setEditingPayout(e => !e)}
+            className="px-4 py-2 rounded-xl text-sm font-semibold bg-gray-100 hover:bg-gray-200 transition-colors">
+            {editingPayout ? 'Cancel' : 'Edit'}
+          </button>
+        </div>
+
+        {/* Editing details */}
+        <div className="bg-white rounded-2xl border border-[#e0d9cc] shadow-sm p-5 mb-5">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-base font-bold text-[#1a1a1a]">Listing categories & regions</h2>
+          <button onClick={() => setEditingListing(e => !e)}
+            className="px-4 py-2 rounded-xl text-sm font-semibold bg-gray-100 hover:bg-gray-200 transition-colors">
+            {editingListing ? 'Cancel' : 'Edit'}
+          </button>
+        </div>
+
+        {editingListing ? (
+          <div className="flex flex-col gap-4">
+            <div>
+              <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">Business license no.</label>
+              <input value={licenseNumber} onChange={(e) => setLicenseNumber(e.target.value)}
+                placeholder="Optional"
+                className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm
+                           outline-none focus:border-[#2c4a1e] transition-colors" />
+            </div>
+
+            <div>
+              <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">Categories</label>
+              <div className="grid grid-cols-2 gap-2">
+                {CATEGORY_OPTIONS.map((cat) => {
+                  const selected = selectedCategories.includes(cat)
+                  return (
+                    <button key={cat} onClick={() => toggleCategory(cat)}
+                      className={`flex items-center gap-2.5 p-3 rounded-xl border text-left transition-all
+                        ${selected
+                          ? 'border-[#2c4a1e] bg-[#eaf5e4]'
+                          : 'border-gray-200 hover:border-gray-300'}`}>
+                      <div className={`w-4 h-4 rounded flex items-center justify-center flex-shrink-0 border-2
+                        ${selected ? 'border-[#2c4a1e] bg-[#2c4a1e]' : 'border-gray-300'}`}>
+                        {selected && <Check size={11} color="white" />}
+                      </div>
+                      <span className="text-sm font-semibold text-[#1a1a1a]">{cat}</span>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
+            <div>
+              <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">Operating regions</label>
+              <div className="relative">
+                <input value={regionQuery}
+                  onChange={(e) => { setRegionQuery(e.target.value); setShowRegionDropdown(true) }}
+                  onFocus={() => setShowRegionDropdown(true)}
+                  onBlur={() => setTimeout(() => setShowRegionDropdown(false), 150)}
+                  placeholder="Search regions — e.g. Maasai Mara"
+                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm
+                             outline-none focus:border-[#2c4a1e] transition-colors" />
+                {showRegionDropdown && filteredRegionOptions.length > 0 && (
+                  <div className="absolute z-10 top-full left-0 right-0 mt-1 bg-white border border-gray-200
+                                  rounded-xl shadow-lg max-h-48 overflow-y-auto">
+                    {filteredRegionOptions.map((region) => (
+                      <button key={region} type="button"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => addRegion(region)}
+                        className="w-full text-left px-4 py-2.5 text-sm text-[#1a1a1a] hover:bg-[#eaf5e4] transition-colors">
+                        {region}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              {vendorRegions.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {vendorRegions.map((region) => (
+                    <span key={region}
+                      className="flex items-center gap-1.5 bg-[#eaf5e4] text-[#2c4a1e]
+                                 text-xs font-semibold px-3 py-1.5 rounded-full">
+                      {region}
+                      <button onClick={() => removeRegion(region)}>
+                        <X size={12} />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <button onClick={saveListingDetails} disabled={savingListing}
+              className="bg-[#2c4a1e] text-white py-3 rounded-xl font-semibold text-sm
+                         hover:bg-[#3d6b28] transition-colors disabled:opacity-50">
+              {savingListing ? 'Saving…' : 'Save changes'}
+            </button>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-3">
+            <div>
+              <p className="text-xs text-gray-400">Business license no.</p>
+              <p className="text-sm text-[#1a1a1a] font-medium">{vendor.license_number || 'Not set'}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-400">Categories</p>
+              <p className="text-sm text-[#1a1a1a] font-medium">{vendor.categories?.join(', ') || 'None selected'}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-400">Operating regions</p>
+              <p className="text-sm text-[#1a1a1a] font-medium">{vendor.regions?.join(', ') || 'None selected'}</p>
+            </div>
+          </div>
+        )}
+      </div>
+
+
+        {editingPayout ? (
+          <div className="flex flex-col gap-4">
+            <div>
+              <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">KRA PIN</label>
+              <input value={taxPin} onChange={(e) => setTaxPin(e.target.value.toUpperCase())}
+                placeholder="e.g. P051234567X"
+                className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm
+                           outline-none focus:border-[#2c4a1e] transition-colors" />
+            </div>
+            <div>
+              <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">Payout method</label>
+              <div className="flex gap-2 mb-2">
+                {(['mobile', 'bank'] as const).map((m) => (
+                  <button key={m} onClick={() => setPayoutMethod(m)}
+                    className={`px-4 py-1.5 rounded-full text-sm font-semibold border transition-all
+                      ${payoutMethod === m
+                        ? 'bg-[#2c4a1e] text-white border-[#2c4a1e]'
+                        : 'bg-white text-[#1a1a1a] border-gray-200 hover:border-[#2c4a1e]'}`}>
+                    {m === 'mobile' ? 'Mobile money' : 'Bank transfer'}
+                  </button>
+                ))}
+              </div>
+              {payoutMethod === 'bank' && (
+                <input value={payoutBankName} onChange={(e) => setPayoutBankName(e.target.value)}
+                  placeholder="Bank name (e.g. Equity Bank)"
+                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm mb-2
+                             outline-none focus:border-[#2c4a1e] transition-colors" />
+              )}
+              <input value={payoutDetails} onChange={(e) => setPayoutDetails(e.target.value)}
+                placeholder={payoutMethod === 'mobile' ? 'M-Pesa number, e.g. 0712345678' : 'Bank account number'}
+                className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm
+                           outline-none focus:border-[#2c4a1e] transition-colors" />
+            </div>
+            <button onClick={savePayoutDetails} disabled={savingPayout}
+              className="bg-[#2c4a1e] text-white py-3 rounded-xl font-semibold text-sm
+                         hover:bg-[#3d6b28] transition-colors disabled:opacity-50">
+              {savingPayout ? 'Saving…' : 'Save changes'}
+            </button>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-3">
+            <div>
+              <p className="text-xs text-gray-400">KRA PIN</p>
+              <p className="text-sm text-[#1a1a1a] font-medium">{vendor.tax_pin || 'Not set'}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-400">Payout method</p>
+              <p className="text-sm text-[#1a1a1a] font-medium capitalize">
+                {vendor.payout_method ?? 'Not set'}
+                {vendor.payout_method === 'bank' && vendor.payout_bank_name ? ` — ${vendor.payout_bank_name}` : ''}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-400">Payout details</p>
+              <p className="text-sm text-[#1a1a1a] font-medium">{vendor.payout_details || 'Not set'}</p>
+            </div>
+          </div>
+        )}
+      </div>
+
+
       {/* Team / co-hosts */}
       <div className="bg-white rounded-2xl border border-[#e0d9cc] shadow-sm p-5 mb-5">
         <div className="flex items-center justify-between mb-1">
@@ -559,7 +855,7 @@ export default function VendorProfilePage() {
 
         <div className="flex flex-col divide-y divide-gray-100">
           <div className="flex items-center gap-3 py-3">
-          <div className="w-9 h-9 rounded-full bg-[#2c4a1e] flex items-center justify-center
+            <div className="w-9 h-9 rounded-full bg-[#2c4a1e] flex items-center justify-center
                             text-white text-sm font-bold flex-shrink-0"
               style={user?.avatar ? { backgroundImage: `url(${user.avatar})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}>
               {!user?.avatar && (user?.name?.[0]?.toUpperCase() ?? 'V')}

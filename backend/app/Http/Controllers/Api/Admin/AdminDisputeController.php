@@ -46,7 +46,7 @@ class AdminDisputeController extends Controller
 
         $dispute->load(['booking.listing:id,title,vendor_id', 'booking.listing.vendor:id,business_name', 'raisedBy:id,name,avatar_url']);
 
-        $this->logAdminAction($request, 'resolved dispute', "dispute #{$dispute->id} — Ksh {$dispute->amount}");
+        $this->logAdminAction($request, 'resolved dispute', "dispute #{$dispute->id} — Ksh {$dispute->amount}", 'dispute', $dispute->id);
 
         return response()->json(['dispute' => $dispute]);
     }
@@ -57,7 +57,7 @@ class AdminDisputeController extends Controller
 
         $dispute->load(['booking.listing:id,title,vendor_id', 'booking.listing.vendor:id,business_name', 'raisedBy:id,name,avatar_url']);
 
-        $this->logAdminAction($request, 'escalated dispute', "dispute #{$dispute->id} — Ksh {$dispute->amount}");
+        $this->logAdminAction($request, 'escalated dispute', "dispute #{$dispute->id} — Ksh {$dispute->amount}", 'dispute', $dispute->id);
 
         return response()->json(['dispute' => $dispute]);
     }
