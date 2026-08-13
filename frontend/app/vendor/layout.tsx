@@ -3,6 +3,7 @@ import { useEffect } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { useAuth } from '@/context/AuthContext'
 import VendorShell from '@/components/vendor/VendorShell'
+import VerificationGate from '@/components/vendor/VerificationGate'
 
 export default function VendorLayout({ children }: { children: React.ReactNode }) {
   const { isLoggedIn, user } = useAuth()
@@ -10,6 +11,7 @@ export default function VendorLayout({ children }: { children: React.ReactNode }
   const pathname = usePathname()
   const isOnboardingRoute = pathname === '/vendor/onboarding'
   const isPartner = !!user?.roles?.includes('partner')
+  const isVerified = user?.verificationStatus === 'approved'
 
   useEffect(() => {
     if (!isLoggedIn) {
@@ -32,6 +34,7 @@ export default function VendorLayout({ children }: { children: React.ReactNode }
   if (!isLoggedIn || !isPartner) return null
   if (isOnboardingRoute) return <>{children}</>
   if (!user?.onboardingComplete) return null
+  if (!isVerified) return <VerificationGate />
 
   return <VendorShell>{children}</VendorShell>
 }
