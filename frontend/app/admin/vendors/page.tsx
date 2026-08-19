@@ -112,7 +112,7 @@ function AdminVendorsPageContent() {
       .finally(() => setLoadingDetail(false))
   }
 
-  
+
 
   async function refreshVendorDetail(vendorId: number) {
     try {
@@ -248,8 +248,8 @@ function AdminVendorsPageContent() {
             )}
             {pendingByVendor.map((p) => (
               <div key={p.vendor.id}
-              onClick={() => openVendorDetail(p.vendor.id)}
-              className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 cursor-pointer transition-colors
+                onClick={() => openVendorDetail(p.vendor.id)}
+                className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 cursor-pointer transition-colors
                 border-l-4 border-l-amber-400 hover:border-amber-400">
                 <div className="flex items-center justify-between gap-2 mb-1">
                   <p className="text-sm font-bold text-[#1a1a1a]">{p.vendor.business_name}</p>
@@ -266,7 +266,7 @@ function AdminVendorsPageContent() {
         </div>
       )}
 
-{tab === 'All vendors' && (
+      {tab === 'All vendors' && (
         <div className="flex flex-col gap-3">
           {vendors.filter(v => !v.suspended).length === 0 && (
             <p className="text-sm text-gray-400 text-center py-6 bg-white rounded-2xl border border-gray-200 shadow-sm">
