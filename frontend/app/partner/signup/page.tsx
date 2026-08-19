@@ -101,15 +101,18 @@ export default function PartnerSignupPage() {
       <div className="flex-1 flex items-start justify-center px-4 py-8 sm:py-12">
         <div className="w-full max-w-[480px]">
 
-          {isLoggedIn && user ? (
+        {isLoggedIn && user ? (
             // ── Screen c1: link existing traveller account ──
             <>
               <h2 className="text-2xl font-bold text-[#304333] mb-2">
-                Welcome back, {user.name.split(' ')[0]}
+                {(Date.now() - new Date(user.createdAt).getTime()) < 10 * 60 * 1000
+                  ? `Great, ${user.name.split(' ')[0]}!`
+                  : `Welcome back, ${user.name.split(' ')[0]}`}
               </h2>
               <p className="text-sm text-gray-500 mb-6 leading-relaxed">
-                You already have a traveller account on Erranza. Add partner access to the
-                same login — you'll be able to switch between booking trips and managing listings.
+                {(Date.now() - new Date(user.createdAt).getTime()) < 10 * 60 * 1000
+                  ? "You've just created your Erranza account. Add partner access to it now — you'll be able to switch between booking trips and managing listings."
+                  : "You already have a traveller account on Erranza. Add partner access to the same login — you'll be able to switch between booking trips and managing listings."}
               </p>
 
               <div className="flex items-center gap-3 border border-gray-200 rounded-xl p-4 mb-5">

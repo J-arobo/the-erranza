@@ -5,6 +5,7 @@ import Image from 'next/image'
 import { Plus, Star, Eye, Pause, Trash2, Calendar } from 'lucide-react'
 import { apiFetch, apiErrorMessage } from '@/lib/api'
 import { StatusBadge } from '../page'
+import Toast from '@/components/Toast'
 
 const FILTERS = ['All', 'Active', 'Paused', 'Draft']
 
@@ -35,6 +36,16 @@ export default function VendorListingsPage() {
   const [busyId, setBusyId] = useState<number | null>(null)
   const [pausingId, setPausingId] = useState<number | null>(null)
   const [deletingId, setDeletingId] = useState<number | null>(null)
+
+  const [toast, setToast] = useState<string | null>(null)
+
+  useEffect(() => {
+    const msg = sessionStorage.getItem('vendorToast')
+    if (msg) {
+      setToast(msg)
+      sessionStorage.removeItem('vendorToast')
+    }
+  }, [])
 
   useEffect(() => {
     apiFetch<{ listings: ApiListing[] }>('/vendor/listings')
@@ -80,22 +91,19 @@ export default function VendorListingsPage() {
     setPausingId(null)
   }
 
-  async function deleteListing(id: number) {
-    setBusyId(id)
+  async function confirmDelete() {
+    if (deletingId === null) return
+    setBusyId(deletingId)
+    setError('')
     try {
-      await apiFetch(`/vendor/listings/${id}`, { method: 'DELETE' })
-      setListings(ls => ls.filter(l => l.id !== id))
+      await apiFetch(`/vendor/listings/${deletingId}`, { method: 'DELETE' })
+      setListings(ls => ls.filter(l => l.id !== deletingId))
+      setDeletingId(null)
     } catch (err) {
       setError(apiErrorMessage(err))
     } finally {
       setBusyId(null)
     }
-  }
-
-  async function confirmDelete() {
-    if (deletingId === null) return
-    await deleteListing(deletingId)
-    setDeletingId(null)
   }
 
   if (loading) {
@@ -108,6 +116,7 @@ export default function VendorListingsPage() {
 
   return (
     <div className="p-5 lg:p-8 max-w-4xl mx-auto overflow-x-hidden">
+      {toast && <Toast message={toast} onDone={() => setToast(null)} />}
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-[#1a1a1a]">Listings</h1>

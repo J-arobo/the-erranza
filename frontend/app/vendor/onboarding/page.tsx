@@ -1,9 +1,9 @@
 'use client'
-import { useRef, useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Building2, Layers, Package, CreditCard, Clock,
-  X, Check, LogOut
+  X, Check, LogOut, Pencil, Trash2
 } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { apiFetch, apiErrorMessage } from '@/lib/api'
@@ -47,6 +47,13 @@ const PLANS: { id: 'standard' | 'plus'; name: string; price: string; commission:
   },
 ]
 
+type ApiSubmission = {
+  id: number
+  doc_type: string
+  original_name: string | null
+  file_size: number | null
+}
+
 export default function VendorOnboardingPage() {
   const { user, logout, completeOnboarding } = useAuth()
   const router = useRouter()
@@ -60,11 +67,15 @@ export default function VendorOnboardingPage() {
   const [payoutMethod, setPayoutMethod] = useState<'mobile' | 'bank'>('mobile')
   const [payoutBankName, setPayoutBankName] = useState('')
   const [payoutDetails, setPayoutDetails] = useState('')
-  const [idUploaded, setIdUploaded] = useState(false)
   const [insuranceUploaded, setInsuranceUploaded] = useState(false)
   const [uploadingId, setUploadingId] = useState(false)
+  const [idUploaded, setIdUploaded] = useState(false)
   const [uploadingInsurance, setUploadingInsurance] = useState(false)
   const [uploadError, setUploadError] = useState('')
+  const [idFile, setIdFile] = useState<{ name: string; size: number; submissionId: number } | null>(null)
+  const [insuranceFile, setInsuranceFile] = useState<{ name: string; size: number; submissionId: number } | null>(null)
+  const [deletingId, setDeletingId] = useState(false)
+  const [deletingInsurance, setDeletingInsurance] = useState(false)
   const idInputRef = useRef<HTMLInputElement>(null)
   const insuranceInputRef = useRef<HTMLInputElement>(null)
 
@@ -91,6 +102,24 @@ export default function VendorOnboardingPage() {
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState('')
 
+  useEffect(() => {
+    apiFetch<{ submissions: ApiSubmission[] }>('/vendor/verification-submissions')
+      .then(({ submissions }) => {
+        const latestId = submissions.filter(s => s.doc_type === 'Government ID').at(-1)
+        const latestInsurance = submissions.filter(s => s.doc_type === 'Insurance certificate').at(-1)
+
+        if (latestId) {
+          setIdUploaded(true)
+          setIdFile({ name: latestId.original_name ?? 'Document', size: latestId.file_size ?? 0, submissionId: latestId.id })
+        }
+        if (latestInsurance) {
+          setInsuranceUploaded(true)
+          setInsuranceFile({ name: latestInsurance.original_name ?? 'Document', size: latestInsurance.file_size ?? 0, submissionId: latestInsurance.id })
+        }
+      })
+      .catch(() => {})
+  }, [])
+
   function toggleCategory(cat: string) {
     setSelectedCategories(c => c.includes(cat) ? c.filter(x => x !== cat) : [...c, cat])
   }
@@ -106,6 +135,12 @@ export default function VendorOnboardingPage() {
     r => r.toLowerCase().includes(regionQuery.toLowerCase()) && !regions.includes(r)
   )
 
+  function formatFileSize(bytes: number) {
+    if (bytes < 1024) return `${bytes} B`
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+  }
+
   async function handleUploadId(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     e.target.value = ''
@@ -116,12 +151,28 @@ export default function VendorOnboardingPage() {
       const formData = new FormData()
       formData.append('doc_type', 'Government ID')
       formData.append('document', file)
-      await apiFetch('/vendor/verification-submissions', { method: 'POST', body: formData })
+      const res = await apiFetch<{ submission: { id: number } }>('/vendor/verification-submissions', { method: 'POST', body: formData })
       setIdUploaded(true)
+      setIdFile({ name: file.name, size: file.size, submissionId: res.submission.id })
     } catch (err) {
       setUploadError(apiErrorMessage(err))
     } finally {
       setUploadingId(false)
+    }
+  }
+
+  async function handleDeleteId() {
+    if (!idFile) return
+    setDeletingId(true)
+    setUploadError('')
+    try {
+      await apiFetch(`/vendor/verification-submissions/${idFile.submissionId}`, { method: 'DELETE' })
+      setIdUploaded(false)
+      setIdFile(null)
+    } catch (err) {
+      setUploadError(apiErrorMessage(err))
+    } finally {
+      setDeletingId(false)
     }
   }
 
@@ -135,14 +186,31 @@ export default function VendorOnboardingPage() {
       const formData = new FormData()
       formData.append('doc_type', 'Insurance certificate')
       formData.append('document', file)
-      await apiFetch('/vendor/verification-submissions', { method: 'POST', body: formData })
+      const res = await apiFetch<{ submission: { id: number } }>('/vendor/verification-submissions', { method: 'POST', body: formData })
       setInsuranceUploaded(true)
+      setInsuranceFile({ name: file.name, size: file.size, submissionId: res.submission.id })
     } catch (err) {
       setUploadError(apiErrorMessage(err))
     } finally {
       setUploadingInsurance(false)
     }
   }
+
+  async function handleDeleteInsurance() {
+    if (!insuranceFile) return
+    setDeletingInsurance(true)
+    setUploadError('')
+    try {
+      await apiFetch(`/vendor/verification-submissions/${insuranceFile.submissionId}`, { method: 'DELETE' })
+      setInsuranceUploaded(false)
+      setInsuranceFile(null)
+    } catch (err) {
+      setUploadError(apiErrorMessage(err))
+    } finally {
+      setDeletingInsurance(false)
+    }
+  }
+
 
   const taxPinValid = !taxPin.trim() || KRA_PIN_REGEX.test(taxPin.trim())
   const payoutDetailsValid = payoutMethod === 'mobile'
@@ -321,43 +389,81 @@ export default function VendorOnboardingPage() {
                 )}
               </div>
 
-              <div className="border border-gray-200 rounded-xl p-4 flex items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold text-[#1a1a1a]">Government-issued ID</p>
-                  <p className="text-xs text-gray-400 mt-0.5">National ID, passport, or business registration certificate.</p>
+              <div className="border border-gray-200 rounded-xl p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-[#1a1a1a]">Government-issued ID</p>
+                    <p className="text-xs text-gray-400 mt-0.5">National ID, passport, or business registration certificate.</p>
+                  </div>
+                  <input ref={idInputRef} type="file" accept=".jpg,.jpeg,.png,.pdf" className="hidden" onChange={handleUploadId} />
+                  {idUploaded ? (
+                    <span className="flex items-center gap-1 text-xs font-semibold text-[#2c4a1e] flex-shrink-0">
+                      <Check size={14} /> Uploaded
+                    </span>
+                  ) : (
+                    <button onClick={() => idInputRef.current?.click()} disabled={uploadingId}
+                      className="px-3 py-1.5 rounded-lg bg-[#2c4a1e] text-white text-xs font-semibold
+                                 hover:bg-[#3d6b28] transition-colors flex-shrink-0 disabled:opacity-50">
+                      {uploadingId ? 'Uploading…' : 'Upload'}
+                    </button>
+                  )}
                 </div>
-                <input ref={idInputRef} type="file" accept=".jpg,.jpeg,.png,.pdf" className="hidden" onChange={handleUploadId} />
-                {idUploaded ? (
-                  <span className="flex items-center gap-1 text-xs font-semibold text-[#2c4a1e] flex-shrink-0">
-                    <Check size={14} /> Uploaded
-                  </span>
-                ) : (
-                  <button onClick={() => idInputRef.current?.click()} disabled={uploadingId}
-                    className="px-3 py-1.5 rounded-lg bg-[#2c4a1e] text-white text-xs font-semibold
-                               hover:bg-[#3d6b28] transition-colors flex-shrink-0 disabled:opacity-50">
-                    {uploadingId ? 'Uploading…' : 'Upload'}
-                  </button>
+                {idFile && (
+                  <div className="flex items-center justify-between gap-3 mt-3 pt-3 border-t border-gray-100">
+                    <p className="text-xs text-gray-500 truncate">
+                      {idFile.name} <span className="text-gray-400">· {formatFileSize(idFile.size)}</span>
+                    </p>
+                    <div className="flex items-center gap-3 flex-shrink-0">
+                      <button onClick={() => idInputRef.current?.click()} disabled={uploadingId || deletingId}
+                        title="Change" className="text-gray-400 hover:text-[#1a1a1a] disabled:opacity-50">
+                        <Pencil size={14} />
+                      </button>
+                      <button onClick={handleDeleteId} disabled={uploadingId || deletingId}
+                        title="Delete" className="text-red-400 hover:text-red-600 disabled:opacity-50">
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </div>
                 )}
               </div>
 
-              <div className="border border-gray-200 rounded-xl p-4 flex items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold text-[#1a1a1a]">
-                    Insurance certificate <span className="text-gray-400 font-normal">(recommended)</span>
-                  </p>
-                  <p className="text-xs text-gray-400 mt-0.5">Liability cover for tours involving physical activity.</p>
+              <div className="border border-gray-200 rounded-xl p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-[#1a1a1a]">
+                      Insurance certificate <span className="text-gray-400 font-normal">(recommended)</span>
+                    </p>
+                    <p className="text-xs text-gray-400 mt-0.5">Liability cover for tours involving physical activity.</p>
+                  </div>
+                  <input ref={insuranceInputRef} type="file" accept=".jpg,.jpeg,.png,.pdf" className="hidden" onChange={handleUploadInsurance} />
+                  {insuranceUploaded ? (
+                    <span className="flex items-center gap-1 text-xs font-semibold text-[#2c4a1e] flex-shrink-0">
+                      <Check size={14} /> Uploaded
+                    </span>
+                  ) : (
+                    <button onClick={() => insuranceInputRef.current?.click()} disabled={uploadingInsurance}
+                      className="px-3 py-1.5 rounded-lg bg-gray-100 text-[#1a1a1a] text-xs font-semibold
+                                 hover:bg-gray-200 transition-colors flex-shrink-0 disabled:opacity-50">
+                      {uploadingInsurance ? 'Uploading…' : 'Upload'}
+                    </button>
+                  )}
                 </div>
-                <input ref={insuranceInputRef} type="file" accept=".jpg,.jpeg,.png,.pdf" className="hidden" onChange={handleUploadInsurance} />
-                {insuranceUploaded ? (
-                  <span className="flex items-center gap-1 text-xs font-semibold text-[#2c4a1e] flex-shrink-0">
-                    <Check size={14} /> Uploaded
-                  </span>
-                ) : (
-                  <button onClick={() => insuranceInputRef.current?.click()} disabled={uploadingInsurance}
-                    className="px-3 py-1.5 rounded-lg bg-gray-100 text-[#1a1a1a] text-xs font-semibold
-                               hover:bg-gray-200 transition-colors flex-shrink-0 disabled:opacity-50">
-                    {uploadingInsurance ? 'Uploading…' : 'Upload'}
-                  </button>
+                {insuranceFile && (
+                  <div className="flex items-center justify-between gap-3 mt-3 pt-3 border-t border-gray-100">
+                    <p className="text-xs text-gray-500 truncate">
+                      {insuranceFile.name} <span className="text-gray-400">· {formatFileSize(insuranceFile.size)}</span>
+                    </p>
+                    <div className="flex items-center gap-3 flex-shrink-0">
+                      <button onClick={() => insuranceInputRef.current?.click()} disabled={uploadingInsurance || deletingInsurance}
+                        title="Change" className="text-gray-400 hover:text-[#1a1a1a] disabled:opacity-50">
+                        <Pencil size={14} />
+                      </button>
+                      <button onClick={handleDeleteInsurance} disabled={uploadingInsurance || deletingInsurance}
+                        title="Delete" className="text-red-400 hover:text-red-600 disabled:opacity-50">
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </div>
                 )}
               </div>
 

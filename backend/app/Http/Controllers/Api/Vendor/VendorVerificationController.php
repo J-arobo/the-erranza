@@ -25,15 +25,29 @@ class VendorVerificationController extends Controller
             'document' => ['required', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
         ]);
 
-        $path = $request->file('document')->store('verification-documents', 'public');
+        $file = $request->file('document');
+        $path = $file->store('verification-documents', 'public');
 
         $submission = $vendor->verificationSubmissions()->create([
             'doc_type' => $validated['doc_type'],
             'file_url' => $path,
+            'original_name' => $file->getClientOriginalName(),
+            'file_size' => $file->getSize(),
             'status' => 'pending',
         ]);
 
         return response()->json(['submission' => $submission], 201);
+    }
+
+    // Delete a verification submission
+    public function destroy(Request $request, VerificationSubmission $submission)
+    {
+        abort_unless($submission->vendor_id === $request->attributes->get('vendor')->id, 403);
+
+        Storage::disk('public')->delete($submission->getRawOriginal('file_url'));
+        $submission->delete();
+
+        return response()->json(['message' => 'Deleted']);
     }
 
     public function update(Request $request, VerificationSubmission $submission)

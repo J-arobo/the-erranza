@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Storage;
 class VerificationSubmission extends Model
 {
     protected $fillable = [
-        'vendor_id', 'doc_type', 'file_url', 'expiry_date', 'status', 'rejection_reason', 'reviewed_by', 'reviewed_at',
+        'vendor_id', 'doc_type', 'file_url', 'original_name', 'file_size', 'expiry_date', 'status', 'rejection_reason', 'reviewed_by', 'reviewed_at',
     ];
 
     protected function casts(): array

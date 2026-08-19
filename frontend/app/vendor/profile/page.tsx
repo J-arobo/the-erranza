@@ -106,6 +106,9 @@ export default function VendorProfilePage() {
   const [payoutMethod, setPayoutMethod] = useState<'mobile' | 'bank'>('mobile')
   const [payoutBankName, setPayoutBankName] = useState('')
   const [payoutDetails, setPayoutDetails] = useState('')
+  const [prevMpesaNumber, setPrevMpesaNumber] = useState('')
+  const [newMpesaNumber, setNewMpesaNumber] = useState('')
+  const [payoutMismatchError, setPayoutMismatchError] = useState('')
   const [savingPayout, setSavingPayout] = useState(false)
 
   const [editingListing, setEditingListing] = useState(false)
@@ -226,6 +229,12 @@ export default function VendorProfilePage() {
   }
 
   async function savePayoutDetails() {
+    const isChangingMpesa = payoutMethod === 'mobile' && vendor?.payout_method === 'mobile' && !!vendor?.payout_details
+    if (isChangingMpesa && prevMpesaNumber.trim() !== vendor!.payout_details) {
+      setPayoutMismatchError("That doesn't match your current M-Pesa number.")
+      return
+    }
+
     setSavingPayout(true)
     setError('')
     try {
@@ -235,7 +244,7 @@ export default function VendorProfilePage() {
           tax_pin: taxPin.trim() || null,
           payout_method: payoutMethod,
           payout_bank_name: payoutMethod === 'bank' ? payoutBankName.trim() : null,
-          payout_details: payoutDetails.trim(),
+          payout_details: isChangingMpesa ? newMpesaNumber.trim() : payoutDetails.trim(),
         }),
       })
       setVendor(v => v ? {
@@ -245,6 +254,10 @@ export default function VendorProfilePage() {
         payout_bank_name: updated.payout_bank_name,
         payout_details: updated.payout_details,
       } : v)
+      setPayoutDetails(updated.payout_details ?? '')
+      setPrevMpesaNumber('')
+      setNewMpesaNumber('')
+      setPayoutMismatchError('')
       setEditingPayout(false)
     } catch (err) {
       setError(apiErrorMessage(err))
@@ -628,7 +641,7 @@ export default function VendorProfilePage() {
       <div className="bg-white rounded-2xl border border-[#e0d9cc] shadow-sm p-5 mb-5">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-base font-bold text-[#1a1a1a]">Payout & tax details</h2>
-          <button onClick={() => setEditingPayout(e => !e)}
+          <button onClick={() => { setEditingPayout(e => !e); setPrevMpesaNumber(''); setNewMpesaNumber(''); setPayoutMismatchError('') }}
             className="px-4 py-2 rounded-xl text-sm font-semibold bg-gray-100 hover:bg-gray-200 transition-colors">
             {editingPayout ? 'Cancel' : 'Edit'}
           </button>
@@ -636,109 +649,109 @@ export default function VendorProfilePage() {
 
         {/* Editing details */}
         <div className="bg-white rounded-2xl border border-[#e0d9cc] shadow-sm p-5 mb-5">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-base font-bold text-[#1a1a1a]">Listing categories & regions</h2>
-          <button onClick={() => setEditingListing(e => !e)}
-            className="px-4 py-2 rounded-xl text-sm font-semibold bg-gray-100 hover:bg-gray-200 transition-colors">
-            {editingListing ? 'Cancel' : 'Edit'}
-          </button>
-        </div>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-base font-bold text-[#1a1a1a]">Listing categories & regions</h2>
+            <button onClick={() => setEditingListing(e => !e)}
+              className="px-4 py-2 rounded-xl text-sm font-semibold bg-gray-100 hover:bg-gray-200 transition-colors">
+              {editingListing ? 'Cancel' : 'Edit'}
+            </button>
+          </div>
 
-        {editingListing ? (
-          <div className="flex flex-col gap-4">
-            <div>
-              <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">Business license no.</label>
-              <input value={licenseNumber} onChange={(e) => setLicenseNumber(e.target.value)}
-                placeholder="Optional"
-                className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm
-                           outline-none focus:border-[#2c4a1e] transition-colors" />
-            </div>
-
-            <div>
-              <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">Categories</label>
-              <div className="grid grid-cols-2 gap-2">
-                {CATEGORY_OPTIONS.map((cat) => {
-                  const selected = selectedCategories.includes(cat)
-                  return (
-                    <button key={cat} onClick={() => toggleCategory(cat)}
-                      className={`flex items-center gap-2.5 p-3 rounded-xl border text-left transition-all
-                        ${selected
-                          ? 'border-[#2c4a1e] bg-[#eaf5e4]'
-                          : 'border-gray-200 hover:border-gray-300'}`}>
-                      <div className={`w-4 h-4 rounded flex items-center justify-center flex-shrink-0 border-2
-                        ${selected ? 'border-[#2c4a1e] bg-[#2c4a1e]' : 'border-gray-300'}`}>
-                        {selected && <Check size={11} color="white" />}
-                      </div>
-                      <span className="text-sm font-semibold text-[#1a1a1a]">{cat}</span>
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-
-            <div>
-              <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">Operating regions</label>
-              <div className="relative">
-                <input value={regionQuery}
-                  onChange={(e) => { setRegionQuery(e.target.value); setShowRegionDropdown(true) }}
-                  onFocus={() => setShowRegionDropdown(true)}
-                  onBlur={() => setTimeout(() => setShowRegionDropdown(false), 150)}
-                  placeholder="Search regions — e.g. Maasai Mara"
+          {editingListing ? (
+            <div className="flex flex-col gap-4">
+              <div>
+                <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">Business license no.</label>
+                <input value={licenseNumber} onChange={(e) => setLicenseNumber(e.target.value)}
+                  placeholder="Optional"
                   className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm
-                             outline-none focus:border-[#2c4a1e] transition-colors" />
-                {showRegionDropdown && filteredRegionOptions.length > 0 && (
-                  <div className="absolute z-10 top-full left-0 right-0 mt-1 bg-white border border-gray-200
-                                  rounded-xl shadow-lg max-h-48 overflow-y-auto">
-                    {filteredRegionOptions.map((region) => (
-                      <button key={region} type="button"
-                        onMouseDown={(e) => e.preventDefault()}
-                        onClick={() => addRegion(region)}
-                        className="w-full text-left px-4 py-2.5 text-sm text-[#1a1a1a] hover:bg-[#eaf5e4] transition-colors">
-                        {region}
+                           outline-none focus:border-[#2c4a1e] transition-colors" />
+              </div>
+
+              <div>
+                <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">Categories</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {CATEGORY_OPTIONS.map((cat) => {
+                    const selected = selectedCategories.includes(cat)
+                    return (
+                      <button key={cat} onClick={() => toggleCategory(cat)}
+                        className={`flex items-center gap-2.5 p-3 rounded-xl border text-left transition-all
+                        ${selected
+                            ? 'border-[#2c4a1e] bg-[#eaf5e4]'
+                            : 'border-gray-200 hover:border-gray-300'}`}>
+                        <div className={`w-4 h-4 rounded flex items-center justify-center flex-shrink-0 border-2
+                        ${selected ? 'border-[#2c4a1e] bg-[#2c4a1e]' : 'border-gray-300'}`}>
+                          {selected && <Check size={11} color="white" />}
+                        </div>
+                        <span className="text-sm font-semibold text-[#1a1a1a]">{cat}</span>
                       </button>
+                    )
+                  })}
+                </div>
+              </div>
+
+              <div>
+                <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">Operating regions</label>
+                <div className="relative">
+                  <input value={regionQuery}
+                    onChange={(e) => { setRegionQuery(e.target.value); setShowRegionDropdown(true) }}
+                    onFocus={() => setShowRegionDropdown(true)}
+                    onBlur={() => setTimeout(() => setShowRegionDropdown(false), 150)}
+                    placeholder="Search regions — e.g. Maasai Mara"
+                    className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm
+                             outline-none focus:border-[#2c4a1e] transition-colors" />
+                  {showRegionDropdown && filteredRegionOptions.length > 0 && (
+                    <div className="absolute z-10 top-full left-0 right-0 mt-1 bg-white border border-gray-200
+                                  rounded-xl shadow-lg max-h-48 overflow-y-auto">
+                      {filteredRegionOptions.map((region) => (
+                        <button key={region} type="button"
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => addRegion(region)}
+                          className="w-full text-left px-4 py-2.5 text-sm text-[#1a1a1a] hover:bg-[#eaf5e4] transition-colors">
+                          {region}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                {vendorRegions.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {vendorRegions.map((region) => (
+                      <span key={region}
+                        className="flex items-center gap-1.5 bg-[#eaf5e4] text-[#2c4a1e]
+                                 text-xs font-semibold px-3 py-1.5 rounded-full">
+                        {region}
+                        <button onClick={() => removeRegion(region)}>
+                          <X size={12} />
+                        </button>
+                      </span>
                     ))}
                   </div>
                 )}
               </div>
-              {vendorRegions.length > 0 && (
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {vendorRegions.map((region) => (
-                    <span key={region}
-                      className="flex items-center gap-1.5 bg-[#eaf5e4] text-[#2c4a1e]
-                                 text-xs font-semibold px-3 py-1.5 rounded-full">
-                      {region}
-                      <button onClick={() => removeRegion(region)}>
-                        <X size={12} />
-                      </button>
-                    </span>
-                  ))}
-                </div>
-              )}
-            </div>
 
-            <button onClick={saveListingDetails} disabled={savingListing}
-              className="bg-[#2c4a1e] text-white py-3 rounded-xl font-semibold text-sm
+              <button onClick={saveListingDetails} disabled={savingListing}
+                className="bg-[#2c4a1e] text-white py-3 rounded-xl font-semibold text-sm
                          hover:bg-[#3d6b28] transition-colors disabled:opacity-50">
-              {savingListing ? 'Saving…' : 'Save changes'}
-            </button>
-          </div>
-        ) : (
-          <div className="flex flex-col gap-3">
-            <div>
-              <p className="text-xs text-gray-400">Business license no.</p>
-              <p className="text-sm text-[#1a1a1a] font-medium">{vendor.license_number || 'Not set'}</p>
+                {savingListing ? 'Saving…' : 'Save changes'}
+              </button>
             </div>
-            <div>
-              <p className="text-xs text-gray-400">Categories</p>
-              <p className="text-sm text-[#1a1a1a] font-medium">{vendor.categories?.join(', ') || 'None selected'}</p>
+          ) : (
+            <div className="flex flex-col gap-3">
+              <div>
+                <p className="text-xs text-gray-400">Business license no.</p>
+                <p className="text-sm text-[#1a1a1a] font-medium">{vendor.license_number || 'Not set'}</p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-400">Categories</p>
+                <p className="text-sm text-[#1a1a1a] font-medium">{vendor.categories?.join(', ') || 'None selected'}</p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-400">Operating regions</p>
+                <p className="text-sm text-[#1a1a1a] font-medium">{vendor.regions?.join(', ') || 'None selected'}</p>
+              </div>
             </div>
-            <div>
-              <p className="text-xs text-gray-400">Operating regions</p>
-              <p className="text-sm text-[#1a1a1a] font-medium">{vendor.regions?.join(', ') || 'None selected'}</p>
-            </div>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
 
 
         {editingPayout ? (
@@ -767,6 +780,24 @@ export default function VendorProfilePage() {
                 <input value={payoutBankName} onChange={(e) => setPayoutBankName(e.target.value)}
                   placeholder="Bank name (e.g. Equity Bank)"
                   className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm mb-2
+                             outline-none focus:border-[#2c4a1e] transition-colors" />
+              )}
+              {payoutMethod === 'mobile' && vendor.payout_method === 'mobile' && vendor.payout_details ? (
+                <div className="flex flex-col gap-2">
+                  <input value={prevMpesaNumber} onChange={(e) => { setPrevMpesaNumber(e.target.value); setPayoutMismatchError('') }}
+                    placeholder="Previous M-Pesa number"
+                    className={`w-full border rounded-xl px-4 py-2.5 text-sm outline-none transition-colors
+                      ${payoutMismatchError ? 'border-red-400' : 'border-gray-200 focus:border-[#2c4a1e]'}`} />
+                  {payoutMismatchError && <p className="text-xs text-red-500">{payoutMismatchError}</p>}
+                  <input value={newMpesaNumber} onChange={(e) => setNewMpesaNumber(e.target.value)}
+                    placeholder="New M-Pesa number, e.g. 0712345678"
+                    className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm
+                               outline-none focus:border-[#2c4a1e] transition-colors" />
+                </div>
+              ) : (
+                <input value={payoutDetails} onChange={(e) => setPayoutDetails(e.target.value)}
+                  placeholder={payoutMethod === 'mobile' ? 'M-Pesa number, e.g. 0712345678' : 'Bank account number'}
+                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm
                              outline-none focus:border-[#2c4a1e] transition-colors" />
               )}
               <input value={payoutDetails} onChange={(e) => setPayoutDetails(e.target.value)}

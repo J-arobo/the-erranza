@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\Admin\AdminListingController;
 use App\Http\Controllers\Api\Admin\AdminReviewController;
 use App\Http\Controllers\Api\Admin\AdminVendorController;
 use App\Http\Controllers\Api\Admin\AdminVerificationController;
+use App\Http\Controllers\Api\Admin\AdminSupportController;
 use App\Http\Controllers\Api\BookingController;
 use App\Http\Controllers\Api\ListingController;
 use App\Http\Controllers\Api\MessageController;
@@ -100,6 +101,8 @@ Route::prefix('vendor')->middleware(['auth:sanctum', 'vendor'])->group(function 
     Route::get('/me', [VendorProfileController::class, 'show']);
     Route::patch('/onboarding', [VendorProfileController::class, 'completeOnboarding']);
     Route::post('/verification-submissions', [VendorVerificationController::class, 'store']);
+    // Deleted documents
+    Route::delete('/verification-submissions/{submission}', [VendorVerificationController::class, 'destroy']);
 
     Route::apiResource('listings', VendorListingController::class);
 
@@ -127,6 +130,8 @@ Route::prefix('vendor')->middleware(['auth:sanctum', 'vendor'])->group(function 
     Route::post('/notifications/read-all', [VendorNotificationController::class, 'markAllRead']);
     //vendor stats
     Route::get('/stats', [VendorStatsController::class, 'index']);
+    // Earnings 
+    Route::get('/earnings', [VendorStatsController::class, 'earnings']);
     //Vendor profile
     Route::put('/me', [VendorProfileController::class, 'update']);
 
@@ -171,6 +176,14 @@ Route::prefix('admin')->middleware(['auth:sanctum', 'admin'])->group(function ()
     Route::post('/disputes/{dispute}/escalate', [AdminDisputeController::class, 'escalate']);
 
     Route::get('/audit-log', [AdminAuditLogController::class, 'index']);
+
+    // Support
+    Route::get('/support', [AdminSupportController::class, 'index']);
+    Route::get('/support/vendor/{vendor}', [AdminSupportController::class, 'vendorThread']);
+    Route::post('/support/vendor/{vendor}/reply', [AdminSupportController::class, 'replyToVendor']);
+    Route::get('/support/traveller/{traveller}', [AdminSupportController::class, 'travellerThread']);
+    Route::post('/support/traveller/{traveller}/reply', [AdminSupportController::class, 'replyToTraveller']);
+
 });
 
 Route::prefix('super-admin')->middleware(['auth:sanctum', 'super_admin'])->group(function () {

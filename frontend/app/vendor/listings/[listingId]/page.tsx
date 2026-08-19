@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 import { apiFetch, apiErrorMessage } from '@/lib/api'
 import PhotoManager from '@/components/vendor/PhotoManager'
+import Toast from '@/components/Toast'
 
 type Props = {
   params: Promise<{ listingId: string }>
@@ -127,6 +128,7 @@ export default function EditListingPage({ params }: Props) {
   const [saveError, setSaveError] = useState('')
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [toast, setToast] = useState<string | null>(null)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
@@ -271,6 +273,14 @@ export default function EditListingPage({ params }: Props) {
       })
       .finally(() => setLoading(false))
   }, [listingId])
+
+  useEffect(() => {
+    const msg = sessionStorage.getItem('vendorToast')
+    if (msg) {
+      setToast(msg)
+      sessionStorage.removeItem('vendorToast')
+    }
+  }, [])
 
   const canSave = title.trim() && location.trim() && price.trim()
 
@@ -422,8 +432,8 @@ export default function EditListingPage({ params }: Props) {
       })))
       setExtras(listing.extras.map(e => ({ id: e.id, label: e.label, price: Number(e.price), default_selected: e.default_selected })))
 
-      setSaved(true)
-      setTimeout(() => setSaved(false), 2000)
+      sessionStorage.setItem('vendorToast', 'Listing updated')
+      router.push('/vendor/listings')
     } catch (err) {
       setSaveError(apiErrorMessage(err))
     } finally {
@@ -433,13 +443,13 @@ export default function EditListingPage({ params }: Props) {
 
   async function handleDelete() {
     setDeleting(true)
+    setSaveError('')
     try {
       await apiFetch(`/vendor/listings/${listingId}`, { method: 'DELETE' })
       router.push('/vendor/listings')
     } catch (err) {
       setSaveError(apiErrorMessage(err))
       setDeleting(false)
-      setConfirmingDelete(false)
     }
   }
 
@@ -465,19 +475,12 @@ export default function EditListingPage({ params }: Props) {
 
   return (
     <div className="p-5 lg:p-8 max-w-2xl mx-auto overflow-x-hidden">
+      {toast && <Toast message={toast} onDone={() => setToast(null)} />}
       <button onClick={() => router.push('/vendor/listings')}
         className="flex items-center gap-1.5 text-sm font-semibold text-[#1a1a1a] mb-5 hover:underline">
         <ArrowLeft size={16} /> Back to listings
       </button>
 
-      <div className="flex items-center justify-between mb-1">
-        <h1 className="text-2xl font-bold text-[#1a1a1a]">Edit listing</h1>
-        {saved && (
-          <span className="text-xs font-semibold text-[#2c4a1e] bg-[#eaf5e4] px-3 py-1 rounded-full">
-            Saved
-          </span>
-        )}
-      </div>
       <p className="text-sm text-gray-500 mb-6">
         {bookingsCount} bookings · Earned Ksh {Math.round(Number(earnings)).toLocaleString()}
       </p>
@@ -992,8 +995,8 @@ export default function EditListingPage({ params }: Props) {
           )}
         </div>
 
-                {/* ══ HOUSE RULES ══ */}
-                <div className="pt-2 border-t border-gray-100">
+        {/* ══ HOUSE RULES ══ */}
+        <div className="pt-2 border-t border-gray-100">
           <h2 className="text-lg font-bold text-[#1a1a1a] mb-1 mt-4">
             {category === 'Stays' ? 'House rules' : 'Tour rules'}
           </h2>
@@ -1084,6 +1087,11 @@ export default function EditListingPage({ params }: Props) {
             <p className="text-sm text-gray-500 mb-5">
               This permanently deletes the listing and cannot be undone.
             </p>
+            {saveError && (
+              <div className="mb-4 px-4 py-3 rounded-xl bg-red-50 text-red-600 text-sm">
+                {saveError}
+              </div>
+            )}
             <div className="flex gap-2">
               <button onClick={() => setConfirmingDelete(false)} disabled={deleting}
                 className="flex-1 py-3 rounded-xl border border-gray-200 text-sm font-semibold

@@ -8,6 +8,7 @@ use App\Models\Listing;
 use App\Models\Message;
 use App\Models\Vendor;
 use Illuminate\Http\Request;
+use App\Services\SupportMessenger;
 
 class MessageController extends Controller
 {
@@ -16,14 +17,17 @@ class MessageController extends Controller
     public function index(Request $request)
     {
         $user = $request->user();
+        $supportVendor = SupportMessenger::supportVendor();
 
         $vendorIds = Message::where('traveller_id', $user->id)
             ->whereNotNull('vendor_id')
             ->select('vendor_id')
             ->distinct()
-            ->pluck('vendor_id');
+            ->pluck('vendor_id')
+            ->push($supportVendor->id)
+            ->unique();
 
-        $threads = $vendorIds->map(function ($vendorId) use ($user) {
+        $threads = $vendorIds->map(function ($vendorId) use ($user, $supportVendor) {
             $vendor = Vendor::find($vendorId);
             if (! $vendor) {
                 return null;
@@ -34,9 +38,6 @@ class MessageController extends Controller
                 ->latest()
                 ->first();
 
-            // Independent of whichever message is most recent overall — this
-            // persists the last staff member's identity even after the
-            // traveller has since replied.
             $lastVendorMessage = Message::where('vendor_id', $vendorId)->where('traveller_id', $user->id)
                 ->where('sender_type', 'vendor')
                 ->with('sender:id,name,avatar_url')
@@ -47,17 +48,22 @@ class MessageController extends Controller
                 'vendor_id' => $vendor->id,
                 'vendor_name' => $vendor->business_name,
                 'vendor_avatar' => $vendor->logo_url,
+                'is_support' => $vendor->id === $supportVendor->id,
                 'listing_title' => $last?->listing?->title,
-                'last_message' => $last?->text,
+                'last_message' => $last?->text ?? ($vendor->id === $supportVendor->id ? "Welcome to Erranza — we're here if you need anything." : null),
                 'last_message_at' => $last?->created_at,
                 'last_sender_name' => $lastVendorMessage?->sender?->name,
                 'last_sender_avatar' => $lastVendorMessage?->sender?->avatar_url,
                 'unread' => Message::where('vendor_id', $vendorId)->where('traveller_id', $user->id)
                     ->where('sender_type', 'vendor')->whereNull('read_at')->exists(),
             ];
-        })->filter()->sortByDesc('last_message_at')->values();
+        })->filter()->values();
 
-        return response()->json(['threads' => $threads]);
+        $supportThread = $threads->firstWhere('is_support', true);
+        $otherThreads = $threads->where('is_support', false)->sortByDesc('last_message_at')->values();
+        $ordered = $supportThread ? collect([$supportThread])->concat($otherThreads) : $otherThreads;
+
+        return response()->json(['threads' => $ordered->values()]);
     }
 
     public function vendorThread(Request $request, Vendor $vendor)
@@ -72,20 +78,38 @@ class MessageController extends Controller
             ->oldest()
             ->get();
 
-        return response()->json([
-            'vendor_id' => $vendor->id,
-            'vendor_name' => $vendor->business_name,
-            'vendor_avatar' => $vendor->logo_url,
-            'messages' => $messages,
-        ]);
+            return response()->json([
+                'vendor_id' => $vendor->id,
+                'vendor_name' => $vendor->business_name,
+                'vendor_avatar' => $vendor->logo_url,
+                'is_support' => $vendor->id === SupportMessenger::supportVendor()->id,
+                'messages' => $messages,
+            ]);    
     }
 
     public function storeToVendor(Request $request, Vendor $vendor)
     {
+        $isSupport = $vendor->id === SupportMessenger::supportVendor()->id;
+
         $validated = $request->validate([
             'text' => ['required', 'string'],
-            'listing_id' => ['required', 'exists:listings,id'],
+            'listing_id' => [$isSupport ? 'nullable' : 'required', 'exists:listings,id'],
         ]);
+
+        if ($isSupport) {
+            $message = Message::create([
+                'vendor_id' => $vendor->id,
+                'listing_id' => $validated['listing_id'] ?? null,
+                'traveller_id' => $request->user()->id,
+                'sender_type' => 'guest',
+                'sender_id' => $request->user()->id,
+                'text' => $validated['text'],
+            ]);
+
+            $message->load('listing:id,title');
+
+            return response()->json(['message' => $message], 201);
+        }
 
         $listing = Listing::findOrFail($validated['listing_id']);
         abort_unless($listing->vendor_id === $vendor->id, 422, 'This listing does not belong to that vendor.');

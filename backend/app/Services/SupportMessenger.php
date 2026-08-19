@@ -33,4 +33,34 @@ class SupportMessenger
             'text' => $text,
         ]);
     }
+    // Traveller
+    public static function supportVendor(): Vendor
+    {
+        $user = self::supportUser();
+
+        return Vendor::firstOrCreate(
+            ['user_id' => $user->id],
+            [
+                'business_name' => 'Erranza Support',
+                'email' => $user->email,
+                'verification_status' => 'approved',
+                'onboarding_complete' => true,
+            ]
+        );
+    }
+
+    public static function sendToTraveller(User $traveller, string $text, ?int $listingId = null): Message
+    {
+        $vendor = self::supportVendor();
+        $support = self::supportUser();
+
+        return Message::create([
+            'vendor_id' => $vendor->id,
+            'listing_id' => $listingId,
+            'traveller_id' => $traveller->id,
+            'sender_type' => 'vendor',
+            'sender_id' => $support->id,
+            'text' => $text,
+        ]);
+    }
 }

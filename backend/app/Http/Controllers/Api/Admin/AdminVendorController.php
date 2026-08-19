@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Booking;
 use App\Models\Vendor;
 use Illuminate\Http\Request;
+use App\Services\SupportMessenger;
 
 class AdminVendorController extends Controller
 {
@@ -16,6 +17,7 @@ class AdminVendorController extends Controller
     {
         $vendors = Vendor::with('owner:id,name,email')
             ->withCount('listings')
+            ->where('user_id', '!=', SupportMessenger::supportUser()->id)
             ->latest()
             ->get();
 

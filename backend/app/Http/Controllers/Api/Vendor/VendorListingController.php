@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Listing;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 
 class VendorListingController extends Controller
 {
@@ -34,7 +35,7 @@ class VendorListingController extends Controller
 
         $validated = $request->validate([
             'title' => ['required', 'string', 'max:255'],
-            'category' => ['required', 'string', 'max:100'],
+            'category' => ['required', 'string', 'max:100', Rule::in($vendor->categories ?? [])],
             'location' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
             'price' => ['required', 'numeric', 'min:0'],
@@ -137,7 +138,7 @@ class VendorListingController extends Controller
 
         $validated = $request->validate([
             'title' => ['sometimes', 'string', 'max:255'],
-            'category' => ['sometimes', 'string', 'max:100'],
+            'category' => ['sometimes', 'string', 'max:100', Rule::in($listing->vendor->categories ?? [])],
             'location' => ['sometimes', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
             'price' => ['sometimes', 'numeric', 'min:0'],
@@ -284,6 +285,9 @@ class VendorListingController extends Controller
     public function destroy(Request $request, Listing $listing)
     {
         $this->authorizeOwnership($request, $listing);
+
+        $hasActiveBookings = $listing->bookings()->whereNotIn('status', ['completed', 'cancelled'])->exists();
+        abort_if($hasActiveBookings, 422, "This listing has a booking that hasn't been completed yet, so it can't be deleted. Please contact customer support if you need help with this.");
 
         $listing->delete();
 

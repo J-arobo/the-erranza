@@ -1,9 +1,10 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Plus, X, ArrowLeft } from 'lucide-react'
 import { apiFetch, apiErrorMessage } from '@/lib/api'
 import PhotoManager from '@/components/vendor/PhotoManager'
+import Toast from '@/components/Toast'
 
 const CATEGORIES = ['Safari', 'Stays', 'Experiences', 'Packages']
 
@@ -43,6 +44,21 @@ export default function NewListingPage() {
   const [durationOptions, setDurationOptions] = useState<{ id: string; label: string; price: string }[]>([])
   const [durationLabel, setDurationLabel] = useState('')
   const [durationPrice, setDurationPrice] = useState('')
+
+  // ── Category picker ──
+  const [vendorCategories, setVendorCategories] = useState<string[]>(CATEGORIES)
+
+  useEffect(() => {
+    apiFetch<{ vendor: { categories: string[] | null } }>('/vendor/me')
+      .then(({ vendor }) => {
+        if (vendor.categories && vendor.categories.length > 0) {
+          setVendorCategories(vendor.categories)
+          setCategory(vendor.categories[0])
+        }
+      })
+      .catch(() => { })
+  }, [])
+
 
   // ── Tiered pricing ──
   const [childPrice, setChildPrice] = useState('')
@@ -130,6 +146,7 @@ export default function NewListingPage() {
         }),
       })
 
+      sessionStorage.setItem('vendorToast', 'Listing created')
       router.push(`/vendor/listings/${listing.id}`)
     } catch (err) {
       setError(apiErrorMessage(err))
@@ -165,7 +182,7 @@ export default function NewListingPage() {
         <div>
           <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">Category</label>
           <div className="flex gap-2 flex-wrap">
-            {CATEGORIES.map((c) => (
+            {vendorCategories.map((c) => (
               <button key={c} onClick={() => setCategory(c)}
                 className={`px-4 py-1.5 rounded-full text-sm font-semibold border transition-all
                   ${category === c
@@ -305,14 +322,14 @@ export default function NewListingPage() {
           <div>
             <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">Min guests</label>
             <input value={minGuests} onChange={(e) => setMinGuests(e.target.value)}
-              type="number" placeholder="e.g. 2"
+              type="number" min="0" placeholder="e.g. 2"
               className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm
                          outline-none focus:border-[#2c4a1e] transition-colors" />
           </div>
           <div>
             <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">Max guests</label>
             <input value={maxGuests} onChange={(e) => setMaxGuests(e.target.value)}
-              type="number" placeholder="e.g. 12"
+              type="number" min="0" placeholder="e.g. 2"
               className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm
                          outline-none focus:border-[#2c4a1e] transition-colors" />
           </div>
@@ -379,11 +396,11 @@ export default function NewListingPage() {
           <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">Group discounts</label>
           <div className="flex gap-2 mb-2">
             <input value={discountMinGuests} onChange={(e) => setDiscountMinGuests(e.target.value)}
-              type="number" placeholder="Min guests"
+              type="number" min="0" placeholder="e.g. 2"
               className="flex-1 border border-gray-200 rounded-xl px-4 py-2.5 text-sm
                          outline-none focus:border-[#2c4a1e] transition-colors" />
             <input value={discountPercent} onChange={(e) => setDiscountPercent(e.target.value)}
-              type="number" placeholder="Discount %"
+              type="number" min="0" placeholder="e.g. 2"
               className="flex-1 border border-gray-200 rounded-xl px-4 py-2.5 text-sm
                          outline-none focus:border-[#2c4a1e] transition-colors" />
             <button onClick={addGroupDiscount}

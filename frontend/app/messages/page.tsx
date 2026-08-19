@@ -123,8 +123,8 @@ function ConversationList({
           <div className="flex flex-col">
             {filtered.map((t) => (
               <button key={t.vendor_id} onClick={() => onSelectThread(t)}
-                className={`flex items-center gap-4 px-5 py-4 hover:bg-gray-50 transition-colors text-left w-full
-                  ${activeVendorId === t.vendor_id ? 'bg-gray-50' : ''}`}>
+                className={`flex items-center gap-4 px-5 py-4 hover:bg-gray-50 transition-colors text-left w-full focus:outline-none
+                              ${activeVendorId === t.vendor_id ? 'bg-gray-50' : ''}`}>
                 <div className="relative flex-shrink-0 w-14 h-14">
                   <div className="absolute top-0 left-0 w-14 h-14 rounded-full overflow-hidden bg-[#2c4a1e] border-2 border-white flex items-center justify-center text-white text-lg font-bold"
                     style={t.vendor_avatar ? { backgroundImage: `url(${t.vendor_avatar})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}>

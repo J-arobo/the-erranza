@@ -71,4 +71,59 @@ class VendorStatsController extends Controller
             'listings' => $listings,
         ]);
     }
+
+    // Real, commission-adjusted earnings — a vendor's plan determines Erranza's
+    // cut (12% Standard, 8% Plus), so "earnings" here always means what the
+    // vendor actually receives, not the gross amount the traveller paid.
+    public function earnings(Request $request)
+    {
+        $vendor = $request->attributes->get('vendor');
+        $commissionRate = $vendor->plan === 'plus' ? 0.08 : 0.12;
+        $netOf = fn ($gross) => round($gross * (1 - $commissionRate));
+
+        // Bucketed by check_out (falling back to check_in, then created_at for
+        // listings with neither) — the date the trip actually concluded is the
+        // most meaningful "when was this revenue earned" for a travel platform.
+        $completedBookings = Booking::whereHas('listing', fn ($q) => $q->where('vendor_id', $vendor->id))
+            ->where('status', 'completed')
+            ->get(['id', 'total', 'check_in', 'check_out', 'created_at']);
+
+        $monthly = collect(range(11, 0))->map(function ($monthsAgo) use ($completedBookings, $netOf) {
+            $date = now()->subMonths($monthsAgo);
+            $gross = $completedBookings->filter(function ($b) use ($date) {
+                $effective = $b->check_out ?? $b->check_in ?? $b->created_at;
+                return $effective->isSameMonth($date) && $effective->isSameYear($date);
+            })->sum('total');
+
+            return [
+                'month' => $date->format('M'),
+                'amount' => $netOf($gross),
+            ];
+        })->values();
+
+        $totalEarned = $netOf($completedBookings->sum('total'));
+        $thisMonth = $monthly->last()['amount'] ?? 0;
+
+        $listings = $vendor->listings()
+            ->with('images')
+            ->withCount('bookings')
+            ->get()
+            ->map(fn ($l) => [
+                'id' => $l->id,
+                'title' => $l->title,
+                'views' => $l->views,
+                'bookings' => $l->bookings_count,
+                'image' => $l->images->first()?->url,
+            ]);
+
+        return response()->json([
+            'monthly' => $monthly,
+            'total_earned' => $totalEarned,
+            'this_month' => $thisMonth,
+            'completed_trips' => $completedBookings->count(),
+            'total_views' => $listings->sum('views'),
+            'commission_rate' => $commissionRate,
+            'listings' => $listings,
+        ]);
+    }
 }
