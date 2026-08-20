@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { LogOut, Star, TrendingUp, List, Check, ShieldCheck, Users, UserPlus, X, FileClock, Camera } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { apiFetch, apiErrorMessage } from '@/lib/api'
+import Toast from '@/components/Toast'
 
 type Role = 'Manager' | 'Co-host' | 'Support'
 const ROLES: Role[] = ['Manager', 'Co-host', 'Support']
@@ -106,9 +107,10 @@ export default function VendorProfilePage() {
   const [payoutMethod, setPayoutMethod] = useState<'mobile' | 'bank'>('mobile')
   const [payoutBankName, setPayoutBankName] = useState('')
   const [payoutDetails, setPayoutDetails] = useState('')
-  const [prevMpesaNumber, setPrevMpesaNumber] = useState('')
-  const [newMpesaNumber, setNewMpesaNumber] = useState('')
-  const [payoutMismatchError, setPayoutMismatchError] = useState('')
+  const [verifyingPayout, setVerifyingPayout] = useState(false)
+  const [payoutVerifyError, setPayoutVerifyError] = useState('')
+  const [toast, setToast] = useState<string | null>(null)
+  const mpesaCancelRef = useRef(false)
   const [savingPayout, setSavingPayout] = useState(false)
 
   const [editingListing, setEditingListing] = useState(false)
@@ -229,41 +231,85 @@ export default function VendorProfilePage() {
   }
 
   async function savePayoutDetails() {
-    const isChangingMpesa = payoutMethod === 'mobile' && vendor?.payout_method === 'mobile' && !!vendor?.payout_details
-    if (isChangingMpesa && prevMpesaNumber.trim() !== vendor!.payout_details) {
-      setPayoutMismatchError("That doesn't match your current M-Pesa number.")
+    if (payoutMethod === 'bank') {
+      setSavingPayout(true)
+      setError('')
+      try {
+        const { vendor: updated } = await apiFetch<{ vendor: ApiVendor }>('/vendor/me', {
+          method: 'PUT',
+          body: JSON.stringify({
+            tax_pin: taxPin.trim() || null,
+            payout_method: 'bank',
+            payout_bank_name: payoutBankName.trim(),
+            payout_details: payoutDetails.trim(),
+          }),
+        })
+        setVendor(v => v ? {
+          ...v,
+          tax_pin: updated.tax_pin,
+          payout_method: updated.payout_method,
+          payout_bank_name: updated.payout_bank_name,
+          payout_details: updated.payout_details,
+        } : v)
+        setEditingPayout(false)
+        setToast('Changes saved')
+      } catch (err) {
+        setError(apiErrorMessage(err))
+      } finally {
+        setSavingPayout(false)
+      }
       return
     }
 
-    setSavingPayout(true)
+    if (!payoutDetails.trim()) return
+
+    mpesaCancelRef.current = false
+    setVerifyingPayout(true)
+    setPayoutVerifyError('')
     setError('')
     try {
-      const { vendor: updated } = await apiFetch<{ vendor: ApiVendor }>('/vendor/me', {
-        method: 'PUT',
-        body: JSON.stringify({
-          tax_pin: taxPin.trim() || null,
-          payout_method: payoutMethod,
-          payout_bank_name: payoutMethod === 'bank' ? payoutBankName.trim() : null,
-          payout_details: isChangingMpesa ? newMpesaNumber.trim() : payoutDetails.trim(),
-        }),
+      const { checkout_request_id } = await apiFetch<{ checkout_request_id: string }>('/vendor/payout-verification', {
+        method: 'POST',
+        body: JSON.stringify({ phone: payoutDetails.trim() }),
       })
-      setVendor(v => v ? {
-        ...v,
-        tax_pin: updated.tax_pin,
-        payout_method: updated.payout_method,
-        payout_bank_name: updated.payout_bank_name,
-        payout_details: updated.payout_details,
-      } : v)
-      setPayoutDetails(updated.payout_details ?? '')
-      setPrevMpesaNumber('')
-      setNewMpesaNumber('')
-      setPayoutMismatchError('')
-      setEditingPayout(false)
+
+      const deadline = Date.now() + 45000
+      const poll = async (): Promise<void> => {
+        if (mpesaCancelRef.current) return
+        if (Date.now() > deadline) {
+          throw new Error("This is taking longer than expected. Check your phone — if you weren't charged, try again.")
+        }
+        const result = await apiFetch<{ status: string; message: string | null }>(
+          `/vendor/payout-verification/${checkout_request_id}/status`
+        )
+        if (mpesaCancelRef.current) return
+        if (result.status === 'success') {
+          const { vendor: updated } = await apiFetch<{ vendor: ApiVendor }>('/vendor/me')
+          setVendor(updated)
+          setPayoutMethod((updated.payout_method as 'mobile' | 'bank') ?? 'mobile')
+          setPayoutDetails(updated.payout_details ?? '')
+          setEditingPayout(false)
+          setToast('M-Pesa number verified and saved')
+          return
+        }
+        if (result.status === 'failed') {
+          throw new Error(result.message || 'M-Pesa verification was not completed.')
+        }
+        await new Promise(r => setTimeout(r, 2000))
+        return poll()
+      }
+
+      await poll()
     } catch (err) {
-      setError(apiErrorMessage(err))
+      if (!mpesaCancelRef.current) setPayoutVerifyError(apiErrorMessage(err))
     } finally {
-      setSavingPayout(false)
+      setVerifyingPayout(false)
     }
+  }
+
+  function cancelPayoutVerification() {
+    mpesaCancelRef.current = true
+    setVerifyingPayout(false)
   }
 
   //Vendor details modification
@@ -641,7 +687,7 @@ export default function VendorProfilePage() {
       <div className="bg-white rounded-2xl border border-[#e0d9cc] shadow-sm p-5 mb-5">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-base font-bold text-[#1a1a1a]">Payout & tax details</h2>
-          <button onClick={() => { setEditingPayout(e => !e); setPrevMpesaNumber(''); setNewMpesaNumber(''); setPayoutMismatchError('') }}
+          <button onClick={() => { setEditingPayout(e => !e); setPayoutVerifyError('') }}
             className="px-4 py-2 rounded-xl text-sm font-semibold bg-gray-100 hover:bg-gray-200 transition-colors">
             {editingPayout ? 'Cancel' : 'Edit'}
           </button>
@@ -782,33 +828,41 @@ export default function VendorProfilePage() {
                   className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm mb-2
                              outline-none focus:border-[#2c4a1e] transition-colors" />
               )}
-              {payoutMethod === 'mobile' && vendor.payout_method === 'mobile' && vendor.payout_details ? (
-                <div className="flex flex-col gap-2">
-                  <input value={prevMpesaNumber} onChange={(e) => { setPrevMpesaNumber(e.target.value); setPayoutMismatchError('') }}
-                    placeholder="Previous M-Pesa number"
-                    className={`w-full border rounded-xl px-4 py-2.5 text-sm outline-none transition-colors
-                      ${payoutMismatchError ? 'border-red-400' : 'border-gray-200 focus:border-[#2c4a1e]'}`} />
-                  {payoutMismatchError && <p className="text-xs text-red-500">{payoutMismatchError}</p>}
-                  <input value={newMpesaNumber} onChange={(e) => setNewMpesaNumber(e.target.value)}
-                    placeholder="New M-Pesa number, e.g. 0712345678"
-                    className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm
-                               outline-none focus:border-[#2c4a1e] transition-colors" />
-                </div>
-              ) : (
-                <input value={payoutDetails} onChange={(e) => setPayoutDetails(e.target.value)}
-                  placeholder={payoutMethod === 'mobile' ? 'M-Pesa number, e.g. 0712345678' : 'Bank account number'}
-                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm
+              {payoutMethod === 'bank' && (
+                <input value={payoutBankName} onChange={(e) => setPayoutBankName(e.target.value)}
+                  placeholder="Bank name (e.g. Equity Bank)"
+                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm mb-2
                              outline-none focus:border-[#2c4a1e] transition-colors" />
+              )}
+              <input value={payoutDetails} onChange={(e) => setPayoutDetails(e.target.value)}
+                placeholder={payoutMethod === 'mobile' ? 'M-Pesa number, e.g. 0712345678' : 'Bank account number'}
+                disabled={verifyingPayout}
+                className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm
+                           outline-none focus:border-[#2c4a1e] transition-colors disabled:opacity-50" />
+              {payoutMethod === 'mobile' && verifyingPayout && (
+                <div className="mt-3 px-4 py-3 rounded-xl bg-amber-50 border border-amber-200">
+                  <p className="text-sm font-semibold text-amber-800">Check your phone</p>
+                  <p className="text-xs text-amber-700 mt-0.5">
+                    Enter your M-Pesa PIN to confirm the KES 1 verification charge. Do not refresh this page.
+                  </p>
+                  <button onClick={cancelPayoutVerification}
+                    className="text-xs font-semibold text-amber-800 underline mt-2">
+                    Cancel
+                  </button>
+                </div>
+              )}
+              {payoutMethod === 'mobile' && payoutVerifyError && (
+                <p className="text-xs text-red-500 mt-2">{payoutVerifyError}</p>
               )}
               <input value={payoutDetails} onChange={(e) => setPayoutDetails(e.target.value)}
                 placeholder={payoutMethod === 'mobile' ? 'M-Pesa number, e.g. 0712345678' : 'Bank account number'}
                 className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm
                            outline-none focus:border-[#2c4a1e] transition-colors" />
             </div>
-            <button onClick={savePayoutDetails} disabled={savingPayout}
+            <button onClick={savePayoutDetails} disabled={savingPayout || verifyingPayout}
               className="bg-[#2c4a1e] text-white py-3 rounded-xl font-semibold text-sm
                          hover:bg-[#3d6b28] transition-colors disabled:opacity-50">
-              {savingPayout ? 'Saving…' : 'Save changes'}
+              {verifyingPayout ? 'Waiting for confirmation…' : savingPayout ? 'Saving…' : payoutMethod === 'mobile' ? 'Verify & save' : 'Save changes'}
             </button>
           </div>
         ) : (
@@ -937,6 +991,7 @@ export default function VendorProfilePage() {
         <LogOut size={16} />
         Log out
       </button>
+      {toast && <Toast message={toast} onDone={() => setToast(null)} />}
     </div>
   )
 }

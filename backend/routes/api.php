@@ -39,7 +39,8 @@ use App\Http\Controllers\Api\ListingMessageController;
 use App\Http\Controllers\Api\PasswordResetController;
 //M-Pesa
 use App\Http\Controllers\Api\MpesaController;
-
+//Mpesa Vendor Payout verification
+use App\Http\Controllers\Api\Vendor\VendorPayoutVerificationController;
 
 Route::prefix('auth')->group(function () {
     Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:6,1');
@@ -61,6 +62,8 @@ Route::get('/listings', [ListingController::class, 'index']);
 Route::get('/listings/{listing}', [ListingController::class, 'show']);
 // Public — Safaricom calls this directly, no auth token available.
 Route::post('/payments/mpesa/callback', [MpesaController::class, 'callback']);
+// Public — Safaricom calls this directly, no auth token available.
+Route::post('/mpesa/payout-verification/callback', [VendorPayoutVerificationController::class, 'callback']);
 
 
 // Traveller-facing — any authenticated account.
@@ -128,12 +131,16 @@ Route::prefix('vendor')->middleware(['auth:sanctum', 'vendor'])->group(function 
     Route::get('/notifications', [VendorNotificationController::class, 'index']);
     Route::post('/notifications/{notification}/read', [VendorNotificationController::class, 'markRead']);
     Route::post('/notifications/read-all', [VendorNotificationController::class, 'markAllRead']);
+    Route::post('/celebration-seen', [VendorProfileController::class, 'markCelebrationSeen']);
     //vendor stats
     Route::get('/stats', [VendorStatsController::class, 'index']);
     // Earnings 
     Route::get('/earnings', [VendorStatsController::class, 'earnings']);
     //Vendor profile
     Route::put('/me', [VendorProfileController::class, 'update']);
+    // Vendor payout verification
+    Route::post('/payout-verification', [VendorPayoutVerificationController::class, 'initiate']);
+    Route::get('/payout-verification/{checkoutRequestId}/status', [VendorPayoutVerificationController::class, 'status']);
 
     Route::get('/verification-submissions', [VendorVerificationController::class, 'index']);
     Route::patch('/verification-submissions/{submission}', [VendorVerificationController::class, 'update']);

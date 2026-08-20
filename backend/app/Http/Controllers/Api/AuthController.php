@@ -127,6 +127,7 @@ class AuthController extends Controller
             'activeRole' => $user->active_role,
             'onboardingComplete' => $user->vendor?->onboarding_complete ?? false,
             'verificationStatus' => $user->vendor?->verification_status ?? null,
+            'celebrationSeen' => $user->vendor?->celebration_seen_at !== null,
             'createdAt' => $user->created_at,
         ];
     }

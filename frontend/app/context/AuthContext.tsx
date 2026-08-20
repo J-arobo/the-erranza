@@ -15,6 +15,7 @@ type User = {
   avatar?: string | null
   onboardingComplete?: boolean
   verificationStatus?: 'pending' | 'approved' | 'rejected' | null
+  celebrationSeen?: boolean
   roles: Role[]
   activeRole: Role
   createdAt: string
@@ -158,6 +159,7 @@ type ApiUser = {
   activeRole: string
   onboardingComplete: boolean
   verificationStatus: 'pending' | 'approved' | 'rejected' | null
+  celebrationSeen: boolean
   createdAt: string
 }
 
@@ -171,6 +173,7 @@ function mapUser(apiUser: ApiUser): User {
     roles: apiUser.roles as Role[],
     activeRole: apiUser.activeRole as Role,
     onboardingComplete: apiUser.onboardingComplete,
+    celebrationSeen: apiUser.celebrationSeen,
     verificationStatus: apiUser.verificationStatus,
     createdAt: apiUser.createdAt,
   }
@@ -224,6 +227,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .catch(() => { })
       .finally(() => setWishlistsReady(true))
   }, [user?.id])
+
+  // Auto logout on inactivity - 30 minutes
+  useEffect(() => {
+    if (!user) return
+
+    const INACTIVITY_TIMEOUT_MS = 30 * 60 * 1000
+    let timer: ReturnType<typeof setTimeout>
+    const resetTimer = () => {
+      clearTimeout(timer)
+      timer = setTimeout(() => logout(), INACTIVITY_TIMEOUT_MS)
+    }
+
+    const events = ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart']
+    events.forEach(e => window.addEventListener(e, resetTimer))
+    resetTimer()
+
+    return () => {
+      clearTimeout(timer)
+      events.forEach(e => window.removeEventListener(e, resetTimer))
+    }
+  }, [user?.id, logout])
+
 
   const register = useCallback(async (name: string, email: string, password: string, phone?: string, avatarUrl?: string) => {
     const { user, token } = await apiFetch<{ user: ApiUser; token: string }>('/auth/register', {

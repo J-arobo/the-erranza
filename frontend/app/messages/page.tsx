@@ -22,6 +22,7 @@ type Thread = {
   vendor_id: number
   vendor_name: string
   vendor_avatar: string | null
+  is_support: boolean
   listing_title: string | null
   last_message: string | null
   last_message_at: string | null
@@ -43,6 +44,7 @@ type ThreadDetail = {
   vendor_id: number
   vendor_name: string
   vendor_avatar: string | null
+  is_support: boolean
   messages: ThreadMessage[]
 }
 
@@ -406,14 +408,14 @@ function MessagesPageContent() {
     if (!reply.trim() || activeVendorId === null) return
 
     const listingId = contextListingId ?? activeThread?.messages[activeThread.messages.length - 1]?.listing?.id
-    if (!listingId) { setError('Could not tell which listing this is about — try messaging from that listing\'s page.'); return }
+    if (!listingId && !activeThread?.is_support) { setError('Could not tell which listing this is about — try messaging from that listing\'s page.'); return }
 
     setSending(true)
     setError('')
     try {
       const { message } = await apiFetch<{ message: ThreadMessage }>(`/vendors/${activeVendorId}/messages`, {
         method: 'POST',
-        body: JSON.stringify({ text: reply.trim(), listing_id: listingId }),
+        body: JSON.stringify({ text: reply.trim(), listing_id: listingId ?? null }),
       })
       setActiveThread(t => t ? { ...t, messages: [...t.messages, message] } : t)
       setThreads(ts => {
@@ -428,6 +430,7 @@ function MessagesPageContent() {
           vendor_id: activeVendorId,
           vendor_name: activeThread.vendor_name,
           vendor_avatar: activeThread.vendor_avatar,
+          is_support: activeThread.is_support,
           listing_title: message.listing?.title ?? null,
           last_message: message.text,
           last_message_at: message.created_at,

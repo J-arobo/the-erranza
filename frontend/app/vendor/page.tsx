@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { TrendingUp, Calendar, Star, List, ChevronRight, AlertCircle } from 'lucide-react'
+import { TrendingUp, Calendar, Star, List, ChevronRight, AlertCircle, Eye, EyeOff } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { apiFetch, apiErrorMessage } from '@/lib/api'
 
@@ -84,10 +84,24 @@ export default function VendorDashboard() {
   const monthly = earnings?.monthly ?? []
   const maxEarning = Math.max(1, ...monthly.map(e => e.amount))
 
+  //Hide earnings
+  const [hideEarnings, setHideEarnings] = useState(false)
+
+  useEffect(() => {
+    setHideEarnings(localStorage.getItem('erranza_hide_earnings') === '1')
+  }, [])
+
+  function toggleHideEarnings() {
+    setHideEarnings(h => {
+      localStorage.setItem('erranza_hide_earnings', h ? '0' : '1')
+      return !h
+    })
+  }
+
   const STATS = [
     {
       label: 'Total earnings',
-      value: (earnings?.total_earned ?? 0) > 0 ? `Ksh ${(earnings?.total_earned ?? 0).toLocaleString()}` : 'No earnings yet',
+      value: hideEarnings ? '••••••' : ((earnings?.total_earned ?? 0) > 0 ? `Ksh ${(earnings?.total_earned ?? 0).toLocaleString()}` : 'No earnings yet'),
       Icon: TrendingUp,
       color: 'bg-[#eaf5e4] text-[#2c4a1e]',
       path: '/vendor/earnings',
@@ -167,17 +181,25 @@ export default function VendorDashboard() {
       <div className="bg-white rounded-2xl border border-[#e0d9cc] shadow-sm p-5 mb-5">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-base font-bold text-[#1a1a1a]">Earnings this year</h2>
-          <button onClick={() => router.push('/vendor/earnings')}
-            className="text-xs text-[#2c4a1e] font-semibold">View all</button>
+          <div className="flex items-center gap-3">
+            <button onClick={toggleHideEarnings} className="text-gray-400 hover:text-[#1a1a1a] transition-colors" title={hideEarnings ? 'Show figures' : 'Hide figures'}>
+              {hideEarnings ? <EyeOff size={15} /> : <Eye size={15} />}
+            </button>
+            <button onClick={() => router.push('/vendor/earnings')}
+              className="text-xs text-[#2c4a1e] font-semibold">View all</button>
+          </div>
         </div>
         {monthly.every(e => e.amount === 0) ? (
           <p className="text-sm text-gray-400 py-8 text-center">
             Your earnings will show up here once a trip is completed.
           </p>
         ) : (
-          <div className="flex items-end gap-1.5 h-32">
+          <div className="flex items-end gap-1.5 h-40">
             {monthly.map(({ month, amount }, i) => (
-              <div key={`${month}-${i}`} className="flex-1 flex flex-col items-center gap-1">
+              <div key={`${month}-${i}`} className="flex-1 h-full flex flex-col items-center justify-end gap-1">
+                <span className="text-[9px] text-gray-500 font-semibold">
+                  {hideEarnings ? '' : (amount > 0 ? `${Math.round(amount / 1000)}k` : '')}
+                </span>
                 <div
                   className="w-full rounded-t-md bg-[#2c4a1e] transition-all hover:bg-[#3d6b28]"
                   style={{ height: `${(amount / maxEarning) * 100}%`, minHeight: '4px' }}
@@ -279,10 +301,10 @@ export default function VendorDashboard() {
 
 export function StatusBadge({ status }: { status: string }) {
   const styles: Record<string, string> = {
-    pending:              'bg-amber-50 text-amber-700',
-    confirmed:            'bg-[#eaf5e4] text-[#2c4a1e]',
-    completed:            'bg-gray-100 text-gray-500',
-    cancelled:            'bg-red-50 text-red-500',
+    pending: 'bg-amber-50 text-amber-700',
+    confirmed: 'bg-[#eaf5e4] text-[#2c4a1e]',
+    completed: 'bg-gray-100 text-gray-500',
+    cancelled: 'bg-red-50 text-red-500',
     alternative_proposed: 'bg-blue-50 text-blue-600',
   }
   const labels: Record<string, string> = {

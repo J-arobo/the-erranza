@@ -48,6 +48,13 @@ return [
         'shortcode' => env('MPESA_SHORTCODE'),
         'passkey' => env('MPESA_PASSKEY'),
         'callback_url' => env('MPESA_CALLBACK_URL'),
+        'payout_callback_url' => env('MPESA_PAYOUT_CALLBACK_URL'),
+        'b2c_shortcode' => env('MPESA_B2C_SHORTCODE'),
+        'initiator_name' => env('MPESA_INITIATOR_NAME'),
+        'security_credential' => env('MPESA_SECURITY_CREDENTIAL'),
+        'refund_result_url' => env('MPESA_REFUND_RESULT_URL'),
+        'refund_timeout_url' => env('MPESA_REFUND_TIMEOUT_URL'),
     ],
+
 
 ];

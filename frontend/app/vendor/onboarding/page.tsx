@@ -117,8 +117,13 @@ export default function VendorOnboardingPage() {
           setInsuranceFile({ name: latestInsurance.original_name ?? 'Document', size: latestInsurance.file_size ?? 0, submissionId: latestInsurance.id })
         }
       })
-      .catch(() => {})
+      .catch(() => { })
   }, [])
+
+  // Select regions
+  useEffect(() => {
+    if (!selectedCategories.includes('Safari') && regions.length > 0) setRegions([])
+  }, [selectedCategories])
 
   function toggleCategory(cat: string) {
     setSelectedCategories(c => c.includes(cat) ? c.filter(x => x !== cat) : [...c, cat])
@@ -415,11 +420,11 @@ export default function VendorOnboardingPage() {
                     </p>
                     <div className="flex items-center gap-3 flex-shrink-0">
                       <button onClick={() => idInputRef.current?.click()} disabled={uploadingId || deletingId}
-                        title="Change" className="text-gray-400 hover:text-[#1a1a1a] disabled:opacity-50">
+                        title="Change" className="text-gray-400 hover:text-[#1a1a1a] hover:bg-gray-100 rounded-full p-1.5 transition-colors disabled:opacity-50">
                         <Pencil size={14} />
                       </button>
                       <button onClick={handleDeleteId} disabled={uploadingId || deletingId}
-                        title="Delete" className="text-red-400 hover:text-red-600 disabled:opacity-50">
+                        title="Delete" className="text-red-400 hover:text-red-600 hover:bg-red-50 rounded-full p-1.5 transition-colors disabled:opacity-50">
                         <Trash2 size={14} />
                       </button>
                     </div>
@@ -498,45 +503,47 @@ export default function VendorOnboardingPage() {
                   })}
                 </div>
               </div>
-              <div>
-                <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">Operating regions</label>
-                <div className="relative">
-                  <input value={regionQuery}
-                    onChange={(e) => { setRegionQuery(e.target.value); setShowRegionDropdown(true) }}
-                    onFocus={() => setShowRegionDropdown(true)}
-                    onBlur={() => setTimeout(() => setShowRegionDropdown(false), 150)}
-                    placeholder="Search regions — e.g. Maasai Mara"
-                    className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm
-                               outline-none focus:border-[#2c4a1e] transition-colors" />
-                  {showRegionDropdown && filteredRegionOptions.length > 0 && (
-                    <div className="absolute z-10 top-full left-0 right-0 mt-1 bg-white border border-gray-200
-                                    rounded-xl shadow-lg max-h-48 overflow-y-auto">
-                      {filteredRegionOptions.map((region) => (
-                        <button key={region} type="button"
-                          onMouseDown={(e) => e.preventDefault()}
-                          onClick={() => addRegion(region)}
-                          className="w-full text-left px-4 py-2.5 text-sm text-[#1a1a1a] hover:bg-[#eaf5e4] transition-colors">
+              {selectedCategories.includes('Safari') && (
+                <div>
+                  <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">Operating regions</label>
+                  <div className="relative">
+                    <input value={regionQuery}
+                      onChange={(e) => { setRegionQuery(e.target.value); setShowRegionDropdown(true) }}
+                      onFocus={() => setShowRegionDropdown(true)}
+                      onBlur={() => setTimeout(() => setShowRegionDropdown(false), 150)}
+                      placeholder="Search regions — e.g. Maasai Mara"
+                      className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm
+                                 outline-none focus:border-[#2c4a1e] transition-colors" />
+                    {showRegionDropdown && filteredRegionOptions.length > 0 && (
+                      <div className="absolute z-10 top-full left-0 right-0 mt-1 bg-white border border-gray-200
+                                      rounded-xl shadow-lg max-h-48 overflow-y-auto">
+                        {filteredRegionOptions.map((region) => (
+                          <button key={region} type="button"
+                            onMouseDown={(e) => e.preventDefault()}
+                            onClick={() => addRegion(region)}
+                            className="w-full text-left px-4 py-2.5 text-sm text-[#1a1a1a] hover:bg-[#eaf5e4] transition-colors">
+                            {region}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  {regions.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {regions.map((region) => (
+                        <span key={region}
+                          className="flex items-center gap-1.5 bg-[#eaf5e4] text-[#2c4a1e]
+                                     text-xs font-semibold px-3 py-1.5 rounded-full">
                           {region}
-                        </button>
+                          <button onClick={() => removeRegion(region)}>
+                            <X size={12} />
+                          </button>
+                        </span>
                       ))}
                     </div>
                   )}
                 </div>
-                {regions.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {regions.map((region) => (
-                      <span key={region}
-                        className="flex items-center gap-1.5 bg-[#eaf5e4] text-[#2c4a1e]
-                                   text-xs font-semibold px-3 py-1.5 rounded-full">
-                        {region}
-                        <button onClick={() => removeRegion(region)}>
-                          <X size={12} />
-                        </button>
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
+              )}
             </div>
           )}
 

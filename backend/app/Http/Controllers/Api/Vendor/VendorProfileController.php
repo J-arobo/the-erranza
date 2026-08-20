@@ -50,6 +50,14 @@ class VendorProfileController extends Controller
         return response()->json(['vendor' => $vendor]);
     }
 
+    public function markCelebrationSeen(Request $request)
+    {
+        $vendor = $request->attributes->get('vendor');
+        $vendor->update(['celebration_seen_at' => now()]);
+
+        return response()->json(['message' => 'OK']);
+    }
+
     public function completeOnboarding(Request $request)
     {
         $vendor = $request->attributes->get('vendor');

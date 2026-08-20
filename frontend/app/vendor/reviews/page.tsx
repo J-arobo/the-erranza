@@ -17,6 +17,10 @@ function avatarColor(name: string): string {
   return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length]
 }
 
+// Show less
+const [showAllPerformance, setShowAllPerformance] = useState(false)
+const [showAllReviews, setShowAllReviews] = useState(false)
+
 type ApiReview = {
   id: number
   rating: number
@@ -164,7 +168,7 @@ export default function VendorReviewsPage() {
             not live marketplace data.
           </p>
           <div className="flex flex-col gap-2">
-            {stats.listings.map((l) => (
+            {(showAllPerformance ? stats.listings : stats.listings.slice(0, 4)).map((l) => (
               <div key={l.id} className="flex items-center justify-between gap-3 p-3 rounded-xl border border-gray-100">
                 <span className="text-sm text-[#1a1a1a] truncate">{l.title}</span>
                 <span className={`text-xs font-semibold px-2.5 py-1 rounded-full flex-shrink-0
@@ -174,6 +178,12 @@ export default function VendorReviewsPage() {
               </div>
             ))}
           </div>
+          {stats.listings.length > 4 && (
+            <button onClick={() => setShowAllPerformance(s => !s)}
+              className="w-full text-center text-xs font-semibold text-[#2c4a1e] mt-2">
+              {showAllPerformance ? 'Show less' : `Show all ${stats.listings.length}`}
+            </button>
+          )}
         </div>
       )}
 

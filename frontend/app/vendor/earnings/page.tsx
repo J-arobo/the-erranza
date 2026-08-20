@@ -5,6 +5,9 @@ import { apiFetch, apiErrorMessage } from '@/lib/api'
 
 const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1547471080-7cc2caa01a7e?w=400&q=80'
 
+// Show more / Show less
+const [showAllListings, setShowAllListings] = useState(false)
+
 type ApiEarnings = {
   monthly: { month: string; amount: number }[]
   total_earned: number
@@ -104,19 +107,39 @@ export default function VendorEarningsPage() {
             Your monthly earnings will appear here once a trip is completed.
           </p>
         ) : (
-          <div className="flex items-end gap-2 h-40">
-            {earnings.monthly.map(({ month, amount }, i) => (
-              <div key={`${month}-${i}`} className="flex-1 flex flex-col items-center gap-1">
-                <span className="text-[9px] text-gray-500 font-semibold">
-                  {amount > 0 ? `${(amount / 1000).toFixed(0)}k` : ''}
-                </span>
-                <div className="w-full rounded-t-lg bg-[#2c4a1e] hover:bg-[#3d6b28]
-                                transition-colors cursor-pointer"
-                  style={{ height: `${(amount / max) * 100}%`, minHeight: '4px' }} />
-                <span className="text-[9px] text-gray-400">{month}</span>
-              </div>
-            ))}
-          </div>
+          <>
+            <div className="flex items-end gap-2 h-40 mb-5">
+              {earnings.monthly.map(({ month, amount }, i) => (
+                <div key={`${month}-${i}`} className="flex-1 h-full flex flex-col items-center justify-end gap-1">
+                  <span className="text-[9px] text-gray-500 font-semibold">
+                    {amount > 0 ? `${(amount / 1000).toFixed(0)}k` : ''}
+                  </span>
+                  <div className="w-full rounded-t-lg bg-[#2c4a1e] hover:bg-[#3d6b28]
+                                  transition-colors cursor-pointer"
+                    style={{ height: `${(amount / max) * 100}%`, minHeight: '4px' }} />
+                  <span className="text-[9px] text-gray-400">{month}</span>
+                </div>
+              ))}
+            </div>
+            <div className="overflow-x-auto -mx-1">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-100">
+                    <th className="text-left font-semibold text-gray-400 text-xs py-2 px-1">Month</th>
+                    <th className="text-right font-semibold text-gray-400 text-xs py-2 px-1">Earned</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {earnings.monthly.map(({ month, amount }, i) => (
+                    <tr key={`${month}-${i}`} className="border-b border-gray-50 last:border-0">
+                      <td className="py-2 px-1 text-[#1a1a1a]">{month}</td>
+                      <td className="py-2 px-1 text-right font-semibold text-[#1a1a1a]">Ksh {amount.toLocaleString()}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
 
@@ -127,30 +150,38 @@ export default function VendorEarningsPage() {
         {byViews.length === 0 ? (
           <p className="text-sm text-gray-400 py-4 text-center">You don't have any listings yet.</p>
         ) : (
-          <div className="flex flex-col divide-y divide-gray-100">
-            {byViews.map((l) => {
-              const conversion = l.views > 0 ? ((l.bookings / l.views) * 100).toFixed(1) : null
-              return (
-                <div key={l.id} className="flex items-center gap-3 py-3">
-                  <div className="relative w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 bg-[#f5f5f5]">
-                    <Image src={l.image ?? FALLBACK_IMAGE} alt={l.title} fill sizes="48px" className="object-cover" />
+          <>
+            <div className="flex flex-col divide-y divide-gray-100">
+              {(showAllListings ? byViews : byViews.slice(0, 5)).map((l) => {
+                const conversion = l.views > 0 ? ((l.bookings / l.views) * 100).toFixed(1) : null
+                return (
+                  <div key={l.id} className="flex items-center gap-3 py-3">
+                    <div className="relative w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 bg-[#f5f5f5]">
+                      <Image src={l.image ?? FALLBACK_IMAGE} alt={l.title} fill sizes="48px" className="object-cover" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-[#1a1a1a] truncate">{l.title}</p>
+                      <p className="text-xs text-gray-400">
+                        {l.views.toLocaleString()} views · {l.bookings} bookings
+                      </p>
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      <p className="text-sm font-bold text-[#2c4a1e]">
+                        {conversion !== null ? `${conversion}%` : '—'}
+                      </p>
+                      <p className="text-[10px] text-gray-400">conversion</p>
+                    </div>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-[#1a1a1a] truncate">{l.title}</p>
-                    <p className="text-xs text-gray-400">
-                      {l.views.toLocaleString()} views · {l.bookings} bookings
-                    </p>
-                  </div>
-                  <div className="text-right flex-shrink-0">
-                    <p className="text-sm font-bold text-[#2c4a1e]">
-                      {conversion !== null ? `${conversion}%` : '—'}
-                    </p>
-                    <p className="text-[10px] text-gray-400">conversion</p>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
+                )
+              })}
+            </div>
+            {byViews.length > 5 && (
+              <button onClick={() => setShowAllListings(s => !s)}
+                className="w-full text-center text-xs font-semibold text-[#2c4a1e] mt-3 pt-3 border-t border-gray-100">
+                {showAllListings ? 'Show less' : `Show all ${byViews.length} listings`}
+              </button>
+            )}
+          </>
         )}
       </div>
 

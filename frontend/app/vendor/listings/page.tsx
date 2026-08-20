@@ -291,6 +291,11 @@ export default function VendorListingsPage() {
             <p className="text-sm text-gray-500 mb-5">
               This permanently deletes the listing and cannot be undone.
             </p>
+            {error && (
+              <div className="mb-4 px-4 py-3 rounded-xl bg-red-50 text-red-600 text-sm">
+                {error}
+              </div>
+            )}
             <div className="flex gap-2">
               <button onClick={() => setDeletingId(null)}
                 className="flex-1 py-3 rounded-xl border border-gray-200 text-sm font-semibold
