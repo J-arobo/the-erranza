@@ -41,6 +41,7 @@ use App\Http\Controllers\Api\PasswordResetController;
 use App\Http\Controllers\Api\MpesaController;
 //Mpesa Vendor Payout verification
 use App\Http\Controllers\Api\Vendor\VendorPayoutVerificationController;
+use App\Http\Controllers\Api\Vendor\VendorListingPhotoController;
 
 Route::prefix('auth')->group(function () {
     Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:6,1');
@@ -107,6 +108,7 @@ Route::prefix('vendor')->middleware(['auth:sanctum', 'vendor'])->group(function 
     // Deleted documents
     Route::delete('/verification-submissions/{submission}', [VendorVerificationController::class, 'destroy']);
 
+    Route::post('/listing-photos', [VendorListingPhotoController::class, 'store']);
     Route::apiResource('listings', VendorListingController::class);
 
     Route::get('/bookings', [VendorBookingController::class, 'index']);
@@ -124,6 +126,7 @@ Route::prefix('vendor')->middleware(['auth:sanctum', 'vendor'])->group(function 
     Route::post('/messages/{booking}', [VendorMessageController::class, 'store']);
     Route::get('/listing-messages/{listing}/{traveller}', [VendorMessageController::class, 'showListingThread']);
     Route::post('/listing-messages/{listing}/{traveller}', [VendorMessageController::class, 'storeListingThread']);
+    
 
     Route::get('/reviews', [VendorReviewController::class, 'index']);
     Route::post('/reviews/{review}/reply', [VendorReviewController::class, 'reply']);

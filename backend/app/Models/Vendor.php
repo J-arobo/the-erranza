@@ -13,7 +13,7 @@ class Vendor extends Model
         'verification_status', 'suspended', 'suspend_reason',
         'license_number', 'tax_pin', 'payout_method', 'payout_bank_name', 'payout_details',
         'categories', 'regions', 'plan', 'default_cancellation_policy',
-        'onboarding_complete', 'celebration_seen_at',
+        'onboarding_complete', 'celebration_seen_at', 'payout_changed_at',
     ];
 
     protected function casts(): array
@@ -24,6 +24,7 @@ class Vendor extends Model
             'categories' => 'array',
             'regions' => 'array',
             'languages' => 'array',
+            'payout_changed_at' => 'datetime',
         ];
     }
 

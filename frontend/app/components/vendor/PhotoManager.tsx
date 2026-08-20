@@ -1,32 +1,36 @@
 'use client'
 import { useRef, useState } from 'react'
 import Image from 'next/image'
-import { Upload, X, Star, ChevronLeft, ChevronRight } from 'lucide-react'
-
-function fileToDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => {
-      if (typeof reader.result === 'string') resolve(reader.result)
-      else reject(new Error('Failed to read file'))
-    }
-    reader.onerror = reject
-    reader.readAsDataURL(file)
-  })
-}
+import { Upload, X, Star, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react'
+import { apiFetch, apiErrorMessage } from '@/lib/api'
 
 export default function PhotoManager({
   images, onChange,
 }: { images: string[]; onChange: (images: string[]) => void }) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [dragOver, setDragOver] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const [uploadError, setUploadError] = useState('')
 
-  function readFiles(fileList: FileList | File[]) {
+  async function readFiles(fileList: FileList | File[]) {
     const files = Array.from(fileList).filter(f => f.type.startsWith('image/'))
     if (files.length === 0) return
-    Promise.all(files.map(fileToDataUrl)).then((dataUrls) => {
-      onChange([...images, ...dataUrls])
-    })
+
+    setUploading(true)
+    setUploadError('')
+    try {
+      const urls = await Promise.all(files.map(async (file) => {
+        const formData = new FormData()
+        formData.append('photo', file)
+        const { url } = await apiFetch<{ url: string }>('/vendor/listing-photos', { method: 'POST', body: formData })
+        return url
+      }))
+      onChange([...images, ...urls])
+    } catch (err) {
+      setUploadError(apiErrorMessage(err))
+    } finally {
+      setUploading(false)
+    }
   }
 
   function removeImage(idx: number) {
@@ -49,26 +53,37 @@ export default function PhotoManager({
   return (
     <div>
       <div
-        onClick={() => fileInputRef.current?.click()}
-        onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
+        onClick={() => !uploading && fileInputRef.current?.click()}
+        onDragOver={(e) => { e.preventDefault(); if (!uploading) setDragOver(true) }}
         onDragLeave={() => setDragOver(false)}
         onDrop={(e) => {
           e.preventDefault()
           setDragOver(false)
-          if (e.dataTransfer.files?.length) readFiles(e.dataTransfer.files)
+          if (!uploading && e.dataTransfer.files?.length) readFiles(e.dataTransfer.files)
         }}
         className={`flex flex-col items-center justify-center gap-1.5 border-2 border-dashed
-                    rounded-xl py-8 cursor-pointer transition-colors mb-3
+                    rounded-xl py-8 transition-colors mb-3
+                    ${uploading ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}
                     ${dragOver ? 'border-[#2c4a1e] bg-[#eaf5e4]' : 'border-gray-200 hover:border-gray-300'}`}
       >
-        <Upload size={20} color="#2c4a1e" />
-        <p className="text-sm font-semibold text-[#1a1a1a]">Click to upload or drag photos here</p>
-        <p className="text-xs text-gray-400">PNG or JPG, multiple allowed</p>
+        {uploading ? (
+          <>
+            <Loader2 size={20} color="#2c4a1e" className="animate-spin" />
+            <p className="text-sm font-semibold text-[#1a1a1a]">Uploading…</p>
+          </>
+        ) : (
+          <>
+            <Upload size={20} color="#2c4a1e" />
+            <p className="text-sm font-semibold text-[#1a1a1a]">Click to upload or drag photos here</p>
+            <p className="text-xs text-gray-400">PNG or JPG, multiple allowed</p>
+          </>
+        )}
         <input
           ref={fileInputRef}
           type="file"
           accept="image/*"
           multiple
+          disabled={uploading}
           className="hidden"
           onChange={(e) => {
             if (e.target.files) readFiles(e.target.files)
@@ -76,6 +91,8 @@ export default function PhotoManager({
           }}
         />
       </div>
+
+      {uploadError && <p className="text-xs text-red-500 mb-3">{uploadError}</p>}
 
       {images.length > 0 && (
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">

@@ -54,6 +54,7 @@ export function apiErrorMessage(err: unknown): string {
     const firstFieldError = err.errors ? Object.values(err.errors)[0]?.[0] : undefined
     return firstFieldError ?? err.message
   }
+  if (err instanceof TypeError) return 'Check your internet connection and try again.'
   if (err instanceof Error && err.message) return err.message
   return 'Something went wrong. Please try again.'
 }

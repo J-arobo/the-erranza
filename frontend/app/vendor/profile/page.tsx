@@ -5,6 +5,7 @@ import { LogOut, Star, TrendingUp, List, Check, ShieldCheck, Users, UserPlus, X,
 import { useAuth } from '@/context/AuthContext'
 import { apiFetch, apiErrorMessage } from '@/lib/api'
 import Toast from '@/components/Toast'
+import CountdownBanner from '@/components/CountdownBanner'
 
 type Role = 'Manager' | 'Co-host' | 'Support'
 const ROLES: Role[] = ['Manager', 'Co-host', 'Support']
@@ -63,6 +64,7 @@ type ApiVendor = {
   payout_method: string | null
   payout_bank_name: string | null
   payout_details: string | null
+  payout_changed_at: string | null
   reviews_count: number
   reviews_avg_rating: string | null
   owner: { id: number; name: string; email: string }
@@ -70,7 +72,6 @@ type ApiVendor = {
   license_number: string | null
   categories: string[] | null
   regions: string[] | null
-
 }
 
 type ApiSubmission = {
@@ -110,6 +111,8 @@ export default function VendorProfilePage() {
   const [verifyingPayout, setVerifyingPayout] = useState(false)
   const [payoutVerifyError, setPayoutVerifyError] = useState('')
   const [toast, setToast] = useState<string | null>(null)
+  const [verifiedBanner, setVerifiedBanner] = useState<string | null>(null)
+
   const mpesaCancelRef = useRef(false)
   const [savingPayout, setSavingPayout] = useState(false)
 
@@ -130,6 +133,11 @@ export default function VendorProfilePage() {
   // Logo
   const [pendingLogo, setPendingLogo] = useState<string | null>(null)
   const [savingLogo, setSavingLogo] = useState(false)
+
+  const payoutCooldownUntil = vendor?.payout_changed_at
+    ? new Date(new Date(vendor.payout_changed_at).getTime() + 2 * 24 * 60 * 60 * 1000)
+    : null
+  const inPayoutCooldown = payoutCooldownUntil !== null && payoutCooldownUntil > new Date()
 
 
   useEffect(() => {
@@ -289,7 +297,7 @@ export default function VendorProfilePage() {
           setPayoutMethod((updated.payout_method as 'mobile' | 'bank') ?? 'mobile')
           setPayoutDetails(updated.payout_details ?? '')
           setEditingPayout(false)
-          setToast('M-Pesa number verified and saved')
+          setVerifiedBanner('Your M-Pesa number has been verified and saved')
           return
         }
         if (result.status === 'failed') {
@@ -310,6 +318,7 @@ export default function VendorProfilePage() {
   function cancelPayoutVerification() {
     mpesaCancelRef.current = true
     setVerifyingPayout(false)
+    setPayoutVerifyError('You cancelled the wait. Note: if you already approved the prompt on your phone, the number may still get verified shortly — cancelling only stops this page from watching, not the M-Pesa prompt itself.')
   }
 
   //Vendor details modification
@@ -827,7 +836,16 @@ export default function VendorProfilePage() {
                   className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm mb-2
                              outline-none focus:border-[#2c4a1e] transition-colors" />
               )}
+              {/* Show cooldown message if the user is in a cooldown period after changing their M-Pesa number */}
+              {payoutMethod === 'mobile' && inPayoutCooldown && (
+                <div className="mb-2 px-4 py-3 rounded-xl bg-amber-50 border border-amber-200">
+                  <p className="text-xs text-amber-800">
+                    For security, you can change your M-Pesa number again on {payoutCooldownUntil!.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} at {payoutCooldownUntil!.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}.
+                  </p>
+                </div>
+              )}
               <input value={payoutDetails} onChange={(e) => setPayoutDetails(e.target.value)}
+
                 placeholder={payoutMethod === 'mobile' ? 'M-Pesa number, e.g. 0712345678' : 'Bank account number'}
                 disabled={verifyingPayout}
                 className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm
@@ -848,7 +866,7 @@ export default function VendorProfilePage() {
                 <p className="text-xs text-red-500 mt-2">{payoutVerifyError}</p>
               )}
             </div>
-            <button onClick={savePayoutDetails} disabled={savingPayout || verifyingPayout}
+            <button onClick={savePayoutDetails} disabled={savingPayout || verifyingPayout || (payoutMethod === 'mobile' && inPayoutCooldown)}
               className="bg-[#2c4a1e] text-white py-3 rounded-xl font-semibold text-sm
                          hover:bg-[#3d6b28] transition-colors disabled:opacity-50">
               {verifyingPayout ? 'Waiting for confirmation…' : savingPayout ? 'Saving…' : payoutMethod === 'mobile' ? 'Verify & save' : 'Save changes'}
@@ -982,6 +1000,7 @@ export default function VendorProfilePage() {
       </button>
 
       {toast && <Toast message={toast} onDone={() => setToast(null)} />}
+      {verifiedBanner && <CountdownBanner message={verifiedBanner} onDone={() => setVerifiedBanner(null)} />}
     </div>
   )
 }

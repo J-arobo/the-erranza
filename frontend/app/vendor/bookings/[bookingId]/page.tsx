@@ -89,6 +89,8 @@ export default function BookingDetailPage({ params }: Props) {
   const [declining, setDeclining] = useState(false)
   const [declineReason, setDeclineReason] = useState('')
 
+  // Booking accept confirmation
+  const [confirmingAccept, setConfirmingAccept] = useState(false)
 
   useEffect(() => {
     apiFetch<{ booking: ApiBookingDetail }>(`/vendor/bookings/${bookingId}`)
@@ -127,6 +129,7 @@ export default function BookingDetailPage({ params }: Props) {
     try {
       await apiFetch(`/vendor/bookings/${bookingId}/accept`, { method: 'POST' })
       setBooking(b => b ? { ...b, status: 'confirmed' } : b)
+      setConfirmingAccept(false)
     } catch (err) {
       setError(apiErrorMessage(err))
     } finally {
@@ -323,7 +326,7 @@ export default function BookingDetailPage({ params }: Props) {
       {booking.status === 'pending' && needsApproval && !proposing && !declining && (
         <div className="flex flex-col gap-2">
           <div className="flex gap-3">
-            <button onClick={acceptBooking} disabled={busy}
+            <button onClick={() => setConfirmingAccept(true)} disabled={busy}
               className="flex-1 py-3 rounded-xl bg-[#2c4a1e] text-white text-sm
                                  font-semibold hover:bg-[#3d6b28] transition-colors disabled:opacity-50">
               Accept booking
@@ -339,6 +342,48 @@ export default function BookingDetailPage({ params }: Props) {
                        font-semibold text-[#1a1a1a] hover:bg-gray-50 transition-colors">
             Propose alternative dates
           </button>
+        </div>
+      )}
+
+      {/* ── Confirmation modal ── */}
+      {confirmingAccept && (
+        <div
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
+          style={{ background: 'rgba(0,0,0,0.4)' }}
+          onClick={(e) => { if (e.target === e.currentTarget && !busy) setConfirmingAccept(false) }}
+        >
+          <div className="bg-white w-full sm:max-w-sm rounded-t-3xl sm:rounded-2xl p-6">
+            <h2 className="text-lg font-bold text-[#1a1a1a] mb-4">Accept this booking?</h2>
+            <div className="bg-gray-50 rounded-xl p-4 mb-5 flex flex-col gap-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-500">Dates</span>
+                <span className="font-semibold text-[#1a1a1a]">{formatDateRange(booking.check_in, booking.check_out)}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-500">Guests</span>
+                <span className="font-semibold text-[#1a1a1a]">{booking.guests}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-500">Total</span>
+                <span className="font-semibold text-[#1a1a1a]">{formatKsh(booking.total)}</span>
+              </div>
+            </div>
+            <p className="text-xs text-gray-400 mb-5">
+              Once accepted, this booking is confirmed and the guest will be notified.
+            </p>
+            <div className="flex gap-2">
+              <button onClick={() => setConfirmingAccept(false)} disabled={busy}
+                className="flex-1 py-3 rounded-xl border border-gray-200 text-sm font-semibold
+                           text-[#1a1a1a] hover:bg-gray-50 transition-colors disabled:opacity-50">
+                Cancel
+              </button>
+              <button onClick={acceptBooking} disabled={busy}
+                className="flex-1 py-3 rounded-xl bg-[#2c4a1e] text-white text-sm font-semibold
+                           hover:bg-[#3d6b28] transition-colors disabled:opacity-50">
+                {busy ? 'Accepting…' : 'Confirm accept'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

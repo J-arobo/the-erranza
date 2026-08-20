@@ -15,6 +15,11 @@ class VendorPayoutVerificationController extends Controller
     {
         $vendor = $request->attributes->get('vendor');
 
+        if ($vendor->payout_changed_at && $vendor->payout_changed_at->gt(now()->subDays(2))) {
+            $availableAt = $vendor->payout_changed_at->copy()->addDays(2);
+            abort(422, "For security, you can change your M-Pesa number again on {$availableAt->format('j M \a\t g:ia')}.");
+        }
+
         $validated = $request->validate(['phone' => ['required', 'string']]);
         $phone = MpesaClient::normalizePhone($validated['phone']);
         abort_if(!$phone, 422, 'Enter a valid Safaricom phone number.');
@@ -74,6 +79,7 @@ class VendorPayoutVerificationController extends Controller
         Vendor::where('id', $verification->vendor_id)->update([
             'payout_method' => 'mobile',
             'payout_details' => $verification->phone,
+            'payout_changed_at' => now(),
         ]);
 
         $this->triggerRefund($verification);
