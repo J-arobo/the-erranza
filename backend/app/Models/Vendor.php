@@ -13,7 +13,7 @@ class Vendor extends Model
         'verification_status', 'suspended', 'suspend_reason',
         'license_number', 'tax_pin', 'payout_method', 'payout_bank_name', 'payout_details',
         'categories', 'regions', 'plan', 'default_cancellation_policy',
-        'onboarding_complete',
+        'onboarding_complete', 'celebration_seen_at',
     ];
 
     protected function casts(): array

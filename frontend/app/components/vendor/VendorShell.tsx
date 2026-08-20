@@ -96,7 +96,7 @@ export default function VendorShell({ children }: { children: React.ReactNode })
 
   function handleBackToErranza() {
     setActiveRole('traveller')
-    router.back()
+    router.push('/')
   }
 
   async function markAllRead() {
@@ -210,7 +210,7 @@ export default function VendorShell({ children }: { children: React.ReactNode })
           <button
             onClick={handleBackToErranza}
             className="mt-3 flex items-center gap-1.5 text-white/50 text-xs
-                      hover:text-white/80 transition-colors"
+                      hover:text-white/80 transition-colors focus:outline-none"
           >
             ← Back to Erranza
           </button>

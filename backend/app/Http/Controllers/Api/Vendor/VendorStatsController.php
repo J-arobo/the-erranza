@@ -97,6 +97,8 @@ class VendorStatsController extends Controller
 
             return [
                 'month' => $date->format('M'),
+                'full_month' => $date->format('F'),
+                'year' => $date->format('Y'),
                 'amount' => $netOf($gross),
             ];
         })->values();

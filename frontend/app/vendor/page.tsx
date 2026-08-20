@@ -30,7 +30,7 @@ type ApiReview = {
   listing: { id: number; title: string }
   traveller: { id: number; name: string; avatar_url: string | null }
 }
-type ApiEarnings = { monthly: { month: string; amount: number }[]; total_earned: number }
+type ApiEarnings = { monthly: { month: string; full_month: string; year: string; amount: number }[]; total_earned: number }
 
 function formatDateRange(checkIn: string | null, checkOut: string | null) {
   if (!checkIn) return '—'
@@ -50,6 +50,13 @@ export default function VendorDashboard() {
   const [earnings, setEarnings] = useState<ApiEarnings | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [hideEarnings, setHideEarnings] = useState(false)
+  // Hover on bar
+  const [hoveredBar, setHoveredBar] = useState<number | null>(null)
+
+  useEffect(() => {
+    setHideEarnings(localStorage.getItem('erranza_hide_earnings_dashboard') === '1')
+  }, [])
 
   useEffect(() => {
     Promise.all([
@@ -84,16 +91,9 @@ export default function VendorDashboard() {
   const monthly = earnings?.monthly ?? []
   const maxEarning = Math.max(1, ...monthly.map(e => e.amount))
 
-  //Hide earnings
-  const [hideEarnings, setHideEarnings] = useState(false)
-
-  useEffect(() => {
-    setHideEarnings(localStorage.getItem('erranza_hide_earnings') === '1')
-  }, [])
-
   function toggleHideEarnings() {
     setHideEarnings(h => {
-      localStorage.setItem('erranza_hide_earnings', h ? '0' : '1')
+      localStorage.setItem('erranza_hide_earnings_dashboard', h ? '0' : '1')
       return !h
     })
   }
@@ -165,15 +165,22 @@ export default function VendorDashboard() {
       {/* Stats grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
         {STATS.map(({ label, value, Icon, color, path }) => (
-          <button key={label} onClick={() => router.push(path)}
-            className="bg-white rounded-2xl border border-[#e0d9cc] shadow-sm p-4 text-left
-                       hover:shadow-md transition-all active:scale-[0.98]">
+          <div key={label} onClick={() => router.push(path)} role="button" tabIndex={0}
+            className="relative bg-white rounded-2xl border border-[#e0d9cc] shadow-sm p-4 text-left
+                       hover:shadow-md transition-all active:scale-[0.98] cursor-pointer">
+            {label === 'Total earnings' && (
+              <button onClick={(e) => { e.stopPropagation(); toggleHideEarnings() }}
+                className="absolute top-4 right-4 text-gray-400 hover:text-[#1a1a1a] transition-colors focus:outline-none"
+                title={hideEarnings ? 'Show figures' : 'Hide figures'}>
+                {hideEarnings ? <EyeOff size={15} /> : <Eye size={15} />}
+              </button>
+            )}
             <div className={`w-9 h-9 rounded-xl flex items-center justify-center mb-3 ${color}`}>
               <Icon size={16} />
             </div>
             <p className="text-xl font-bold text-[#1a1a1a]">{value}</p>
             <p className="text-xs text-gray-400 mt-0.5">{label}</p>
-          </button>
+          </div>
         ))}
       </div>
 
@@ -181,13 +188,8 @@ export default function VendorDashboard() {
       <div className="bg-white rounded-2xl border border-[#e0d9cc] shadow-sm p-5 mb-5">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-base font-bold text-[#1a1a1a]">Earnings this year</h2>
-          <div className="flex items-center gap-3">
-            <button onClick={toggleHideEarnings} className="text-gray-400 hover:text-[#1a1a1a] transition-colors" title={hideEarnings ? 'Show figures' : 'Hide figures'}>
-              {hideEarnings ? <EyeOff size={15} /> : <Eye size={15} />}
-            </button>
-            <button onClick={() => router.push('/vendor/earnings')}
-              className="text-xs text-[#2c4a1e] font-semibold">View all</button>
-          </div>
+          <button onClick={() => router.push('/vendor/earnings')}
+            className="text-xs text-[#2c4a1e] font-semibold">View all</button>
         </div>
         {monthly.every(e => e.amount === 0) ? (
           <p className="text-sm text-gray-400 py-8 text-center">
@@ -195,8 +197,18 @@ export default function VendorDashboard() {
           </p>
         ) : (
           <div className="flex items-end gap-1.5 h-40">
-            {monthly.map(({ month, amount }, i) => (
-              <div key={`${month}-${i}`} className="flex-1 h-full flex flex-col items-center justify-end gap-1">
+            {monthly.map(({ month, full_month, year, amount }, i) => (
+              <div key={`${month}-${i}`} className="relative flex-1 h-full flex flex-col items-center justify-end gap-1"
+                onMouseEnter={() => setHoveredBar(i)}
+                onMouseLeave={() => setHoveredBar(null)}>
+                {hoveredBar === i && (
+                  <div className="absolute -top-14 left-1/2 -translate-x-1/2 bg-[#1a1a1a] text-white text-[10px] font-semibold
+                                  px-3 py-2 rounded-lg whitespace-nowrap z-10 pointer-events-none text-center leading-relaxed">
+                    <div>{full_month} {year}</div>
+                    <div>{hideEarnings ? 'Hidden' : `Ksh ${amount.toLocaleString()}`}</div>
+                  </div>
+                )}
+
                 <span className="text-[9px] text-gray-500 font-semibold">
                   {hideEarnings ? '' : (amount > 0 ? `${Math.round(amount / 1000)}k` : '')}
                 </span>
@@ -210,6 +222,7 @@ export default function VendorDashboard() {
           </div>
         )}
       </div>
+
 
       {/* Recent bookings */}
       <div className="bg-white rounded-2xl border border-[#e0d9cc] shadow-sm p-5 mb-5">

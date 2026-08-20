@@ -812,9 +812,9 @@ export default function VendorProfilePage() {
               <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">Payout method</label>
               <div className="flex gap-2 mb-2">
                 {(['mobile', 'bank'] as const).map((m) => (
-                  <button key={m} onClick={() => setPayoutMethod(m)}
-                    className={`px-4 py-1.5 rounded-full text-sm font-semibold border transition-all
-                      ${payoutMethod === m
+                  <button key={m} onClick={() => { setPayoutMethod(m); setPayoutDetails('') }}
+                    className={`px-4 py-1.5 rounded-full text-sm font-semibold border transition-all focus:outline-none
+                                      ${payoutMethod === m
                         ? 'bg-[#2c4a1e] text-white border-[#2c4a1e]'
                         : 'bg-white text-[#1a1a1a] border-gray-200 hover:border-[#2c4a1e]'}`}>
                     {m === 'mobile' ? 'Mobile money' : 'Bank transfer'}
@@ -847,10 +847,6 @@ export default function VendorProfilePage() {
               {payoutMethod === 'mobile' && payoutVerifyError && (
                 <p className="text-xs text-red-500 mt-2">{payoutVerifyError}</p>
               )}
-              <input value={payoutDetails} onChange={(e) => setPayoutDetails(e.target.value)}
-                placeholder={payoutMethod === 'mobile' ? 'M-Pesa number, e.g. 0712345678' : 'Bank account number'}
-                className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm
-                           outline-none focus:border-[#2c4a1e] transition-colors" />
             </div>
             <button onClick={savePayoutDetails} disabled={savingPayout || verifyingPayout}
               className="bg-[#2c4a1e] text-white py-3 rounded-xl font-semibold text-sm
@@ -984,7 +980,7 @@ export default function VendorProfilePage() {
         <LogOut size={16} />
         Log out
       </button>
-      
+
       {toast && <Toast message={toast} onDone={() => setToast(null)} />}
     </div>
   )

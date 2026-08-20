@@ -8,8 +8,6 @@ import { StatusBadge } from '../page'
 
 const FILTERS = ['All', 'Pending', 'Confirmed', 'Completed', 'Cancelled']
 const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1547471080-7cc2caa01a7e?w=400&q=80'
-// Booking Accept confirmation
-const [confirmingAccept, setConfirmingAccept] = useState<ApiBooking | null>(null)
 
 type ApiBooking = {
   id: number
@@ -44,6 +42,9 @@ export default function VendorBookingsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [busyId, setBusyId] = useState<number | null>(null)
+  // Booking Accept confirmation
+  const [confirmingAccept, setConfirmingAccept] = useState<ApiBooking | null>(null)
+
 
   useEffect(() => {
     apiFetch<{ bookings: ApiBooking[] }>('/vendor/bookings')
