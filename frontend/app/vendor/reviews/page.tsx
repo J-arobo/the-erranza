@@ -17,10 +17,6 @@ function avatarColor(name: string): string {
   return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length]
 }
 
-// Show less
-const [showAllPerformance, setShowAllPerformance] = useState(false)
-const [showAllReviews, setShowAllReviews] = useState(false)
-
 type ApiReview = {
   id: number
   rating: number
@@ -47,6 +43,9 @@ export default function VendorReviewsPage() {
   const [error, setError] = useState('')
   const [replyText, setReplyText] = useState<Record<number, string>>({})
   const [posting, setPosting] = useState<number | null>(null)
+  // Show less
+  const [showAllPerformance, setShowAllPerformance] = useState(false)
+  const [showAllReviews, setShowAllReviews] = useState(false)
 
   useEffect(() => {
     Promise.all([
@@ -194,7 +193,7 @@ export default function VendorReviewsPage() {
             No reviews yet.
           </div>
         )}
-        {reviews.map((review) => (
+        {(showAllReviews ? reviews : reviews.slice(0, 5)).map((review) => (
           <div key={review.id}
             className="bg-white rounded-2xl border border-[#e0d9cc] shadow-sm p-5">
             <div className="flex items-center gap-3 mb-3">
@@ -255,6 +254,13 @@ export default function VendorReviewsPage() {
           </div>
         ))}
       </div>
+      {reviews.length > 5 && (
+        <button onClick={() => setShowAllReviews(s => !s)}
+          className="w-full text-center text-sm font-semibold text-[#2c4a1e] py-3">
+          {showAllReviews ? 'Show less' : `Show all ${reviews.length} reviews`}
+        </button>
+      )}
+
     </div>
   )
 }

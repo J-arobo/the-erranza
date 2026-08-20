@@ -228,28 +228,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .finally(() => setWishlistsReady(true))
   }, [user?.id])
 
-  // Auto logout on inactivity - 30 minutes
-  useEffect(() => {
-    if (!user) return
-
-    const INACTIVITY_TIMEOUT_MS = 30 * 60 * 1000
-    let timer: ReturnType<typeof setTimeout>
-    const resetTimer = () => {
-      clearTimeout(timer)
-      timer = setTimeout(() => logout(), INACTIVITY_TIMEOUT_MS)
-    }
-
-    const events = ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart']
-    events.forEach(e => window.addEventListener(e, resetTimer))
-    resetTimer()
-
-    return () => {
-      clearTimeout(timer)
-      events.forEach(e => window.removeEventListener(e, resetTimer))
-    }
-  }, [user?.id, logout])
-
-
   const register = useCallback(async (name: string, email: string, password: string, phone?: string, avatarUrl?: string) => {
     const { user, token } = await apiFetch<{ user: ApiUser; token: string }>('/auth/register', {
       method: 'POST',
@@ -285,12 +263,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(mapUser(user))
   }, [])
 
+  // Autologout 
   const logout = useCallback(() => {
     apiFetch('/auth/logout', { method: 'POST' }).catch(() => { })
     setToken(null)
     setUser(null)
     setWishlists([])
   }, [])
+
+    // Auto logout on inactivity - 30 minutes
+    useEffect(() => {
+      if (!user) return
+  
+      const INACTIVITY_TIMEOUT_MS = 30 * 60 * 1000
+      let timer: ReturnType<typeof setTimeout>
+      const resetTimer = () => {
+        clearTimeout(timer)
+        timer = setTimeout(() => logout(), INACTIVITY_TIMEOUT_MS)
+      }
+  
+      const events = ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart']
+      events.forEach(e => window.addEventListener(e, resetTimer))
+      resetTimer()
+  
+      return () => {
+        clearTimeout(timer)
+        events.forEach(e => window.removeEventListener(e, resetTimer))
+      }
+    }, [user?.id, logout])
+  
+  
 
   function completeOnboarding() {
     setUser(u => u ? { ...u, onboardingComplete: true } : u)

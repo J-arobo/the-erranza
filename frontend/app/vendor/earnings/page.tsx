@@ -5,8 +5,6 @@ import { apiFetch, apiErrorMessage } from '@/lib/api'
 
 const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1547471080-7cc2caa01a7e?w=400&q=80'
 
-// Show more / Show less
-const [showAllListings, setShowAllListings] = useState(false)
 
 type ApiEarnings = {
   monthly: { month: string; amount: number }[]
@@ -33,6 +31,8 @@ export default function VendorEarningsPage() {
   const [bookings, setBookings] = useState<ApiBooking[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  // Show more / Show less
+  const [showAllListings, setShowAllListings] = useState(false)
 
   useEffect(() => {
     Promise.all([
@@ -86,10 +86,10 @@ export default function VendorEarningsPage() {
       {/* Summary cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
         {[
-          { label: 'Total earned',    value: `Ksh ${earnings.total_earned.toLocaleString()}` },
-          { label: 'This month',      value: `Ksh ${earnings.this_month.toLocaleString()}` },
+          { label: 'Total earned', value: `Ksh ${earnings.total_earned.toLocaleString()}` },
+          { label: 'This month', value: `Ksh ${earnings.this_month.toLocaleString()}` },
           { label: 'Completed trips', value: earnings.completed_trips },
-          { label: 'Total views',     value: earnings.total_views.toLocaleString() },
+          { label: 'Total views', value: earnings.total_views.toLocaleString() },
         ].map(({ label, value }) => (
           <div key={label}
             className="bg-white rounded-2xl border border-[#e0d9cc] shadow-sm p-4">

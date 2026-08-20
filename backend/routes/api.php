@@ -44,7 +44,7 @@ use App\Http\Controllers\Api\Vendor\VendorPayoutVerificationController;
 
 Route::prefix('auth')->group(function () {
     Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:6,1');
-    Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:6,1');  
+    Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:6,1');
     //Password reset
     Route::post('/forgot-password', [PasswordResetController::class, 'sendResetLink'])->middleware('throttle:6,1');
     Route::post('/reset-password', [PasswordResetController::class, 'reset'])->middleware('throttle:6,1');
@@ -141,14 +141,16 @@ Route::prefix('vendor')->middleware(['auth:sanctum', 'vendor'])->group(function 
     // Vendor payout verification
     Route::post('/payout-verification', [VendorPayoutVerificationController::class, 'initiate']);
     Route::get('/payout-verification/{checkoutRequestId}/status', [VendorPayoutVerificationController::class, 'status']);
+    // M-Pesa payout verification callbacks
+    Route::post('/mpesa/payout-verification/refund-result', [VendorPayoutVerificationController::class, 'refundResult']);
+    Route::post('/mpesa/payout-verification/refund-timeout', [VendorPayoutVerificationController::class, 'refundTimeout']);
+
 
     Route::get('/verification-submissions', [VendorVerificationController::class, 'index']);
     Route::patch('/verification-submissions/{submission}', [VendorVerificationController::class, 'update']);
 
     Route::post('/team-members', [VendorTeamMemberController::class, 'store']);
     Route::delete('/team-members/{member}', [VendorTeamMemberController::class, 'destroy']);
-
-
 });
 
 Route::prefix('admin')->middleware(['auth:sanctum', 'admin'])->group(function () {
@@ -190,7 +192,6 @@ Route::prefix('admin')->middleware(['auth:sanctum', 'admin'])->group(function ()
     Route::post('/support/vendor/{vendor}/reply', [AdminSupportController::class, 'replyToVendor']);
     Route::get('/support/traveller/{traveller}', [AdminSupportController::class, 'travellerThread']);
     Route::post('/support/traveller/{traveller}/reply', [AdminSupportController::class, 'replyToTraveller']);
-
 });
 
 Route::prefix('super-admin')->middleware(['auth:sanctum', 'super_admin'])->group(function () {

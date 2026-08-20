@@ -799,7 +799,6 @@ export default function VendorProfilePage() {
           )}
         </div>
 
-
         {editingPayout ? (
           <div className="flex flex-col gap-4">
             <div>
@@ -822,12 +821,6 @@ export default function VendorProfilePage() {
                   </button>
                 ))}
               </div>
-              {payoutMethod === 'bank' && (
-                <input value={payoutBankName} onChange={(e) => setPayoutBankName(e.target.value)}
-                  placeholder="Bank name (e.g. Equity Bank)"
-                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm mb-2
-                             outline-none focus:border-[#2c4a1e] transition-colors" />
-              )}
               {payoutMethod === 'bank' && (
                 <input value={payoutBankName} onChange={(e) => setPayoutBankName(e.target.value)}
                   placeholder="Bank name (e.g. Equity Bank)"
@@ -991,6 +984,7 @@ export default function VendorProfilePage() {
         <LogOut size={16} />
         Log out
       </button>
+      
       {toast && <Toast message={toast} onDone={() => setToast(null)} />}
     </div>
   )
