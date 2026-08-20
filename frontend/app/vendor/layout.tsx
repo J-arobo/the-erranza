@@ -5,10 +5,9 @@ import { useAuth } from '@/context/AuthContext'
 import VendorShell from '@/components/vendor/VendorShell'
 import VerificationGate from '@/components/vendor/VerificationGate'
 import VerificationCelebration from '@/components/vendor/VerificationCelebration'
-import { apiFetch } from '@/lib/api'
 
 export default function VendorLayout({ children }: { children: React.ReactNode }) {
-  const { isLoggedIn, user, ready } = useAuth()
+  const { isLoggedIn, user, ready, markCelebrationSeen } = useAuth()
   const router = useRouter()
   const pathname = usePathname()
   const isOnboardingRoute = pathname === '/vendor/onboarding'
@@ -20,8 +19,8 @@ export default function VendorLayout({ children }: { children: React.ReactNode }
   useEffect(() => {
     if (!isVerified || !user || user.celebrationSeen) return
     setShowCelebration(true)
-    apiFetch('/vendor/celebration-seen', { method: 'POST' }).catch(() => {})
-  }, [isVerified, user?.id, user?.celebrationSeen])
+    markCelebrationSeen()
+  }, [isVerified, user?.id, user?.celebrationSeen, markCelebrationSeen])
 
   useEffect(() => {
     if (!ready) return

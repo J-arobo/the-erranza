@@ -66,6 +66,7 @@ type AuthContextType = {
   logout: () => void
   isLoggedIn: boolean
   completeOnboarding: () => void
+  markCelebrationSeen: () => void
   becomePartner: () => Promise<void>
   addSuperAdminRole: () => void
   setActiveRole: (role: Role) => void
@@ -88,6 +89,7 @@ const AuthContext = createContext<AuthContextType>({
   logout: () => { },
   isLoggedIn: false,
   completeOnboarding: () => { },
+  markCelebrationSeen: () => { },
   becomePartner: async () => { },
   addSuperAdminRole: () => { },
   setActiveRole: () => { },
@@ -298,6 +300,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(u => u ? { ...u, onboardingComplete: true } : u)
   }
 
+  const markCelebrationSeen = useCallback(() => {
+    setUser(u => u ? { ...u, celebrationSeen: true } : u)
+    apiFetch('/vendor/celebration-seen', { method: 'POST' }).catch(() => {})
+  }, [])
+
   const becomePartner = useCallback(async () => {
     await apiFetch('/become-partner', { method: 'POST' })
     setUser(u => {
@@ -363,6 +370,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     logout,
     isLoggedIn: !!user,
     completeOnboarding,
+    markCelebrationSeen,
     becomePartner,
     addSuperAdminRole,
     setActiveRole,
@@ -375,7 +383,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     addTrip,
     messages: MOCK_MESSAGES,
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [user, ready, wishlists, wishlistsReady, trips, register, updateProfile, login, logout, becomePartner])
+  }), [user, ready, wishlists, wishlistsReady, trips, register, updateProfile, login, logout, becomePartner, markCelebrationSeen])
 
   return (
     <AuthContext.Provider value={value}>
