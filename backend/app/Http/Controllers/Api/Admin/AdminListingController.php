@@ -19,6 +19,14 @@ class AdminListingController extends Controller
             $query->where('flagged', true);
         }
 
+        if ($request->filled('search')) {
+            $query->where('title', 'like', '%' . $request->string('search') . '%');
+        }
+
+        if ($request->filled('category') && $request->string('category') !== 'All') {
+            $query->where('category', $request->string('category'));
+        }
+
         $listings = $query->latest()->get();
 
         return response()->json(['listings' => $listings]);
@@ -58,5 +66,4 @@ class AdminListingController extends Controller
 
         return response()->json(['listing' => $listing]);
     }
-
 }

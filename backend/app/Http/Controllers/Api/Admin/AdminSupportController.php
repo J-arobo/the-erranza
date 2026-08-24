@@ -96,6 +96,7 @@ class AdminSupportController extends Controller
     {
         $validated = $request->validate(['text' => ['required', 'string']]);
         $message = SupportMessenger::sendToVendor($vendor, $validated['text']);
+        $message->load('sender:id,name');
 
         return response()->json(['message' => $message], 201);
     }
@@ -104,6 +105,7 @@ class AdminSupportController extends Controller
     {
         $validated = $request->validate(['text' => ['required', 'string']]);
         $message = SupportMessenger::sendToTraveller($traveller, $validated['text']);
+        $message->load('sender:id,name');
 
         return response()->json(['message' => $message], 201);
     }

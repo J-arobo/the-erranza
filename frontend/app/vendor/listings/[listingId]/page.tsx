@@ -2,7 +2,7 @@
 import { use, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
-  ArrowLeft, Plus, X, Check, Trash2,
+  ArrowLeft, Plus, X, Check, Trash2, ChevronDown,
   PawPrint, VolumeX, Camera, Cigarette, Moon, DoorOpen,
   ShieldAlert, Shield, Ban, AlertTriangle, Volume2, Wifi,
 } from 'lucide-react'
@@ -35,7 +35,7 @@ const HOUSE_RULES_CATALOG: { key: string; label: string; icon: React.ReactNode }
   { key: 'no_parties', label: 'No parties or events', icon: <VolumeX size={14} /> },
   { key: 'no_commercial_photography', label: 'No commercial photography', icon: <Camera size={14} /> },
   { key: 'smoking_allowed', label: 'Smoking is allowed', icon: <Cigarette size={14} /> },
-  { key: 'quiet_hours', label: 'Quiet hours (10:00 PM \u2013 7:00 AM)', icon: <Moon size={14} /> },
+  { key: 'quiet_hours', label: 'Quiet hours (10:00 PM – 7:00 AM)', icon: <Moon size={14} /> },
   { key: 'self_check_in', label: 'Self check-in with keypad', icon: <DoorOpen size={14} /> },
 ]
 
@@ -45,7 +45,7 @@ const SAFETY_CATALOG: { key: string; label: string; icon: React.ReactNode; needs
   { key: 'no_carbon_monoxide_alarm', label: 'No carbon monoxide alarm', icon: <ShieldAlert size={14} />, needsNote: false },
   { key: 'no_smoke_alarm', label: 'No smoke alarm', icon: <ShieldAlert size={14} />, needsNote: false },
   { key: 'exterior_cameras', label: 'Exterior security cameras on property', icon: <Shield size={14} />, needsNote: false },
-  { key: 'not_suitable_children', label: 'Not suitable for children (2\u201312 years)', icon: <Ban size={14} />, needsNote: false },
+  { key: 'not_suitable_children', label: 'Not suitable for children (2–12 years)', icon: <Ban size={14} />, needsNote: false },
   { key: 'must_climb_stairs', label: 'Must climb stairs', icon: <AlertTriangle size={14} />, needsNote: false },
   { key: 'no_parking', label: 'No parking on property', icon: <Ban size={14} />, needsNote: false },
   { key: 'dangerous_animals', label: 'May encounter potentially dangerous animal', icon: <AlertTriangle size={14} />, needsNote: true },
@@ -116,6 +116,37 @@ function parseMoney(v: string): number | null {
   if (!cleaned) return null
   const num = Number(cleaned)
   return Number.isFinite(num) ? num : null
+}
+
+// Collapsible, jump-linkable section wrapper — used to break the long edit
+// form into named chunks with a sticky nav instead of one continuous scroll.
+function Section({
+  id, title, description, open, onToggle, children,
+}: {
+  id: string
+  title: string
+  description?: string
+  open: boolean
+  onToggle: () => void
+  children: React.ReactNode
+}) {
+  return (
+    <div id={id} className="scroll-mt-28">
+      <button onClick={onToggle}
+        className="w-full flex items-center justify-between gap-3 py-2 text-left focus:outline-none">
+        <div>
+          <h2 className="text-lg font-bold text-[#1a1a1a]">{title}</h2>
+          {description && <p className="text-sm text-gray-500 mt-0.5">{description}</p>}
+        </div>
+        <ChevronDown size={18} color="#888" className={`flex-shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <div className="flex flex-col gap-5 pt-3 pb-2">
+          {children}
+        </div>
+      )}
+    </div>
+  )
 }
 
 export default function EditListingPage({ params }: Props) {
@@ -196,6 +227,24 @@ export default function EditListingPage({ params }: Props) {
   const [safetyInfo, setSafetyInfo] = useState<{ key: string; note: string }[]>([])
   const [additionalRules, setAdditionalRules] = useState('')
   const [additionalRequests, setAdditionalRequests] = useState('')
+
+  // ── Section collapse/expand state — Basics starts open, rest start
+  // collapsed so editing one thing doesn't mean scrolling past everything. ──
+  const [openSections, setOpenSections] = useState<Set<string>>(new Set(['basics']))
+
+  function toggleSection(id: string) {
+    setOpenSections(s => {
+      const next = new Set(s)
+      if (next.has(id)) next.delete(id); else next.add(id)
+      return next
+    })
+  }
+  function jumpToSection(id: string) {
+    setOpenSections(s => new Set(s).add(id))
+    requestAnimationFrame(() => {
+      document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    })
+  }
 
   function toggleHouseRule(key: string) {
     setHouseRules(r => r.includes(key) ? r.filter(x => x !== key) : [...r, key])
@@ -473,6 +522,17 @@ export default function EditListingPage({ params }: Props) {
     )
   }
 
+  const SECTIONS = [
+    { id: 'basics', label: 'Basics' },
+    { id: 'itinerary', label: 'Itinerary' },
+    { id: 'group-size', label: 'Group & duration' },
+    { id: 'pricing', label: 'Pricing' },
+    { id: 'availability', label: 'Availability' },
+    { id: 'cancellation', label: 'Cancellation' },
+    { id: 'house-rules', label: category === 'Stays' ? 'House rules' : 'Tour rules' },
+    { id: 'safety', label: category === 'Stays' ? 'Safety & property' : 'Safety info' },
+  ]
+
   return (
     <div className="p-5 lg:p-8 max-w-2xl mx-auto overflow-x-hidden">
       {toast && <Toast message={toast} onDone={() => setToast(null)} />}
@@ -481,7 +541,7 @@ export default function EditListingPage({ params }: Props) {
         <ArrowLeft size={16} /> Back to listings
       </button>
 
-      <p className="text-sm text-gray-500 mb-6">
+      <p className="text-sm text-gray-500 mb-4">
         {bookingsCount} bookings · Earned Ksh {Math.round(Number(earnings)).toLocaleString()}
       </p>
 
@@ -491,271 +551,226 @@ export default function EditListingPage({ params }: Props) {
         </div>
       )}
 
-      <div className="flex flex-col gap-5">
-        <div className={FIELD_CARD}>
-          <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">Status</label>
-          <div className="flex gap-2">
-            {STATUSES.map((s) => (
-              <button key={s} onClick={() => setStatus(s)}
-                className={`px-4 py-1.5 rounded-full text-sm font-semibold border capitalize transition-all
-                  ${status === s
-                    ? 'bg-[#2c4a1e] text-white border-[#2c4a1e]'
-                    : 'bg-white text-[#1a1a1a] border-gray-200 hover:border-[#2c4a1e]'}`}>
-                {s}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className={FIELD_CARD}>
-          <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">Title</label>
-          <input value={title} onChange={(e) => setTitle(e.target.value)}
-            className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm
-                       outline-none focus:border-[#2c4a1e] transition-colors" />
-        </div>
-
-        <div className={FIELD_CARD}>
-          <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">Category</label>
-          <div className="flex gap-2 flex-wrap">
-            {CATEGORIES.map((c) => (
-              <button key={c} onClick={() => setCategory(c)}
-                className={`px-4 py-1.5 rounded-full text-sm font-semibold border transition-all
-                  ${category === c
-                    ? 'bg-[#2c4a1e] text-white border-[#2c4a1e]'
-                    : 'bg-white text-[#1a1a1a] border-gray-200 hover:border-[#2c4a1e]'}`}>
-                {c}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className={FIELD_CARD}>
-          <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">Location</label>
-          <input value={location} onChange={(e) => setLocation(e.target.value)}
-            className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm
-                       outline-none focus:border-[#2c4a1e] transition-colors" />
-        </div>
-
-        <div className={FIELD_CARD}>
-          <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">Photos</label>
-          <PhotoManager images={images} onChange={setImages} />
-        </div>
-
-        <div className={FIELD_CARD}>
-          <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">Description</label>
-          <textarea value={description} onChange={(e) => setDescription(e.target.value)}
-            rows={4}
-            className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm
-                       outline-none focus:border-[#2c4a1e] transition-colors resize-none" />
-        </div>
-
-        {/* ══ ITINERARY ══ */}
-        <div>
-          <h2 className="text-lg font-bold text-[#1a1a1a] mb-1">Itinerary</h2>
-          <p className="text-sm text-gray-500 mb-4">Day-by-day breakdown for guests.</p>
-        </div>
-
-        <div className={FIELD_CARD}>
-          <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">Itinerary (day-by-day)</label>
-          <div className="flex flex-col gap-2 mb-2">
-            <input value={itineraryTitle} onChange={(e) => setItineraryTitle(e.target.value)}
-              placeholder={`e.g. Day ${itinerary.length + 1}: Arrival & sundowner game drive`}
-              className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm
-                         outline-none focus:border-[#2c4a1e] transition-colors" />
-            <textarea value={itineraryDesc} onChange={(e) => setItineraryDesc(e.target.value)}
-              rows={2} placeholder="What happens this day..."
-              className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm
-                         outline-none focus:border-[#2c4a1e] transition-colors resize-none" />
-            <button onClick={addItineraryDay}
-              className="self-start flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#2c4a1e]
-                         text-white text-sm font-semibold hover:bg-[#3d6b28] transition-colors">
-              <Plus size={15} /> Add day
+      {/* Sticky jump nav */}
+      <div className="sticky top-0 z-20 -mx-5 lg:-mx-8 px-5 lg:px-8 py-2 bg-white/95 backdrop-blur-sm
+                      border-b border-gray-100 mb-4 overflow-x-auto scrollbar-hide">
+        <div className="flex gap-2 w-max">
+          {SECTIONS.map((s) => (
+            <button key={s.id} onClick={() => jumpToSection(s.id)}
+              className="flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold bg-gray-50
+                         border border-gray-200 text-[#1a1a1a] hover:border-[#2c4a1e] transition-colors
+                         focus:outline-none">
+              {s.label}
             </button>
-          </div>
-          {itinerary.length > 0 && (
-            <div className="flex flex-col gap-2">
-              {itinerary.map((d) => (
-                <div key={d.day} className="flex items-start justify-between gap-3 p-3 rounded-xl border border-gray-200">
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold text-[#1a1a1a]">Day {d.day} — {d.title}</p>
-                    {d.description && <p className="text-xs text-gray-500 mt-0.5">{d.description}</p>}
-                  </div>
-                  <button onClick={() => removeItineraryDay(d.day)} className="flex-shrink-0">
-                    <X size={14} color="#888" />
-                  </button>
-                </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-2">
+
+        <Section id="basics" title="Basics" description="Title, category, location and photos."
+          open={openSections.has('basics')} onToggle={() => toggleSection('basics')}>
+          <div className={FIELD_CARD}>
+            <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">Status</label>
+            <div className="flex gap-2">
+              {STATUSES.map((s) => (
+                <button key={s} onClick={() => setStatus(s)}
+                  className={`px-4 py-1.5 rounded-full text-sm font-semibold border capitalize transition-all
+                    ${status === s
+                      ? 'bg-[#2c4a1e] text-white border-[#2c4a1e]'
+                      : 'bg-white text-[#1a1a1a] border-gray-200 hover:border-[#2c4a1e]'}`}>
+                  {s}
+                </button>
               ))}
             </div>
-          )}
-        </div>
-
-        <div className={FIELD_CARD}>
-          <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">
-            What&apos;s included
-          </label>
-          <p className="text-xs text-gray-400 mb-3">
-            Select everything included in this listing. Anything left unchecked will automatically
-            show to guests as excluded.
-          </p>
-          <div className="flex flex-wrap gap-2 mb-3">
-            {amenityOptions.map((item) => {
-              const checked = amenities.includes(item)
-              return (
-                <button key={item} type="button" onClick={() => toggleAmenity(item)}
-                  className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full border transition-colors
-                    ${checked
-                      ? 'bg-[#eaf5e4] text-[#2c4a1e] border-[#2c4a1e]'
-                      : 'bg-gray-50 text-gray-400 border-gray-200'}`}>
-                  {checked ? <Check size={12} /> : <X size={12} />}
-                  {item}
-                </button>
-              )
-            })}
           </div>
-          <div className="flex gap-2">
-            <input value={amenityInput} onChange={(e) => setAmenityInput(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addAmenityOption() } }}
-              placeholder="Add another item..."
-              className="flex-1 min-w-0 border border-gray-200 rounded-xl px-4 py-2.5 text-sm
-                         outline-none focus:border-[#2c4a1e] transition-colors" />
-            <button onClick={addAmenityOption}
-              className="px-4 rounded-xl bg-[#2c4a1e] text-white hover:bg-[#3d6b28] transition-colors">
-              <Plus size={16} />
-            </button>
-          </div>
-          {excludedComputed.length > 0 && (
-            <div className="mt-4 pt-3 border-t border-gray-100">
-              <p className="text-xs font-semibold text-gray-500 mb-1.5">Showing as excluded to guests</p>
-              <div className="flex flex-wrap gap-2">
-                {excludedComputed.map((item) => (
-                  <span key={item}
-                    className="bg-gray-100 text-gray-500 text-xs font-semibold px-3 py-1.5 rounded-full">
-                    {item}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
 
-        {/* ══ GROUP SIZE & DURATION ══ */}
-        <div className="pt-2 border-t border-gray-100">
-          <h2 className="text-lg font-bold text-[#1a1a1a] mb-1 mt-4">Group size &amp; duration</h2>
-          <p className="text-sm text-gray-500 mb-4">Set booking limits and available durations.</p>
-        </div>
-
-        <div className={`${FIELD_CARD} grid grid-cols-2 gap-3`}>
-          <div>
-            <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">Min guests</label>
-            <input value={minGuests} onChange={(e) => setMinGuests(e.target.value)}
-              type="number" placeholder="e.g. 2"
-              className="w-full min-w-0 border border-gray-200 rounded-xl px-4 py-2.5 text-sm
-                         outline-none focus:border-[#2c4a1e] transition-colors" />
-            <input value={maxGuests} onChange={(e) => setMaxGuests(e.target.value)}
-              type="number" placeholder="e.g. 12"
-              className="w-full min-w-0 border border-gray-200 rounded-xl px-4 py-2.5 text-sm
-                         outline-none focus:border-[#2c4a1e] transition-colors" />
-
-          </div>
-        </div>
-
-        {category === 'Stays' && (
           <div className={FIELD_CARD}>
-            <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">Minimum nights</label>
-            <div className="flex items-center gap-2">
-              <input value={minNights} onChange={(e) => setMinNights(e.target.value)}
-                type="number" placeholder="e.g. 2"
-                className="w-32 border border-gray-200 rounded-xl px-4 py-2.5 text-sm
-                           outline-none focus:border-[#2c4a1e] transition-colors" />
-              <span className="text-sm text-gray-500">nights minimum stay</span>
-            </div>
-            <p className="text-xs text-gray-400 mt-1.5">
-              Optional. Leave blank to allow guests to book any length of stay.
-            </p>
+            <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">Title</label>
+            <input value={title} onChange={(e) => setTitle(e.target.value)}
+              className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm
+                         outline-none focus:border-[#2c4a1e] transition-colors" />
           </div>
-        )}
 
-        <div className={FIELD_CARD}>
-          <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">Duration options</label>
-          <div className="flex gap-2 mb-2">
-            <input value={durationLabel} onChange={(e) => setDurationLabel(e.target.value)}
-              placeholder="e.g. 3 Days / 2 Nights"
-              className="flex-1 min-w-0 border border-gray-200 rounded-xl px-4 py-2.5 text-sm
-                         outline-none focus:border-[#2c4a1e] transition-colors" />
-            <input value={durationPrice} onChange={(e) => setDurationPrice(e.target.value)}
-              placeholder="Price (optional)"
-              className="w-40 border border-gray-200 rounded-xl px-4 py-2.5 text-sm
-                         outline-none focus:border-[#2c4a1e] transition-colors" />
-            <button onClick={addDurationOption}
-              className="px-4 rounded-xl bg-[#2c4a1e] text-white hover:bg-[#3d6b28] transition-colors flex-shrink-0">
-              <Plus size={16} />
-            </button>
+          <div className={FIELD_CARD}>
+            <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">Category</label>
+            <div className="flex gap-2 flex-wrap">
+              {CATEGORIES.map((c) => (
+                <button key={c} onClick={() => setCategory(c)}
+                  className={`px-4 py-1.5 rounded-full text-sm font-semibold border transition-all
+                    ${category === c
+                      ? 'bg-[#2c4a1e] text-white border-[#2c4a1e]'
+                      : 'bg-white text-[#1a1a1a] border-gray-200 hover:border-[#2c4a1e]'}`}>
+                  {c}
+                </button>
+              ))}
+            </div>
           </div>
-          {durationOptions.length > 0 && (
-            <div className="flex flex-col gap-2">
-              {durationOptions.map((d) => (
-                <div key={d.id} className="flex items-center justify-between gap-3 p-3 rounded-xl border border-gray-200">
-                  <span className="text-sm text-[#1a1a1a]">{d.label}</span>
-                  <div className="flex items-center gap-3 flex-shrink-0">
-                    {d.price && <span className="text-sm font-semibold text-[#1a1a1a]">{d.price}</span>}
-                    <button onClick={() => removeDurationOption(d.id)}>
+
+          <div className={FIELD_CARD}>
+            <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">Location</label>
+            <input value={location} onChange={(e) => setLocation(e.target.value)}
+              className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm
+                         outline-none focus:border-[#2c4a1e] transition-colors" />
+          </div>
+
+          <div className={FIELD_CARD}>
+            <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">Photos</label>
+            <PhotoManager images={images} onChange={setImages} />
+          </div>
+
+          <div className={FIELD_CARD}>
+            <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">Description</label>
+            <textarea value={description} onChange={(e) => setDescription(e.target.value)}
+              rows={4}
+              className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm
+                         outline-none focus:border-[#2c4a1e] transition-colors resize-none" />
+          </div>
+        </Section>
+
+        <Section id="itinerary" title="Itinerary" description="Day-by-day breakdown for guests, and what's included."
+          open={openSections.has('itinerary')} onToggle={() => toggleSection('itinerary')}>
+          <div className={FIELD_CARD}>
+            <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">Itinerary (day-by-day)</label>
+            <div className="flex flex-col gap-2 mb-2">
+              <input value={itineraryTitle} onChange={(e) => setItineraryTitle(e.target.value)}
+                placeholder={`e.g. Day ${itinerary.length + 1}: Arrival & sundowner game drive`}
+                className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm
+                           outline-none focus:border-[#2c4a1e] transition-colors" />
+              <textarea value={itineraryDesc} onChange={(e) => setItineraryDesc(e.target.value)}
+                rows={2} placeholder="What happens this day..."
+                className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm
+                           outline-none focus:border-[#2c4a1e] transition-colors resize-none" />
+              <button onClick={addItineraryDay}
+                className="self-start flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#2c4a1e]
+                           text-white text-sm font-semibold hover:bg-[#3d6b28] transition-colors">
+                <Plus size={15} /> Add day
+              </button>
+            </div>
+            {itinerary.length > 0 && (
+              <div className="flex flex-col gap-2">
+                {itinerary.map((d) => (
+                  <div key={d.day} className="flex items-start justify-between gap-3 p-3 rounded-xl border border-gray-200">
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-[#1a1a1a]">Day {d.day} — {d.title}</p>
+                      {d.description && <p className="text-xs text-gray-500 mt-0.5">{d.description}</p>}
+                    </div>
+                    <button onClick={() => removeItineraryDay(d.day)} className="flex-shrink-0">
                       <X size={14} color="#888" />
                     </button>
                   </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className={FIELD_CARD}>
+            <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">
+              What&apos;s included
+            </label>
+            <p className="text-xs text-gray-400 mb-3">
+              Select everything included in this listing. Anything left unchecked will automatically
+              show to guests as excluded.
+            </p>
+            <div className="flex flex-wrap gap-2 mb-3">
+              {amenityOptions.map((item) => {
+                const checked = amenities.includes(item)
+                return (
+                  <button key={item} type="button" onClick={() => toggleAmenity(item)}
+                    className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full border transition-colors
+                      ${checked
+                        ? 'bg-[#eaf5e4] text-[#2c4a1e] border-[#2c4a1e]'
+                        : 'bg-gray-50 text-gray-400 border-gray-200'}`}>
+                    {checked ? <Check size={12} /> : <X size={12} />}
+                    {item}
+                  </button>
+                )
+              })}
+            </div>
+            <div className="flex gap-2">
+              <input value={amenityInput} onChange={(e) => setAmenityInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addAmenityOption() } }}
+                placeholder="Add another item..."
+                className="flex-1 min-w-0 border border-gray-200 rounded-xl px-4 py-2.5 text-sm
+                           outline-none focus:border-[#2c4a1e] transition-colors" />
+              <button onClick={addAmenityOption}
+                className="px-4 rounded-xl bg-[#2c4a1e] text-white hover:bg-[#3d6b28] transition-colors">
+                <Plus size={16} />
+              </button>
+            </div>
+            {excludedComputed.length > 0 && (
+              <div className="mt-4 pt-3 border-t border-gray-100">
+                <p className="text-xs font-semibold text-gray-500 mb-1.5">Showing as excluded to guests</p>
+                <div className="flex flex-wrap gap-2">
+                  {excludedComputed.map((item) => (
+                    <span key={item}
+                      className="bg-gray-100 text-gray-500 text-xs font-semibold px-3 py-1.5 rounded-full">
+                      {item}
+                    </span>
+                  ))}
                 </div>
-              ))}
+              </div>
+            )}
+          </div>
+        </Section>
+
+        <Section id="group-size" title="Group size & duration" description="Set booking limits and available durations."
+          open={openSections.has('group-size')} onToggle={() => toggleSection('group-size')}>
+          <div className={`${FIELD_CARD} grid grid-cols-2 gap-3`}>
+            <div>
+              <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">Min guests</label>
+              <input value={minGuests} onChange={(e) => setMinGuests(e.target.value)}
+                type="number" placeholder="e.g. 2"
+                className="w-full min-w-0 border border-gray-200 rounded-xl px-4 py-2.5 text-sm
+                           outline-none focus:border-[#2c4a1e] transition-colors" />
+              <input value={maxGuests} onChange={(e) => setMaxGuests(e.target.value)}
+                type="number" placeholder="e.g. 12"
+                className="w-full min-w-0 border border-gray-200 rounded-xl px-4 py-2.5 text-sm
+                           outline-none focus:border-[#2c4a1e] transition-colors" />
+
+            </div>
+          </div>
+
+          {category === 'Stays' && (
+            <div className={FIELD_CARD}>
+              <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">Minimum nights</label>
+              <div className="flex items-center gap-2">
+                <input value={minNights} onChange={(e) => setMinNights(e.target.value)}
+                  type="number" placeholder="e.g. 2"
+                  className="w-32 border border-gray-200 rounded-xl px-4 py-2.5 text-sm
+                             outline-none focus:border-[#2c4a1e] transition-colors" />
+                <span className="text-sm text-gray-500">nights minimum stay</span>
+              </div>
+              <p className="text-xs text-gray-400 mt-1.5">
+                Optional. Leave blank to allow guests to book any length of stay.
+              </p>
             </div>
           )}
-          <p className="text-xs text-gray-400 mt-1.5">Leave price blank to use the base price for that duration.</p>
-        </div>
 
-        {/* ══ PRICING RULES ══ */}
-        <div className="pt-2 border-t border-gray-100">
-          <h2 className="text-lg font-bold text-[#1a1a1a] mb-1 mt-4">Pricing rules</h2>
-          <p className="text-sm text-gray-500 mb-4">Base price, tiered pricing, extras and seasonal overrides.</p>
-        </div>
-
-        <div className={FIELD_CARD}>
-          <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">Base price (per adult)</label>
-          <input value={price} onChange={(e) => setPrice(e.target.value)}
-            className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm
-                       outline-none focus:border-[#2c4a1e] transition-colors" />
-        </div>
-
-        <div className={FIELD_CARD}>
-          <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">Child price</label>
-          <input value={childPrice} onChange={(e) => setChildPrice(e.target.value)}
-            placeholder="e.g. 22500 (optional)"
-            className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm
-                       outline-none focus:border-[#2c4a1e] transition-colors" />
-          <p className="text-xs text-gray-400 mt-1.5">Leave blank to charge the adult price for children too.</p>
-        </div>
-
-        {(category === 'Safari' || category === 'Packages') && (
           <div className={FIELD_CARD}>
-            <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">Group discounts</label>
+            <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">Duration options</label>
             <div className="flex gap-2 mb-2">
-              <input value={discountMinGuests} onChange={(e) => setDiscountMinGuests(e.target.value)}
-                type="number" placeholder="Min guests"
+              <input value={durationLabel} onChange={(e) => setDurationLabel(e.target.value)}
+                placeholder="e.g. 3 Days / 2 Nights"
                 className="flex-1 min-w-0 border border-gray-200 rounded-xl px-4 py-2.5 text-sm
                            outline-none focus:border-[#2c4a1e] transition-colors" />
-              <input value={discountPercent} onChange={(e) => setDiscountPercent(e.target.value)}
-                type="number" placeholder="Discount %"
-                className="flex-1 min-w-0 border border-gray-200 rounded-xl px-4 py-2.5 text-sm
+              <input value={durationPrice} onChange={(e) => setDurationPrice(e.target.value)}
+                placeholder="Price (optional)"
+                className="w-40 border border-gray-200 rounded-xl px-4 py-2.5 text-sm
                            outline-none focus:border-[#2c4a1e] transition-colors" />
-              <button onClick={addGroupDiscount}
+              <button onClick={addDurationOption}
                 className="px-4 rounded-xl bg-[#2c4a1e] text-white hover:bg-[#3d6b28] transition-colors flex-shrink-0">
                 <Plus size={16} />
               </button>
             </div>
-            {groupDiscounts.length > 0 && (
+            {durationOptions.length > 0 && (
               <div className="flex flex-col gap-2">
-                {groupDiscounts.map((g) => (
-                  <div key={g.id} className="flex items-center justify-between gap-3 p-3 rounded-xl border border-gray-200">
-                    <span className="text-sm text-[#1a1a1a]">{g.min_guests}+ guests</span>
+                {durationOptions.map((d) => (
+                  <div key={d.id} className="flex items-center justify-between gap-3 p-3 rounded-xl border border-gray-200">
+                    <span className="text-sm text-[#1a1a1a]">{d.label}</span>
                     <div className="flex items-center gap-3 flex-shrink-0">
-                      <span className="text-sm font-semibold text-[#1a1a1a]">{g.discount_percent}% off</span>
-                      <button onClick={() => removeGroupDiscount(g.id)}>
+                      {d.price && <span className="text-sm font-semibold text-[#1a1a1a]">{d.price}</span>}
+                      <button onClick={() => removeDurationOption(d.id)}>
                         <X size={14} color="#888" />
                       </button>
                     </div>
@@ -763,299 +778,341 @@ export default function EditListingPage({ params }: Props) {
                 ))}
               </div>
             )}
+            <p className="text-xs text-gray-400 mt-1.5">Leave price blank to use the base price for that duration.</p>
           </div>
-        )}
+        </Section>
 
-        <div className={FIELD_CARD}>
-          <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">Extras &amp; add-ons</label>
-          <div className="flex gap-2 mb-2">
-            <input value={extraLabel} onChange={(e) => setExtraLabel(e.target.value)}
-              placeholder="e.g. Hot air balloon safari"
-              className="flex-1 min-w-0 border border-gray-200 rounded-xl px-4 py-2.5 text-sm
+        <Section id="pricing" title="Pricing rules" description="Base price, tiered pricing, extras and seasonal overrides."
+          open={openSections.has('pricing')} onToggle={() => toggleSection('pricing')}>
+          <div className={FIELD_CARD}>
+            <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">Base price (per adult)</label>
+            <input value={price} onChange={(e) => setPrice(e.target.value)}
+              className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm
                          outline-none focus:border-[#2c4a1e] transition-colors" />
-            <input value={extraPrice} onChange={(e) => setExtraPrice(e.target.value)}
-              placeholder="Price (Ksh)" type="number"
-              className="w-32 border border-gray-200 rounded-xl px-4 py-2.5 text-sm
-                         outline-none focus:border-[#2c4a1e] transition-colors" />
-            <button onClick={addExtra}
-              className="px-4 rounded-xl bg-[#2c4a1e] text-white hover:bg-[#3d6b28] transition-colors flex-shrink-0">
-              <Plus size={16} />
-            </button>
           </div>
-          {extras.length > 0 && (
-            <div className="flex flex-col gap-2">
-              {extras.map((item) => (
-                <div key={item.id}
-                  className="flex items-center justify-between gap-3 p-3 rounded-xl border border-gray-200">
-                  <label className="flex items-center gap-2.5 flex-1 min-w-0 cursor-pointer">
-                    <input type="checkbox" checked={item.default_selected}
-                      onChange={() => toggleExtraDefault(item.id)}
-                      className="w-4 h-4 accent-[#2c4a1e]" />
-                    <span className="text-sm text-[#1a1a1a] truncate">{item.label}</span>
-                  </label>
-                  <span className="text-sm font-semibold text-[#1a1a1a] flex-shrink-0">
-                    Ksh {item.price.toLocaleString()}
-                  </span>
-                  <button onClick={() => removeExtra(item.id)} className="flex-shrink-0">
-                    <X size={14} color="#888" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-          <p className="text-xs text-gray-400 mt-1.5">Checked items are pre-selected by default for guests.</p>
-        </div>
 
-        <div className={FIELD_CARD}>
-          <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">
-            Price per additional guest
-          </label>
-          <input value={extraGuestPrice} onChange={(e) => setExtraGuestPrice(e.target.value)}
-            placeholder="e.g. 10000 (optional)"
-            className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm
-                       outline-none focus:border-[#2c4a1e] transition-colors" />
-          <p className="text-xs text-gray-400 mt-1.5">Leave blank if your price already covers all guests.</p>
-        </div>
-
-        <div className={FIELD_CARD}>
-          <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">
-            Seasonal rate overrides
-          </label>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-2">
-            <input value={seasonLabel} onChange={(e) => setSeasonLabel(e.target.value)}
-              placeholder="Season name"
-              className="col-span-2 sm:col-span-1 min-w-0 border border-gray-200 rounded-xl px-3 py-2.5 text-sm
+          <div className={FIELD_CARD}>
+            <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">Child price</label>
+            <input value={childPrice} onChange={(e) => setChildPrice(e.target.value)}
+              placeholder="e.g. 22500 (optional)"
+              className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm
                          outline-none focus:border-[#2c4a1e] transition-colors" />
-            <input value={seasonStart} onChange={(e) => setSeasonStart(e.target.value)}
-              type="date"
-              className="min-w-0 border border-gray-200 rounded-xl px-3 py-2.5 text-sm
-                         outline-none focus:border-[#2c4a1e] transition-colors" />
-            <input value={seasonEnd} onChange={(e) => setSeasonEnd(e.target.value)}
-              type="date"
-              className="min-w-0 border border-gray-200 rounded-xl px-3 py-2.5 text-sm
-                         outline-none focus:border-[#2c4a1e] transition-colors" />
-            <div className="flex gap-2 min-w-0">
-              <input value={seasonPrice} onChange={(e) => setSeasonPrice(e.target.value)}
-                placeholder="Price"
-                className="flex-1 min-w-0 border border-gray-200 rounded-xl px-3 py-2.5 text-sm
-                           outline-none focus:border-[#2c4a1e] transition-colors" />
-              <button onClick={addSeasonalRate}
-                className="px-3 rounded-xl bg-[#2c4a1e] text-white hover:bg-[#3d6b28] transition-colors flex-shrink-0">
-                <Plus size={16} />
-              </button>
-            </div>
+            <p className="text-xs text-gray-400 mt-1.5">Leave blank to charge the adult price for children too.</p>
           </div>
-          {seasonalRates.length > 0 && (
-            <div className="flex flex-col gap-2">
-              {seasonalRates.map((rate) => (
-                <div key={rate.id}
-                  className="flex items-center justify-between gap-3 p-3 rounded-xl border border-gray-200">
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold text-[#1a1a1a] truncate">{rate.label}</p>
-                    <p className="text-xs text-gray-400">{rate.start_date} → {rate.end_date}</p>
-                  </div>
-                  <span className="text-sm font-semibold text-[#1a1a1a] flex-shrink-0">{rate.price}</span>
-                  <button onClick={() => removeSeasonalRate(rate.id)} className="flex-shrink-0">
-                    <X size={14} color="#888" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
 
-        {/* ══ AVAILABILITY ══ */}
-        <div className="pt-2 border-t border-gray-100">
-          <h2 className="text-lg font-bold text-[#1a1a1a] mb-1 mt-4">Availability</h2>
-          <p className="text-sm text-gray-500 mb-4">
-            Set departures with capacity, block off unavailable dates, and set a minimum booking lead time.
-          </p>
-        </div>
-
-        <div className={FIELD_CARD}>
-          <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">Minimum lead time</label>
-          <div className="flex items-center gap-2">
-            <input value={minLeadTimeDays} onChange={(e) => setMinLeadTimeDays(e.target.value)}
-              type="number" placeholder="e.g. 3"
-              className="w-32 border border-gray-200 rounded-xl px-4 py-2.5 text-sm
-                         outline-none focus:border-[#2c4a1e] transition-colors" />
-            <span className="text-sm text-gray-500">days before departure</span>
-          </div>
-          <p className="text-xs text-gray-400 mt-1.5">
-            Guests won&apos;t be able to book within this many days of a departure.
-          </p>
-        </div>
-
-        <div className={FIELD_CARD}>
-          <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">Departures &amp; capacity</label>
-          <p className="text-xs text-gray-400 mb-2">
-            Set specific bookable dates and how many travellers each can take.
-          </p>
-          <div className="flex gap-2 mb-2">
-            <input value={departureDate} onChange={(e) => setDepartureDate(e.target.value)}
-              type="date"
-              className="flex-1 min-w-0 border border-gray-200 rounded-xl px-3 py-2.5 text-sm
-                         outline-none focus:border-[#2c4a1e] transition-colors" />
-            <input value={departureCapacity} onChange={(e) => setDepartureCapacity(e.target.value)}
-              type="number" placeholder="Capacity"
-              className="w-28 border border-gray-200 rounded-xl px-3 py-2.5 text-sm
-                         outline-none focus:border-[#2c4a1e] transition-colors" />
-            <button onClick={addDeparture}
-              className="px-4 rounded-xl bg-[#2c4a1e] text-white hover:bg-[#3d6b28] transition-colors flex-shrink-0">
-              <Plus size={16} />
-            </button>
-          </div>
-          {departures.length > 0 && (
-            <div className="flex flex-col gap-2">
-              {departures.map((d) => {
-                const full = d.booked >= d.capacity
-                return (
-                  <div key={d.id} className="flex items-center justify-between gap-3 p-3 rounded-xl border border-gray-200">
-                    <span className="text-sm text-[#1a1a1a]">{d.date}</span>
-                    <div className="flex items-center gap-3 flex-shrink-0">
-                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full
-                        ${full ? 'bg-red-50 text-red-600' : 'bg-[#eaf5e4] text-[#2c4a1e]'}`}>
-                        {d.booked} / {d.capacity} booked
-                      </span>
-                      <button onClick={() => removeDeparture(d.id)}>
-                        <X size={14} color="#888" />
-                      </button>
+          {(category === 'Safari' || category === 'Packages') && (
+            <div className={FIELD_CARD}>
+              <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">Group discounts</label>
+              <div className="flex gap-2 mb-2">
+                <input value={discountMinGuests} onChange={(e) => setDiscountMinGuests(e.target.value)}
+                  type="number" placeholder="Min guests"
+                  className="flex-1 min-w-0 border border-gray-200 rounded-xl px-4 py-2.5 text-sm
+                             outline-none focus:border-[#2c4a1e] transition-colors" />
+                <input value={discountPercent} onChange={(e) => setDiscountPercent(e.target.value)}
+                  type="number" placeholder="Discount %"
+                  className="flex-1 min-w-0 border border-gray-200 rounded-xl px-4 py-2.5 text-sm
+                             outline-none focus:border-[#2c4a1e] transition-colors" />
+                <button onClick={addGroupDiscount}
+                  className="px-4 rounded-xl bg-[#2c4a1e] text-white hover:bg-[#3d6b28] transition-colors flex-shrink-0">
+                  <Plus size={16} />
+                </button>
+              </div>
+              {groupDiscounts.length > 0 && (
+                <div className="flex flex-col gap-2">
+                  {groupDiscounts.map((g) => (
+                    <div key={g.id} className="flex items-center justify-between gap-3 p-3 rounded-xl border border-gray-200">
+                      <span className="text-sm text-[#1a1a1a]">{g.min_guests}+ guests</span>
+                      <div className="flex items-center gap-3 flex-shrink-0">
+                        <span className="text-sm font-semibold text-[#1a1a1a]">{g.discount_percent}% off</span>
+                        <button onClick={() => removeGroupDiscount(g.id)}>
+                          <X size={14} color="#888" />
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                )
-              })}
+                  ))}
+                </div>
+              )}
             </div>
           )}
-        </div>
 
-        <div className={FIELD_CARD}>
-          <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">Blocked dates</label>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-2">
-            <input value={blockStart} onChange={(e) => setBlockStart(e.target.value)}
-              type="date"
-              className="min-w-0 border border-gray-200 rounded-xl px-3 py-2.5 text-sm
-                         outline-none focus:border-[#2c4a1e] transition-colors" />
-            <input value={blockEnd} onChange={(e) => setBlockEnd(e.target.value)}
-              type="date"
-              className="min-w-0 border border-gray-200 rounded-xl px-3 py-2.5 text-sm
-                         outline-none focus:border-[#2c4a1e] transition-colors" />
-            <div className="flex gap-2 col-span-2 sm:col-span-1 min-w-0">
-              <select value={blockReason} onChange={(e) => setBlockReason(e.target.value)}
-                className="flex-1 min-w-0 border border-gray-200 rounded-xl px-3 py-2.5 text-sm
-                           outline-none focus:border-[#2c4a1e] transition-colors bg-white">
-                {BLOCK_REASONS.map((r) => <option key={r} value={r}>{r}</option>)}
-              </select>
-              <button onClick={addBlockedDates}
+          <div className={FIELD_CARD}>
+            <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">Extras &amp; add-ons</label>
+            <div className="flex gap-2 mb-2">
+              <input value={extraLabel} onChange={(e) => setExtraLabel(e.target.value)}
+                placeholder="e.g. Hot air balloon safari"
+                className="flex-1 min-w-0 border border-gray-200 rounded-xl px-4 py-2.5 text-sm
+                           outline-none focus:border-[#2c4a1e] transition-colors" />
+              <input value={extraPrice} onChange={(e) => setExtraPrice(e.target.value)}
+                placeholder="Price (Ksh)" type="number"
+                className="w-32 border border-gray-200 rounded-xl px-4 py-2.5 text-sm
+                           outline-none focus:border-[#2c4a1e] transition-colors" />
+              <button onClick={addExtra}
                 className="px-4 rounded-xl bg-[#2c4a1e] text-white hover:bg-[#3d6b28] transition-colors flex-shrink-0">
                 <Plus size={16} />
               </button>
             </div>
-          </div>
-          {blockedDates.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              {blockedDates.map((b) => (
-                <span key={b.id}
-                  className="flex items-center gap-1.5 bg-red-50 text-red-600 text-xs font-semibold px-3 py-1.5 rounded-full">
-                  {b.start_date} → {b.end_date}{b.reason ? ` · ${b.reason}` : ''}
-                  <button onClick={() => removeBlockedDates(b.id)}>
-                    <X size={12} />
-                  </button>
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* ══ CANCELLATION POLICY ══ */}
-        <div className="pt-2 border-t border-gray-100">
-          <h2 className="text-lg font-bold text-[#1a1a1a] mb-1 mt-4">Cancellation policy</h2>
-          <p className="text-sm text-gray-500 mb-4">Choose the refund terms guests see before booking.</p>
-        </div>
-
-        <div className={`${FIELD_CARD} flex flex-col gap-2`}>
-          {POLICIES.map((p) => (
-            <button key={p.id} onClick={() => setCancellationPolicy(p.id)}
-              className={`flex items-start gap-3 text-left p-3.5 rounded-xl border transition-all
-                ${cancellationPolicy === p.id
-                  ? 'border-[#2c4a1e] bg-[#eaf5e4]'
-                  : 'border-gray-200 hover:border-gray-300'}`}>
-              <div className={`w-4 h-4 rounded-full border-2 flex-shrink-0 mt-0.5
-                ${cancellationPolicy === p.id ? 'border-[#2c4a1e] bg-[#2c4a1e]' : 'border-gray-300'}`} />
-              <div>
-                <p className="text-sm font-semibold text-[#1a1a1a]">{p.label}</p>
-                <p className="text-xs text-gray-500 mt-0.5">{p.description}</p>
+            {extras.length > 0 && (
+              <div className="flex flex-col gap-2">
+                {extras.map((item) => (
+                  <div key={item.id}
+                    className="flex items-center justify-between gap-3 p-3 rounded-xl border border-gray-200">
+                    <label className="flex items-center gap-2.5 flex-1 min-w-0 cursor-pointer">
+                      <input type="checkbox" checked={item.default_selected}
+                        onChange={() => toggleExtraDefault(item.id)}
+                        className="w-4 h-4 accent-[#2c4a1e]" />
+                      <span className="text-sm text-[#1a1a1a] truncate">{item.label}</span>
+                    </label>
+                    <span className="text-sm font-semibold text-[#1a1a1a] flex-shrink-0">
+                      Ksh {item.price.toLocaleString()}
+                    </span>
+                    <button onClick={() => removeExtra(item.id)} className="flex-shrink-0">
+                      <X size={14} color="#888" />
+                    </button>
+                  </div>
+                ))}
               </div>
-            </button>
-          ))}
-          {cancellationPolicy === 'custom' && (
-            <textarea value={customCancellationPolicy} onChange={(e) => setCustomCancellationPolicy(e.target.value)}
-              rows={3} placeholder="e.g. Full refund up to 48 hours before departure..."
-              className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm mt-1
-                         outline-none focus:border-[#2c4a1e] transition-colors resize-none" />
-          )}
-        </div>
+            )}
+            <p className="text-xs text-gray-400 mt-1.5">Checked items are pre-selected by default for guests.</p>
+          </div>
 
-        {/* ══ HOUSE RULES ══ */}
-        <div className="pt-2 border-t border-gray-100">
-          <h2 className="text-lg font-bold text-[#1a1a1a] mb-1 mt-4">
-            {category === 'Stays' ? 'House rules' : 'Tour rules'}
-          </h2>
-          <p className="text-sm text-gray-500 mb-4">Select what applies \u2014 travellers see these on your listing page.</p>
-        </div>
-        <div className={FIELD_CARD}>
-          <div className="flex flex-wrap gap-2">
-            {HOUSE_RULES_CATALOG.map(({ key, label, icon }) => {
-              const checked = houseRules.includes(key)
-              return (
-                <button key={key} type="button" onClick={() => toggleHouseRule(key)}
-                  className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full border transition-colors
-                    ${checked ? 'bg-[#eaf5e4] text-[#2c4a1e] border-[#2c4a1e]' : 'bg-gray-50 text-gray-400 border-gray-200'}`}>
-                  {icon}
-                  {label}
+          <div className={FIELD_CARD}>
+            <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">
+              Price per additional guest
+            </label>
+            <input value={extraGuestPrice} onChange={(e) => setExtraGuestPrice(e.target.value)}
+              placeholder="e.g. 10000 (optional)"
+              className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm
+                         outline-none focus:border-[#2c4a1e] transition-colors" />
+            <p className="text-xs text-gray-400 mt-1.5">Leave blank if your price already covers all guests.</p>
+          </div>
+
+          <div className={FIELD_CARD}>
+            <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">
+              Seasonal rate overrides
+            </label>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-2">
+              <input value={seasonLabel} onChange={(e) => setSeasonLabel(e.target.value)}
+                placeholder="Season name"
+                className="col-span-2 sm:col-span-1 min-w-0 border border-gray-200 rounded-xl px-3 py-2.5 text-sm
+                           outline-none focus:border-[#2c4a1e] transition-colors" />
+              <input value={seasonStart} onChange={(e) => setSeasonStart(e.target.value)}
+                type="date"
+                className="min-w-0 border border-gray-200 rounded-xl px-3 py-2.5 text-sm
+                           outline-none focus:border-[#2c4a1e] transition-colors" />
+              <input value={seasonEnd} onChange={(e) => setSeasonEnd(e.target.value)}
+                type="date"
+                className="min-w-0 border border-gray-200 rounded-xl px-3 py-2.5 text-sm
+                           outline-none focus:border-[#2c4a1e] transition-colors" />
+              <div className="flex gap-2 min-w-0">
+                <input value={seasonPrice} onChange={(e) => setSeasonPrice(e.target.value)}
+                  placeholder="Price"
+                  className="flex-1 min-w-0 border border-gray-200 rounded-xl px-3 py-2.5 text-sm
+                             outline-none focus:border-[#2c4a1e] transition-colors" />
+                <button onClick={addSeasonalRate}
+                  className="px-3 rounded-xl bg-[#2c4a1e] text-white hover:bg-[#3d6b28] transition-colors flex-shrink-0">
+                  <Plus size={16} />
                 </button>
+              </div>
+            </div>
+            {seasonalRates.length > 0 && (
+              <div className="flex flex-col gap-2">
+                {seasonalRates.map((rate) => (
+                  <div key={rate.id}
+                    className="flex items-center justify-between gap-3 p-3 rounded-xl border border-gray-200">
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-[#1a1a1a] truncate">{rate.label}</p>
+                      <p className="text-xs text-gray-400">{rate.start_date} → {rate.end_date}</p>
+                    </div>
+                    <span className="text-sm font-semibold text-[#1a1a1a] flex-shrink-0">{rate.price}</span>
+                    <button onClick={() => removeSeasonalRate(rate.id)} className="flex-shrink-0">
+                      <X size={14} color="#888" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </Section>
+
+        <Section id="availability" title="Availability"
+          description="Set departures with capacity, block off unavailable dates, and set a minimum booking lead time."
+          open={openSections.has('availability')} onToggle={() => toggleSection('availability')}>
+          <div className={FIELD_CARD}>
+            <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">Minimum lead time</label>
+            <div className="flex items-center gap-2">
+              <input value={minLeadTimeDays} onChange={(e) => setMinLeadTimeDays(e.target.value)}
+                type="number" placeholder="e.g. 3"
+                className="w-32 border border-gray-200 rounded-xl px-4 py-2.5 text-sm
+                           outline-none focus:border-[#2c4a1e] transition-colors" />
+              <span className="text-sm text-gray-500">days before departure</span>
+            </div>
+            <p className="text-xs text-gray-400 mt-1.5">
+              Guests won&apos;t be able to book within this many days of a departure.
+            </p>
+          </div>
+
+          <div className={FIELD_CARD}>
+            <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">Departures &amp; capacity</label>
+            <p className="text-xs text-gray-400 mb-2">
+              Set specific bookable dates and how many travellers each can take.
+            </p>
+            <div className="flex gap-2 mb-2">
+              <input value={departureDate} onChange={(e) => setDepartureDate(e.target.value)}
+                type="date"
+                className="flex-1 min-w-0 border border-gray-200 rounded-xl px-3 py-2.5 text-sm
+                           outline-none focus:border-[#2c4a1e] transition-colors" />
+              <input value={departureCapacity} onChange={(e) => setDepartureCapacity(e.target.value)}
+                type="number" placeholder="Capacity"
+                className="w-28 border border-gray-200 rounded-xl px-3 py-2.5 text-sm
+                           outline-none focus:border-[#2c4a1e] transition-colors" />
+              <button onClick={addDeparture}
+                className="px-4 rounded-xl bg-[#2c4a1e] text-white hover:bg-[#3d6b28] transition-colors flex-shrink-0">
+                <Plus size={16} />
+              </button>
+            </div>
+            {departures.length > 0 && (
+              <div className="flex flex-col gap-2">
+                {departures.map((d) => {
+                  const full = d.booked >= d.capacity
+                  return (
+                    <div key={d.id} className="flex items-center justify-between gap-3 p-3 rounded-xl border border-gray-200">
+                      <span className="text-sm text-[#1a1a1a]">{d.date}</span>
+                      <div className="flex items-center gap-3 flex-shrink-0">
+                        <span className={`text-xs font-semibold px-2 py-0.5 rounded-full
+                          ${full ? 'bg-red-50 text-red-600' : 'bg-[#eaf5e4] text-[#2c4a1e]'}`}>
+                          {d.booked} / {d.capacity} booked
+                        </span>
+                        <button onClick={() => removeDeparture(d.id)}>
+                          <X size={14} color="#888" />
+                        </button>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+
+          <div className={FIELD_CARD}>
+            <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">Blocked dates</label>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-2">
+              <input value={blockStart} onChange={(e) => setBlockStart(e.target.value)}
+                type="date"
+                className="min-w-0 border border-gray-200 rounded-xl px-3 py-2.5 text-sm
+                           outline-none focus:border-[#2c4a1e] transition-colors" />
+              <input value={blockEnd} onChange={(e) => setBlockEnd(e.target.value)}
+                type="date"
+                className="min-w-0 border border-gray-200 rounded-xl px-3 py-2.5 text-sm
+                           outline-none focus:border-[#2c4a1e] transition-colors" />
+              <div className="flex gap-2 col-span-2 sm:col-span-1 min-w-0">
+                <select value={blockReason} onChange={(e) => setBlockReason(e.target.value)}
+                  className="flex-1 min-w-0 border border-gray-200 rounded-xl px-3 py-2.5 text-sm
+                             outline-none focus:border-[#2c4a1e] transition-colors bg-white">
+                  {BLOCK_REASONS.map((r) => <option key={r} value={r}>{r}</option>)}
+                </select>
+                <button onClick={addBlockedDates}
+                  className="px-4 rounded-xl bg-[#2c4a1e] text-white hover:bg-[#3d6b28] transition-colors flex-shrink-0">
+                  <Plus size={16} />
+                </button>
+              </div>
+            </div>
+            {blockedDates.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {blockedDates.map((b) => (
+                  <span key={b.id}
+                    className="flex items-center gap-1.5 bg-red-50 text-red-600 text-xs font-semibold px-3 py-1.5 rounded-full">
+                    {b.start_date} → {b.end_date}{b.reason ? ` · ${b.reason}` : ''}
+                    <button onClick={() => removeBlockedDates(b.id)}>
+                      <X size={12} />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        </Section>
+
+        <Section id="cancellation" title="Cancellation policy" description="Choose the refund terms guests see before booking."
+          open={openSections.has('cancellation')} onToggle={() => toggleSection('cancellation')}>
+          <div className={`${FIELD_CARD} flex flex-col gap-2`}>
+            {POLICIES.map((p) => (
+              <button key={p.id} onClick={() => setCancellationPolicy(p.id)}
+                className={`flex items-start gap-3 text-left p-3.5 rounded-xl border transition-all
+                  ${cancellationPolicy === p.id
+                    ? 'border-[#2c4a1e] bg-[#eaf5e4]'
+                    : 'border-gray-200 hover:border-gray-300'}`}>
+                <div className={`w-4 h-4 rounded-full border-2 flex-shrink-0 mt-0.5
+                  ${cancellationPolicy === p.id ? 'border-[#2c4a1e] bg-[#2c4a1e]' : 'border-gray-300'}`} />
+                <div>
+                  <p className="text-sm font-semibold text-[#1a1a1a]">{p.label}</p>
+                  <p className="text-xs text-gray-500 mt-0.5">{p.description}</p>
+                </div>
+              </button>
+            ))}
+            {cancellationPolicy === 'custom' && (
+              <textarea value={customCancellationPolicy} onChange={(e) => setCustomCancellationPolicy(e.target.value)}
+                rows={3} placeholder="e.g. Full refund up to 48 hours before departure..."
+                className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm mt-1
+                           outline-none focus:border-[#2c4a1e] transition-colors resize-none" />
+            )}
+          </div>
+        </Section>
+
+        <Section id="house-rules" title={category === 'Stays' ? 'House rules' : 'Tour rules'}
+          description="Select what applies — travellers see these on your listing page."
+          open={openSections.has('house-rules')} onToggle={() => toggleSection('house-rules')}>
+          <div className={FIELD_CARD}>
+            <div className="flex flex-wrap gap-2">
+              {HOUSE_RULES_CATALOG.map(({ key, label, icon }) => {
+                const checked = houseRules.includes(key)
+                return (
+                  <button key={key} type="button" onClick={() => toggleHouseRule(key)}
+                    className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full border transition-colors
+                      ${checked ? 'bg-[#eaf5e4] text-[#2c4a1e] border-[#2c4a1e]' : 'bg-gray-50 text-gray-400 border-gray-200'}`}>
+                    {icon}
+                    {label}
+                  </button>
+                )
+              })}
+            </div>
+            <textarea value={additionalRules} onChange={(e) => setAdditionalRules(e.target.value)}
+              rows={3} placeholder="Additional rules (optional) — e.g. arrival directions, extra guest policy..."
+              className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm mt-4
+                         outline-none focus:border-[#2c4a1e] transition-colors resize-none" />
+            <textarea value={additionalRequests} onChange={(e) => setAdditionalRequests(e.target.value)}
+              rows={3} placeholder="Additional requests before guests leave (optional) — e.g. return keys, turn things off..."
+              className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm mt-3
+                         outline-none focus:border-[#2c4a1e] transition-colors resize-none" />
+          </div>
+        </Section>
+
+        <Section id="safety" title={category === 'Stays' ? 'Safety & property' : 'Safety information'}
+          description="Select anything travellers should know before booking."
+          open={openSections.has('safety')} onToggle={() => toggleSection('safety')}>
+          <div className={`${FIELD_CARD} flex flex-col gap-2`}>
+            {SAFETY_CATALOG.map(({ key, label, icon, needsNote }) => {
+              const selected = safetyInfo.find(i => i.key === key)
+              return (
+                <div key={key}>
+                  <button type="button" onClick={() => toggleSafetyItem(key)}
+                    className={`w-full flex items-center gap-2 text-left text-xs font-semibold px-3 py-2 rounded-xl border transition-colors
+                      ${selected ? 'bg-[#eaf5e4] text-[#2c4a1e] border-[#2c4a1e]' : 'bg-gray-50 text-gray-400 border-gray-200'}`}>
+                    {icon}
+                    {label}
+                  </button>
+                  {selected && needsNote && (
+                    <input value={selected.note} onChange={(e) => setSafetyNote(key, e.target.value)}
+                      placeholder="Add a note travellers will see (optional)"
+                      className="w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm mt-1.5
+                                 outline-none focus:border-[#2c4a1e] transition-colors" />
+                  )}
+                </div>
               )
             })}
           </div>
-          <textarea value={additionalRules} onChange={(e) => setAdditionalRules(e.target.value)}
-            rows={3} placeholder="Additional rules (optional) \u2014 e.g. arrival directions, extra guest policy..."
-            className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm mt-4
-                       outline-none focus:border-[#2c4a1e] transition-colors resize-none" />
-          <textarea value={additionalRequests} onChange={(e) => setAdditionalRequests(e.target.value)}
-            rows={3} placeholder="Additional requests before guests leave (optional) \u2014 e.g. return keys, turn things off..."
-            className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm mt-3
-                       outline-none focus:border-[#2c4a1e] transition-colors resize-none" />
-        </div>
+        </Section>
 
-        {/* ══ SAFETY & PROPERTY ══ */}
-        <div className="pt-2 border-t border-gray-100">
-          <h2 className="text-lg font-bold text-[#1a1a1a] mb-1 mt-4">
-            {category === 'Stays' ? 'Safety & property' : 'Safety information'}
-          </h2>
-          <p className="text-sm text-gray-500 mb-4">Select anything travellers should know before booking.</p>
-        </div>
-        <div className={`${FIELD_CARD} flex flex-col gap-2`}>
-          {SAFETY_CATALOG.map(({ key, label, icon, needsNote }) => {
-            const selected = safetyInfo.find(i => i.key === key)
-            return (
-              <div key={key}>
-                <button type="button" onClick={() => toggleSafetyItem(key)}
-                  className={`w-full flex items-center gap-2 text-left text-xs font-semibold px-3 py-2 rounded-xl border transition-colors
-                    ${selected ? 'bg-[#eaf5e4] text-[#2c4a1e] border-[#2c4a1e]' : 'bg-gray-50 text-gray-400 border-gray-200'}`}>
-                  {icon}
-                  {label}
-                </button>
-                {selected && needsNote && (
-                  <input value={selected.note} onChange={(e) => setSafetyNote(key, e.target.value)}
-                    placeholder="Add a note travellers will see (optional)"
-                    className="w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm mt-1.5
-                               outline-none focus:border-[#2c4a1e] transition-colors" />
-                )}
-              </div>
-            )
-          })}
-        </div>
-
-        <div className="flex gap-3 pt-2">
+        <div className="flex gap-3 pt-4 border-t border-gray-100 mt-2">
           <button
             onClick={() => setConfirmingDelete(true)}
             className="flex items-center justify-center gap-1.5 border border-red-200
@@ -1110,4 +1167,3 @@ export default function EditListingPage({ params }: Props) {
     </div>
   )
 }
-

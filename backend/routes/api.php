@@ -42,6 +42,9 @@ use App\Http\Controllers\Api\MpesaController;
 //Mpesa Vendor Payout verification
 use App\Http\Controllers\Api\Vendor\VendorPayoutVerificationController;
 use App\Http\Controllers\Api\Vendor\VendorListingPhotoController;
+// Admin booking for someone
+use App\Http\Controllers\Api\PublicBookingPaymentController;
+
 
 Route::prefix('auth')->group(function () {
     Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:6,1');
@@ -65,6 +68,14 @@ Route::get('/listings/{listing}', [ListingController::class, 'show']);
 Route::post('/payments/mpesa/callback', [MpesaController::class, 'callback']);
 // Public — Safaricom calls this directly, no auth token available.
 Route::post('/mpesa/payout-verification/callback', [VendorPayoutVerificationController::class, 'callback']);
+// Admin done bookings
+Route::get('/public/bookings/{token}', [PublicBookingPaymentController::class, 'show']);
+Route::post('/public/bookings/{token}/pay', [PublicBookingPaymentController::class, 'pay']);
+Route::get('/public/bookings/{token}/status/{checkoutRequestId}', [PublicBookingPaymentController::class, 'status']);
+Route::post('/public/bookings/payment-callback', [PublicBookingPaymentController::class, 'callback']);
+// Organization payment
+Route::post('/public/bookings/{token}/pay-card/initialize', [PublicBookingPaymentController::class, 'initializeCard']);
+Route::post('/public/bookings/{token}/pay-card/verify', [PublicBookingPaymentController::class, 'verifyCard']);
 
 
 // Traveller-facing — any authenticated account.
@@ -182,6 +193,7 @@ Route::prefix('admin')->middleware(['auth:sanctum', 'admin'])->group(function ()
     Route::post('/reviews/{review}/restore', [AdminReviewController::class, 'restore']);
 
     Route::get('/bookings', [AdminBookingController::class, 'index']);
+    Route::post('/bookings', [AdminBookingController::class, 'store']);
 
     Route::get('/disputes', [AdminDisputeController::class, 'index']);
     Route::post('/disputes/{dispute}/resolve', [AdminDisputeController::class, 'resolve']);
@@ -195,6 +207,9 @@ Route::prefix('admin')->middleware(['auth:sanctum', 'admin'])->group(function ()
     Route::post('/support/vendor/{vendor}/reply', [AdminSupportController::class, 'replyToVendor']);
     Route::get('/support/traveller/{traveller}', [AdminSupportController::class, 'travellerThread']);
     Route::post('/support/traveller/{traveller}/reply', [AdminSupportController::class, 'replyToTraveller']);
+
+    // Travelller search
+    Route::get('/travellers', [AdminBookingController::class, 'searchTravellers']);
 });
 
 Route::prefix('super-admin')->middleware(['auth:sanctum', 'super_admin'])->group(function () {

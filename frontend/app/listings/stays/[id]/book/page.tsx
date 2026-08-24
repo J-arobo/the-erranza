@@ -8,6 +8,7 @@ import Image from 'next/image'
 import { useAuth } from '@/context/AuthContext'
 import { ArrowLeft, X, ChevronRight, Shield, Star, ChevronLeft } from 'lucide-react'
 import { apiFetch, apiErrorMessage } from '@/lib/api'
+import CompanyDetailsFields from '@/components/CompanyDetailsFields'
 
 type Props = { params: Promise<{ id: string }> }
 type Step = 'review' | 'message' | 'confirm' | 'payment'
@@ -217,6 +218,11 @@ function StayBookingPageContent({ params }: Props) {
   const mpesaCancelRef = useRef(false)
   // show payment method selection sheet
   const [showPaymentMethodSheet, setShowPaymentMethodSheet] = useState(false)
+  // Company/Organisation
+  const [bookingFor, setBookingFor] = useState<'individual' | 'company'>('individual')
+  const [companyName, setCompanyName] = useState('')
+  const [companyTaxPin, setCompanyTaxPin] = useState('')
+  const [billingEmail, setBillingEmail] = useState('')
 
 
 
@@ -418,6 +424,7 @@ function StayBookingPageContent({ params }: Props) {
           check_in: toDateStr(localCheckIn!),
           check_out: toDateStr(localCheckOut!),
           phone: mpesaPhone.trim(),
+          ...(bookingFor === 'company' ? { company_name: companyName.trim() || null, company_tax_pin: companyTaxPin.trim() || null, billing_email: billingEmail.trim() || null } : {}),
         }),
       })
 
@@ -888,6 +895,12 @@ function StayBookingPageContent({ params }: Props) {
               </div>
             ) : (
               <div className="flex flex-col gap-3 mb-5">
+                <CompanyDetailsFields
+                  bookingFor={bookingFor} onBookingForChange={setBookingFor}
+                  companyName={companyName} onCompanyNameChange={setCompanyName}
+                  companyTaxPin={companyTaxPin} onCompanyTaxPinChange={setCompanyTaxPin}
+                  billingEmail={billingEmail} onBillingEmailChange={setBillingEmail}
+                />
                 <div>
                   <p className="text-xs text-gray-500 mb-1">M-Pesa phone number</p>
                   <input value={mpesaPhone}

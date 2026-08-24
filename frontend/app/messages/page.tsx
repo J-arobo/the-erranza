@@ -85,9 +85,14 @@ function ConversationList({
         </div>
       ) : (
         <>
-          <div className="px-5 pt-10 md:pt-8 pb-2 flex justify-end">
+          <div className="px-5 pt-10 md:pt-8 pb-2 flex items-center justify-between">
+            <button onClick={() => window.location.assign('/')}
+              className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center focus:outline-none">
+              <Home size={18} color="#1a1a1a" />
+            </button>
             <div className="flex items-center gap-2">
               <button onClick={() => onShowSearch(true)}
+
                 className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center">
                 <Search size={18} color="#1a1a1a" />
               </button>

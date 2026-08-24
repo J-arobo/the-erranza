@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import {
-  LayoutDashboard, ShieldAlert, Building2, Scale, History, MessageCircle,
+  LayoutDashboard, ShieldAlert, Building2, Scale, History, MessageCircle, Calendar,
   LogOut, Menu, X,
 } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
@@ -11,6 +11,7 @@ const NAV_ITEMS = [
   { label: 'Dashboard',      Icon: LayoutDashboard, path: '/admin' },
   { label: 'Moderation',     Icon: ShieldAlert,      path: '/admin/moderation' },
   { label: 'Vendors',        Icon: Building2,        path: '/admin/vendors' },
+  { label: 'Bookings',       Icon: Calendar,         path: '/admin/bookings' },
   { label: 'Support',        Icon: MessageCircle,    path: '/admin/support' },
   { label: 'Disputes',       Icon: Scale,            path: '/admin/disputes' },
   { label: 'Audit Log',      Icon: History,          path: '/admin/audit-log' },

@@ -62,7 +62,7 @@ type AuthContextType = {
   ready: boolean
   register: (name: string, email: string, password: string, phone?: string, avatarUrl?: string) => Promise<void>
   updateProfile: (updates: { name?: string; phone?: string; avatarUrl?: string }) => Promise<void>
-  login: (email: string, password: string) => Promise<void>
+  login: (email: string, password: string) => Promise<User>
   logout: () => void
   isLoggedIn: boolean
   completeOnboarding: () => void
@@ -85,7 +85,7 @@ const AuthContext = createContext<AuthContextType>({
   ready: false,
   updateProfile: async () => { },
   register: async () => { },
-  login: async () => { },
+  login: async () => ({} as User),
   logout: () => { },
   isLoggedIn: false,
   completeOnboarding: () => { },
@@ -262,7 +262,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       body: JSON.stringify({ email, password }),
     })
     setToken(token)
-    setUser(mapUser(user))
+    const mapped = mapUser(user)
+    setUser(mapped)
+    return mapped
   }, [])
 
   // Autologout 

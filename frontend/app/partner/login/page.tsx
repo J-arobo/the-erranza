@@ -41,7 +41,11 @@ function PartnerLoginInner() {
     setError('')
     setLoading(true)
     try {
-      await login(email.trim(), password)
+      const loggedInUser = await login(email.trim(), password)
+      if (!loggedInUser.roles.includes('partner')) {
+        router.push('/partner/signup')
+        return
+      }
       router.replace(redirect)
     } catch (err) {
       if (err instanceof ApiError && err.status === 422) {
@@ -52,6 +56,26 @@ function PartnerLoginInner() {
     } finally {
       setLoading(false)
     }
+    setFieldErrors({})
+    setError('')
+    setLoading(true)
+    try {
+      const loggedInUser = await login(email.trim(), password)
+      if (!loggedInUser.roles.includes('partner')) {
+        router.push('/partner/signup')
+        return
+      }
+      router.replace(redirect)
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 422) {
+        setError(err.errors?.email?.[0] ?? err.errors?.password?.[0] ?? 'These credentials do not match our records.')
+      } else {
+        setError(apiErrorMessage(err))
+      }
+    } finally {
+      setLoading(false)
+    }
+
   }
 
   return (

@@ -6,7 +6,7 @@ import Image from 'next/image'
 import { ArrowLeft, X, ChevronRight, Shield, Star } from 'lucide-react'
 import { apiFetch, apiErrorMessage } from '@/lib/api'
 import { useAuth } from '@/context/AuthContext'
-
+import CompanyDetailsFields from '@/components/CompanyDetailsFields'
 
 type Props = {
   params: Promise<{ id: string }>
@@ -70,6 +70,11 @@ function PackageBookingPageContent({ params }: Props) {
   // client need to reach the bottom to activate the book button
   const [reachedBottom, setReachedBottom] = useState(false)
   const contentRef = useRef<HTMLDivElement>(null)
+  // Company Book page
+  const [bookingFor, setBookingFor] = useState<'individual' | 'company'>('individual')
+  const [companyName, setCompanyName] = useState('')
+  const [companyTaxPin, setCompanyTaxPin] = useState('')
+  const [billingEmail, setBillingEmail] = useState('')
 
   useEffect(() => {
     if (step !== 'confirm') { setReachedBottom(false); return }
@@ -244,6 +249,7 @@ function PackageBookingPageContent({ params }: Props) {
           guests,
           phone: mpesaPhone.trim(),
           departure_id: selectedDeparture,
+          ...(bookingFor === 'company' ? { company_name: companyName.trim() || null, company_tax_pin: companyTaxPin.trim() || null, billing_email: billingEmail.trim() || null } : {}),
         }),
       })
 

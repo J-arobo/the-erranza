@@ -11,6 +11,7 @@ class MpesaStkRequest extends Model
         'traveller_id', 'listing_id', 'guests', 'check_in', 'check_out', 'departure_id',
         'special_requests', 'phone', 'amount', 'checkout_request_id', 'merchant_request_id',
         'status', 'mpesa_receipt_number', 'result_desc', 'booking_id',
+        'company_name', 'company_tax_pin', 'billing_email',
     ];
 
     protected function casts(): array

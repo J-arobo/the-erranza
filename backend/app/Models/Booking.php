@@ -10,7 +10,8 @@ class Booking extends Model
 {
     protected $fillable = [
         'listing_id', 'departure_id', 'traveller_id', 'status', 'guests', 'total', 'payment_plan',
-        'check_in', 'check_out', 'proposed_date',
+        'check_in', 'check_out', 'proposed_date', 'payment_token', 'created_by_admin',
+        'company_name', 'company_tax_pin', 'billing_email', 'invoice_expires_at',
         'refund_percent', 'refund_amount', 'special_requests', 'decline_reason',
     ];
 
@@ -22,6 +23,7 @@ class Booking extends Model
             'proposed_date' => 'date',
             'total' => 'decimal:2',
             'refund_amount' => 'decimal:2',
+            'invoice_expires_at' => 'datetime',
         ];
     }
 

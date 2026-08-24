@@ -6,6 +6,7 @@ import Image from 'next/image'
 import { ArrowLeft, X, ChevronRight, ChevronLeft, Shield, Star } from 'lucide-react'
 import { apiFetch, apiErrorMessage } from '@/lib/api'
 import { useAuth } from '@/context/AuthContext'
+import CompanyDetailsFields from '@/components/CompanyDetailsFields'
 
 type Props = {
   params: Promise<{ id: string; vendorId: string }>
@@ -171,7 +172,11 @@ function BookingPageContent({ params }: Props) {
   // client need to reach the bottom to activate the book button
   const [reachedBottom, setReachedBottom] = useState(false)
   const contentRef = useRef<HTMLDivElement>(null)
-
+  // Company/Organisation
+  const [bookingFor, setBookingFor] = useState<'individual' | 'company'>('individual')
+  const [companyName, setCompanyName] = useState('')
+  const [companyTaxPin, setCompanyTaxPin] = useState('')
+  const [billingEmail, setBillingEmail] = useState('')
 
   useEffect(() => {
     if (step !== 'confirm') { setReachedBottom(false); return }
@@ -389,6 +394,7 @@ function BookingPageContent({ params }: Props) {
           guests,
           phone: mpesaPhone.trim(),
           ...bookingParams,
+          ...(bookingFor === 'company' ? { company_name: companyName.trim() || null, company_tax_pin: companyTaxPin.trim() || null, billing_email: billingEmail.trim() || null } : {}),
         }),
       })
 
@@ -855,6 +861,12 @@ function BookingPageContent({ params }: Props) {
               </div>
             ) : (
               <div className="flex flex-col gap-3 mb-5">
+                <CompanyDetailsFields
+                  bookingFor={bookingFor} onBookingForChange={setBookingFor}
+                  companyName={companyName} onCompanyNameChange={setCompanyName}
+                  companyTaxPin={companyTaxPin} onCompanyTaxPinChange={setCompanyTaxPin}
+                  billingEmail={billingEmail} onBillingEmailChange={setBillingEmail}
+                />
                 <div>
                   <p className="text-xs text-gray-500 mb-1">M-Pesa phone number</p>
                   <input value={mpesaPhone}

@@ -58,6 +58,9 @@ class MpesaController extends Controller
             'check_out' => ['nullable', 'date'],
             'departure_id' => ['nullable', 'exists:listing_departures,id'],
             'phone' => ['required', 'string'],
+            'company_name' => ['nullable', 'string', 'max:255'],
+            'company_tax_pin' => ['nullable', 'string', 'max:20'],
+            'billing_email' => ['nullable', 'email'],
         ]);
 
         $phone = $this->normalizePhone($validated['phone']);
@@ -117,6 +120,9 @@ class MpesaController extends Controller
             'checkout_request_id' => $data['CheckoutRequestID'],
             'merchant_request_id' => $data['MerchantRequestID'] ?? null,
             'status' => 'pending',
+            'company_name' => $validated['company_name'] ?? null,
+            'company_tax_pin' => $validated['company_tax_pin'] ?? null,
+            'billing_email' => $validated['billing_email'] ?? null,
         ]);
 
         return response()->json(['checkout_request_id' => $stkRequest->checkout_request_id]);
@@ -204,6 +210,9 @@ class MpesaController extends Controller
                     'status' => 'paid',
                     'paid_at' => now(),
                     'paystack_reference' => 'mpesa_' . $receiptNumber,
+                    'company_name' => $stkRequest->company_name,
+                    'company_tax_pin' => $stkRequest->company_tax_pin,
+                    'billing_email' => $stkRequest->billing_email,
                 ]);
 
                 return $booking;
