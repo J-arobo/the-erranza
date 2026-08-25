@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { Clock, XCircle, LogOut, Upload } from 'lucide-react'
+import { Clock, XCircle, LogOut, Upload, Check, Pencil } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { apiFetch, apiErrorMessage } from '@/lib/api'
 
@@ -25,6 +25,12 @@ function latestPerDocType(submissions: Submission[]) {
   return result
 }
 
+function formatFileSize(bytes: number) {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
 const STATUS_STYLES: Record<string, string> = {
   pending: 'bg-amber-50 text-amber-700',
   approved: 'bg-[#eaf5e4] text-[#2c4a1e]',
@@ -37,7 +43,8 @@ export default function VerificationGate() {
   const [submissions, setSubmissions] = useState<Submission[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [reuploadingType, setReuploadingType] = useState<string | null>(null)
+  const [submittingType, setSubmittingType] = useState<string | null>(null)
+  const [selectedFiles, setSelectedFiles] = useState<Record<string, File>>({})
   const fileInputRef = useRef<HTMLInputElement>(null)
   const pendingDocType = useRef<string | null>(null)
 
@@ -48,17 +55,26 @@ export default function VerificationGate() {
       .finally(() => setLoading(false))
   }, [])
 
-  function startReupload(docType: string) {
+  function pickFile(docType: string) {
     pendingDocType.current = docType
     fileInputRef.current?.click()
   }
 
-  async function handleFileSelected(e: React.ChangeEvent<HTMLInputElement>) {
+  // Just stages the file locally — no upload yet, so the vendor gets a
+  // chance to see what they picked (and swap it) before it's actually sent.
+  function handleFileSelected(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     const docType = pendingDocType.current
     e.target.value = ''
     if (!file || !docType) return
-    setReuploadingType(docType)
+    setSelectedFiles(f => ({ ...f, [docType]: file }))
+    setError('')
+  }
+
+  async function submitReupload(docType: string) {
+    const file = selectedFiles[docType]
+    if (!file) return
+    setSubmittingType(docType)
     setError('')
     try {
       const formData = new FormData()
@@ -69,10 +85,15 @@ export default function VerificationGate() {
         body: formData,
       })
       setSubmissions(s => [submission, ...s])
+      setSelectedFiles(f => {
+        const next = { ...f }
+        delete next[docType]
+        return next
+      })
     } catch (err) {
       setError(apiErrorMessage(err))
     } finally {
-      setReuploadingType(null)
+      setSubmittingType(null)
     }
   }
 
@@ -106,28 +127,53 @@ export default function VerificationGate() {
           </div>
         ) : (
           <div className="flex flex-col gap-3 mb-6">
-            {latest.map((s) => (
-              <div key={s.doc_type} className="border border-gray-200 rounded-xl p-4">
-                <div className="flex items-center justify-between gap-2 mb-1">
-                  <p className="text-sm font-semibold text-[#1a1a1a]">{s.doc_type}</p>
-                  <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0 capitalize ${STATUS_STYLES[s.status]}`}>
-                    {s.status}
-                  </span>
-                </div>
-                {s.status === 'rejected' && (
-                  <>
-                    {s.rejection_reason && (
-                      <p className="text-xs text-red-500 mb-2">{s.rejection_reason}</p>
+            {latest.map((s) => {
+              const file = selectedFiles[s.doc_type]
+              const isSubmitting = submittingType === s.doc_type
+
+              return (
+                <div key={s.doc_type} className="border border-gray-200 rounded-xl p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-[#1a1a1a]">{s.doc_type}</p>
+                      <span className={`inline-block mt-1 text-[10px] font-semibold px-2 py-0.5 rounded-full capitalize ${STATUS_STYLES[s.status]}`}>
+                        {s.status}
+                      </span>
+                    </div>
+                    {s.status === 'rejected' && !file && (
+                      <button onClick={() => pickFile(s.doc_type)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#2c4a1e] text-white
+                                   text-xs font-semibold hover:bg-[#3d6b28] transition-colors flex-shrink-0">
+                        <Upload size={13} /> Choose file
+                      </button>
                     )}
-                    <button onClick={() => startReupload(s.doc_type)} disabled={reuploadingType === s.doc_type}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#2c4a1e] text-white
-                                 text-xs font-semibold hover:bg-[#3d6b28] transition-colors disabled:opacity-50">
-                      <Upload size={13} /> {reuploadingType === s.doc_type ? 'Uploading…' : 'Re-upload'}
-                    </button>
-                  </>
-                )}
-              </div>
-            ))}
+                  </div>
+
+                  {s.status === 'rejected' && s.rejection_reason && (
+                    <p className="text-xs text-red-500 mt-2">{s.rejection_reason}</p>
+                  )}
+
+                  {s.status === 'rejected' && file && (
+                    <div className="mt-3 pt-3 border-t border-gray-100">
+                      <div className="flex items-center justify-between gap-3 mb-3">
+                        <p className="text-xs text-gray-500 truncate">
+                          {file.name} <span className="text-gray-400">· {formatFileSize(file.size)}</span>
+                        </p>
+                        <button onClick={() => pickFile(s.doc_type)} disabled={isSubmitting}
+                          title="Change file" className="text-gray-400 hover:text-[#1a1a1a] hover:bg-gray-100 rounded-full p-1.5 transition-colors disabled:opacity-50 flex-shrink-0">
+                          <Pencil size={14} />
+                        </button>
+                      </div>
+                      <button onClick={() => submitReupload(s.doc_type)} disabled={isSubmitting}
+                        className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-[#2c4a1e] text-white
+                                   text-xs font-semibold hover:bg-[#3d6b28] transition-colors disabled:opacity-50">
+                        {isSubmitting ? 'Submitting…' : <><Check size={13} /> Submit document</>}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
           </div>
         )}
 
