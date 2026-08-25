@@ -55,7 +55,27 @@ class AdminSupportController extends Controller
             ];
         })->filter()->values();
 
-        $threads = $vendorThreads->concat($travellerThreads)->sortByDesc('last_message_at')->values();
+        $bookingsVendor = SupportMessenger::bookingsVendor();
+        $bookingTravellerIds = Message::where('vendor_id', $bookingsVendor->id)
+            ->select('traveller_id')->distinct()->pluck('traveller_id');
+
+        $bookingThreads = $bookingTravellerIds->map(function ($travellerId) use ($bookingsVendor) {
+            $traveller = User::find($travellerId);
+            if (! $traveller) return null;
+
+            $last = Message::where('vendor_id', $bookingsVendor->id)->where('traveller_id', $travellerId)->latest()->first();
+
+            return [
+                'type' => 'booking',
+                'id' => $traveller->id,
+                'name' => $traveller->name,
+                'last_message' => $last?->text,
+                'last_message_at' => $last?->created_at,
+                'awaiting_reply' => false,
+            ];
+        })->filter()->values();
+
+        $threads = $vendorThreads->concat($travellerThreads)->concat($bookingThreads)->sortByDesc('last_message_at')->values();
 
         return response()->json(['threads' => $threads]);
     }
@@ -90,6 +110,31 @@ class AdminSupportController extends Controller
             'name' => $traveller->name,
             'messages' => $messages,
         ]);
+    }
+
+    public function bookingThread(Request $request, User $traveller)
+    {
+        $bookingsVendor = SupportMessenger::bookingsVendor();
+
+        $messages = Message::where('vendor_id', $bookingsVendor->id)->where('traveller_id', $traveller->id)
+            ->with('sender:id,name')
+            ->oldest()->get();
+
+        return response()->json([
+            'type' => 'booking',
+            'id' => $traveller->id,
+            'name' => $traveller->name,
+            'messages' => $messages,
+        ]);
+    }
+
+    public function replyToBooking(Request $request, User $traveller)
+    {
+        $validated = $request->validate(['text' => ['required', 'string']]);
+        $message = SupportMessenger::sendBookingNotice($traveller, $validated['text']);
+        $message->load('sender:id,name');
+
+        return response()->json(['message' => $message], 201);
     }
 
     public function replyToVendor(Request $request, Vendor $vendor)

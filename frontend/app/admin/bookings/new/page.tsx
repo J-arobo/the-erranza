@@ -156,6 +156,8 @@ export default function AdminNewBookingPage() {
   const [travellerQuery, setTravellerQuery] = useState('')
   const [travellerResults, setTravellerResults] = useState<ApiTraveller[]>([])
   const [selectedTraveller, setSelectedTraveller] = useState<ApiTraveller | null>(null)
+  // Dirty check - going bakc in the middle of an  edit
+  const { registerGuard, unregisterGuard } = useNavigationGuard()
 
   useEffect(() => {
     if (!listingQuery.trim() || listingId) { setListings([]); return }
@@ -201,17 +203,21 @@ export default function AdminNewBookingPage() {
 
   // Confirm before leaving without saving
   useEffect(() => {
-    const isDirty = listingId !== null || selectedTraveller !== null || travellerName.trim() !== '' || travellerEmail.trim() !== ''
-    if (!isDirty) return
+    const isDirty = () => listingId !== null || selectedTraveller !== null || travellerName.trim() !== '' || travellerEmail.trim() !== ''
+    registerGuard(isDirty)
 
     function handleBeforeUnload(e: BeforeUnloadEvent) {
-      e.preventDefault()
+      if (isDirty()) e.preventDefault()
     }
     window.addEventListener('beforeunload', handleBeforeUnload)
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
-  }, [listingId, selectedTraveller, travellerName, travellerEmail])
 
-  // Auto-computed total — still editable, for negotiated/custom amounts.
+    return () => {
+      unregisterGuard()
+      window.removeEventListener('beforeunload', handleBeforeUnload)
+    }
+  }, [listingId, selectedTraveller, travellerName, travellerEmail, registerGuard, unregisterGuard])
+
+  // Auto-computed total — locked, not editable by the admin.
   useEffect(() => {
     if (!listingDetail) return
     const nights = listingDetail.category === 'Stays' && checkIn && checkOut
@@ -439,8 +445,8 @@ export default function AdminNewBookingPage() {
           </div>
           <div>
             <label className="text-sm font-semibold text-[#1a1a1a] mb-1.5 block">Total (Ksh)</label>
-            <input value={total} onChange={(e) => setTotal(e.target.value)} type="number" min="0"
-              className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#2c4a1e]" />
+            <input value={total} readOnly type="number" min="0"
+              className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none bg-gray-50 text-gray-500 cursor-not-allowed" />
             {listingDetail && (
               <p className="text-xs text-gray-400 mt-1">Auto-filled from listing price — edit if the deal is different.</p>
             )}

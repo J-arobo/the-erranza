@@ -9,7 +9,7 @@ import { useAuth } from '@/context/AuthContext'
 import { apiFetch, apiErrorMessage } from '@/lib/api'
 import BottomNav from '@/components/BottomNav'
 
-const FILTER_TABS = ['All', 'Travelling', 'Support']
+const FILTER_TABS = ['All', 'Travelling', 'Bookings', 'Support']
 
 function formatTimestamp(ts: string) {
   return new Date(ts).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
@@ -23,6 +23,7 @@ type Thread = {
   vendor_name: string
   vendor_avatar: string | null
   is_support: boolean
+  is_booking: boolean
   listing_title: string | null
   last_message: string | null
   last_message_at: string | null
@@ -45,6 +46,7 @@ type ThreadDetail = {
   vendor_name: string
   vendor_avatar: string | null
   is_support: boolean
+  is_booking: boolean
   messages: ThreadMessage[]
 }
 
@@ -404,10 +406,17 @@ function MessagesPageContent() {
       .finally(() => setThreadLoading(false))
   }, [activeVendorId])
 
-  const filtered = threads.filter(t =>
-    t.vendor_name.toLowerCase().includes(search.toLowerCase()) ||
-    (t.listing_title ?? '').toLowerCase().includes(search.toLowerCase())
-  )
+  const filtered = threads
+    .filter(t => {
+      if (filter === 'Support') return t.is_support
+      if (filter === 'Bookings') return t.is_booking
+      if (filter === 'Travelling') return !t.is_support && !t.is_booking
+      return true
+    })
+    .filter(t =>
+      t.vendor_name.toLowerCase().includes(search.toLowerCase()) ||
+      (t.listing_title ?? '').toLowerCase().includes(search.toLowerCase())
+    )
 
   async function sendReply() {
     if (!reply.trim() || activeVendorId === null) return
@@ -436,6 +445,7 @@ function MessagesPageContent() {
           vendor_name: activeThread.vendor_name,
           vendor_avatar: activeThread.vendor_avatar,
           is_support: activeThread.is_support,
+          is_booking: activeThread.is_booking,
           listing_title: message.listing?.title ?? null,
           last_message: message.text,
           last_message_at: message.created_at,

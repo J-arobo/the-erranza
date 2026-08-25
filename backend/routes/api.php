@@ -207,6 +207,8 @@ Route::prefix('admin')->middleware(['auth:sanctum', 'admin'])->group(function ()
     Route::post('/support/vendor/{vendor}/reply', [AdminSupportController::class, 'replyToVendor']);
     Route::get('/support/traveller/{traveller}', [AdminSupportController::class, 'travellerThread']);
     Route::post('/support/traveller/{traveller}/reply', [AdminSupportController::class, 'replyToTraveller']);
+    Route::get('/support/booking/{traveller}', [AdminSupportController::class, 'bookingThread']);
+    Route::post('/support/booking/{traveller}/reply', [AdminSupportController::class, 'replyToBooking']);
 
     // Travelller search
     Route::get('/travellers', [AdminBookingController::class, 'searchTravellers']);

@@ -18,6 +18,7 @@ class MessageController extends Controller
     {
         $user = $request->user();
         $supportVendor = SupportMessenger::supportVendor();
+        $bookingsVendor = SupportMessenger::bookingsVendor();
 
         $vendorIds = Message::where('traveller_id', $user->id)
             ->whereNotNull('vendor_id')
@@ -27,7 +28,7 @@ class MessageController extends Controller
             ->push($supportVendor->id)
             ->unique();
 
-        $threads = $vendorIds->map(function ($vendorId) use ($user, $supportVendor) {
+        $threads = $vendorIds->map(function ($vendorId) use ($user, $supportVendor, $bookingsVendor) {
             $vendor = Vendor::find($vendorId);
             if (! $vendor) {
                 return null;
@@ -49,6 +50,7 @@ class MessageController extends Controller
                 'vendor_name' => $vendor->business_name,
                 'vendor_avatar' => $vendor->logo_url,
                 'is_support' => $vendor->id === $supportVendor->id,
+                'is_booking' => $vendor->id === $bookingsVendor->id,
                 'listing_title' => $last?->listing?->title,
                 'last_message' => $last?->text ?? ($vendor->id === $supportVendor->id ? "Welcome to Erranza — we're here if you need anything." : null),
                 'last_message_at' => $last?->created_at,
@@ -83,20 +85,22 @@ class MessageController extends Controller
                 'vendor_name' => $vendor->business_name,
                 'vendor_avatar' => $vendor->logo_url,
                 'is_support' => $vendor->id === SupportMessenger::supportVendor()->id,
+                'is_booking' => $vendor->id === SupportMessenger::bookingsVendor()->id,
                 'messages' => $messages,
-            ]);    
+            ]);
     }
 
     public function storeToVendor(Request $request, Vendor $vendor)
     {
         $isSupport = $vendor->id === SupportMessenger::supportVendor()->id;
+        $isBooking = $vendor->id === SupportMessenger::bookingsVendor()->id;
 
         $validated = $request->validate([
             'text' => ['required', 'string'],
-            'listing_id' => [$isSupport ? 'nullable' : 'required', 'exists:listings,id'],
+            'listing_id' => [($isSupport || $isBooking) ? 'nullable' : 'required', 'exists:listings,id'],
         ]);
 
-        if ($isSupport) {
+        if ($isSupport || $isBooking) {
             $message = Message::create([
                 'vendor_id' => $vendor->id,
                 'listing_id' => $validated['listing_id'] ?? null,

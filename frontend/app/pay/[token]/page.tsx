@@ -1,5 +1,5 @@
 'use client'
-import { use, useEffect, useState } from 'react'
+import { use, useEffect, useRef, useState } from 'react'
 import Image from 'next/image'
 import { apiFetch, apiErrorMessage } from '@/lib/api'
 // Paystack script
@@ -39,10 +39,13 @@ export default function PayBookingPage({ params }: Props) {
       .finally(() => setLoading(false))
   }, [token])
 
+  const cancelledRef = useRef(false)
+
   async function pay() {
     if (!phone.trim()) return
     setPaying(true)
     setError('')
+    cancelledRef.current = false
     try {
       const { checkout_request_id } = await apiFetch<{ checkout_request_id: string }>(`/public/bookings/${token}/pay`, {
         method: 'POST',
@@ -52,19 +55,28 @@ export default function PayBookingPage({ params }: Props) {
 
       const deadline = Date.now() + 45000
       const poll = async (): Promise<void> => {
+        if (cancelledRef.current) return
         if (Date.now() > deadline) throw new Error('This is taking longer than expected. Try again if you were not charged.')
-        const result = await apiFetch<{ status: string }>(`/public/bookings/${token}/status/${checkout_request_id}`)
+        const result = await apiFetch<{ status: string; failure_reason: string | null }>(`/public/bookings/${token}/status/${checkout_request_id}`)
         if (result.status === 'paid') { setPaid(true); return }
+        if (result.status === 'failed') { throw new Error(result.failure_reason || 'Payment was not completed. Please try again.') }
         await new Promise(r => setTimeout(r, 2000))
         return poll()
       }
       await poll()
     } catch (err) {
-      setError(apiErrorMessage(err))
+      if (!cancelledRef.current) setError(apiErrorMessage(err))
     } finally {
       setPaying(false)
       setWaiting(false)
     }
+  }
+
+  function cancelPayment() {
+    cancelledRef.current = true
+    setPaying(false)
+    setWaiting(false)
+    setError('Payment cancelled.')
   }
 
   // Organization  - pay with card
@@ -183,12 +195,19 @@ export default function PayBookingPage({ params }: Props) {
             <>
               <input value={phone} onChange={(e) => setPhone(e.target.value)}
                 placeholder="M-Pesa number, e.g. 0712345678"
+                disabled={waiting}
                 className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm mb-3
-                         outline-none focus:border-[#2c4a1e] transition-colors" />
+                         outline-none focus:border-[#2c4a1e] transition-colors disabled:bg-gray-50" />
               <button onClick={pay} disabled={paying}
                 className="w-full bg-[#2c4a1e] text-white py-3 rounded-xl font-semibold text-sm hover:bg-[#3d6b28] disabled:opacity-50">
-                {paying ? 'Starting…' : 'Pay with M-Pesa'}
+                {waiting ? 'Check your phone to complete payment…' : paying ? 'Starting…' : 'Pay with M-Pesa'}
               </button>
+              {waiting && (
+                <button onClick={cancelPayment}
+                  className="w-full mt-2 py-2.5 rounded-xl font-semibold text-sm text-gray-500 hover:bg-gray-50">
+                  Cancel
+                </button>
+              )}
             </>
           ) : (
             <button onClick={payWithCard} disabled={paying}

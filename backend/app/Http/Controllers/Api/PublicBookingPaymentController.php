@@ -52,6 +52,8 @@ class PublicBookingPaymentController extends Controller
         $payment->update([
             'checkout_request_id' => $data['CheckoutRequestID'],
             'merchant_request_id' => $data['MerchantRequestID'] ?? null,
+            'status' => 'pending',
+            'failure_reason' => null,
         ]);
 
         return response()->json(['checkout_request_id' => $data['CheckoutRequestID']]);
@@ -112,7 +114,7 @@ class PublicBookingPaymentController extends Controller
         $booking = Booking::where('payment_token', $token)->firstOrFail();
         $payment = $booking->payments()->where('checkout_request_id', $checkoutRequestId)->firstOrFail();
 
-        return response()->json(['status' => $payment->status]);
+        return response()->json(['status' => $payment->status, 'failure_reason' => $payment->failure_reason]);
     }
 
     // Public — Safaricom calls this directly, no auth.
@@ -131,6 +133,14 @@ class PublicBookingPaymentController extends Controller
         }
 
         if ((int) ($callback['ResultCode'] ?? 1) !== 0) {
+            // Guest cancelled the STK prompt, entered the wrong PIN, or it timed
+            // out. Previously this branch silently no-opped, leaving the payment
+            // stuck on "pending" until the frontend's own poll gave up with a
+            // vague timeout error instead of a real "payment failed" state.
+            $payment->update([
+                'status' => 'failed',
+                'failure_reason' => $callback['ResultDesc'] ?? 'Payment was not completed.',
+            ]);
             return response()->json(['ResultCode' => 0, 'ResultDesc' => 'Accepted']);
         }
 

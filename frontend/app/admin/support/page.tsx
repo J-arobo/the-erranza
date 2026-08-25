@@ -8,13 +8,15 @@ function formatTimestamp(ts: string) {
 }
 
 type Thread = {
-  type: 'vendor' | 'traveller'
+  type: 'vendor' | 'traveller' | 'booking'
   id: number
   name: string
   last_message: string | null
   last_message_at: string | null
   awaiting_reply: boolean
 }
+
+const FILTER_TABS: Array<'All' | 'Vendors' | 'Travellers' | 'Bookings'> = ['All', 'Vendors', 'Travellers', 'Bookings']
 
 type ThreadMessage = {
   id: number
@@ -25,7 +27,7 @@ type ThreadMessage = {
 }
 
 type ThreadDetail = {
-  type: 'vendor' | 'traveller'
+  type: 'vendor' | 'traveller' | 'booking'
   id: number
   name: string
   messages: ThreadMessage[]
@@ -35,8 +37,9 @@ export default function AdminSupportPage() {
   const [threads, setThreads] = useState<Thread[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [filter, setFilter] = useState<typeof FILTER_TABS[number]>('All')
 
-  const [active, setActive] = useState<{ type: 'vendor' | 'traveller'; id: number } | null>(null)
+  const [active, setActive] = useState<{ type: 'vendor' | 'traveller' | 'booking'; id: number } | null>(null)
   const [activeThread, setActiveThread] = useState<ThreadDetail | null>(null)
   const [threadLoading, setThreadLoading] = useState(false)
 
@@ -105,13 +108,27 @@ export default function AdminSupportPage() {
             {error}
           </div>
         )}
+        <div className="flex gap-2 px-4 py-3 overflow-x-auto">
+          {FILTER_TABS.map((tab) => (
+            <button key={tab} onClick={() => setFilter(tab)}
+              className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-all
+                ${filter === tab ? 'bg-[#2c4a1e] text-white' : 'bg-gray-100 text-[#1a1a1a] hover:bg-gray-200'}`}>
+              {tab}
+            </button>
+          ))}
+        </div>
         <div className="flex-1 overflow-y-auto divide-y divide-gray-50">
           {threads.length === 0 && (
             <div className="text-center py-16 text-sm text-gray-400 px-4">
               No support conversations yet.
             </div>
           )}
-          {threads.map((t) => (
+          {threads.filter(t => {
+            if (filter === 'Vendors') return t.type === 'vendor'
+            if (filter === 'Travellers') return t.type === 'traveller'
+            if (filter === 'Bookings') return t.type === 'booking'
+            return true
+          }).map((t) => (
             <button key={`${t.type}-${t.id}`} onClick={() => setActive({ type: t.type, id: t.id })}
               className={`flex items-center gap-3 px-4 py-3 text-left w-full transition-colors
                 ${active?.type === t.type && active?.id === t.id ? 'bg-[#eaf5e4]' : 'hover:bg-gray-50'}`}>
@@ -159,7 +176,7 @@ export default function AdminSupportPage() {
                   <p className="text-sm text-gray-400 text-center py-8">No messages yet.</p>
                 )}
                 {activeThread.messages.map((m) => {
-                  const isUs = m.sender?.name === 'Erranza Support'
+                  const isUs = m.sender?.name === 'Erranza Support' || m.sender?.name === 'Erranza Bookings'
                   return (
                     <div key={m.id} className={`flex flex-col ${isUs ? 'items-end' : 'items-start'}`}>
                       <div className={`px-4 py-2.5 rounded-2xl text-sm max-w-[75%]
@@ -176,7 +193,7 @@ export default function AdminSupportPage() {
               <div className="px-4 py-3 bg-white border-t border-gray-100 flex gap-2">
                 <input type="text" value={reply} onChange={(e) => setReply(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Enter') sendReply() }}
-                  placeholder="Reply as Erranza Support..."
+                  placeholder={active?.type === 'booking' ? 'Reply as Erranza Bookings...' : 'Reply as Erranza Support...'}
                   disabled={sending}
                   className="flex-1 border border-gray-200 rounded-full px-4 py-2 text-sm outline-none disabled:opacity-50" />
                 <button onClick={sendReply} disabled={sending}

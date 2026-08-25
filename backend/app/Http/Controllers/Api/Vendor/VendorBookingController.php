@@ -42,6 +42,8 @@ class VendorBookingController extends Controller
 
         $booking->update(['status' => 'confirmed']);
 
+        \App\Services\BookingNotifier::notifyConfirmed($booking);
+
         return response()->json(['booking' => $booking]);
     }
 

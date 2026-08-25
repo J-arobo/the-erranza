@@ -37,7 +37,6 @@ class AdminBookingController extends Controller
             'guests' => ['required', 'integer', 'min:1'],
             'check_in' => ['nullable', 'date'],
             'check_out' => ['nullable', 'date'],
-            'total' => ['required', 'numeric', 'min:0'],
             'special_requests' => ['nullable', 'string'],
             'traveller_id' => ['nullable', 'exists:users,id'],
             'traveller_name' => ['required_without:traveller_id', 'string', 'max:255'],
@@ -59,12 +58,20 @@ class AdminBookingController extends Controller
                     'password' => \Illuminate\Support\Facades\Hash::make(\Illuminate\Support\Str::random(40)),
                 ]
             );
+
+        $listing = \App\Models\Listing::findOrFail($validated['listing_id']);
+        $nights = 1;
+        if ($listing->category === 'Stays' && !empty($validated['check_in']) && !empty($validated['check_out'])) {
+            $nights = max(1, (int) \Illuminate\Support\Carbon::parse($validated['check_in'])->diffInDays(\Illuminate\Support\Carbon::parse($validated['check_out'])));
+        }
+        $total = round((float) $listing->price * $validated['guests'] * $nights, 2);
+
         $booking = \App\Models\Booking::create([
             'listing_id' => $validated['listing_id'],
             'traveller_id' => $traveller->id,
             'status' => 'pending',
             'guests' => $validated['guests'],
-            'total' => $validated['total'],
+            'total' => $total,
             'payment_plan' => 'full',
             'check_in' => $validated['check_in'] ?? null,
             'check_out' => $validated['check_out'] ?? null,
@@ -79,7 +86,7 @@ class AdminBookingController extends Controller
 
         if ($validated['payment_method'] === 'mark_paid') {
             $booking->payments()->create([
-                'amount' => $validated['total'],
+                'amount' => $total,
                 'due_date' => now()->toDateString(),
                 'status' => 'paid',
                 'paid_at' => now(),
@@ -88,7 +95,7 @@ class AdminBookingController extends Controller
             \App\Services\BookingNotifier::notifyPaid($booking);
         } else {
             $booking->payments()->create([
-                'amount' => $validated['total'],
+                'amount' => $total,
                 'due_date' => now()->toDateString(),
                 'status' => 'pending',
             ]);
