@@ -279,7 +279,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     useEffect(() => {
       if (!user) return
   
-      const INACTIVITY_TIMEOUT_MS = 30 * 60 * 1000
+      const INACTIVITY_TIMEOUT_MS = 15 * 1000
       let timer: ReturnType<typeof setTimeout>
       const resetTimer = () => {
         clearTimeout(timer)

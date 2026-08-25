@@ -48,6 +48,7 @@ return [
         'shortcode' => env('MPESA_SHORTCODE'),
         'passkey' => env('MPESA_PASSKEY'),
         'callback_url' => env('MPESA_CALLBACK_URL'),
+        'invoice_callback_url' => env('MPESA_INVOICE_CALLBACK_URL'),
         'payout_callback_url' => env('MPESA_PAYOUT_CALLBACK_URL'),
         'b2c_shortcode' => env('MPESA_B2C_SHORTCODE'),
         'initiator_name' => env('MPESA_INITIATOR_NAME'),

@@ -210,6 +210,10 @@ Route::prefix('admin')->middleware(['auth:sanctum', 'admin'])->group(function ()
 
     // Travelller search
     Route::get('/travellers', [AdminBookingController::class, 'searchTravellers']);
+
+    // Admin Booking detail
+    Route::get('/bookings/{booking}', [AdminBookingController::class, 'show']);
+    Route::patch('/bookings/{booking}', [AdminBookingController::class, 'update']);
 });
 
 Route::prefix('super-admin')->middleware(['auth:sanctum', 'super_admin'])->group(function () {

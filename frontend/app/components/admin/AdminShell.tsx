@@ -6,6 +6,7 @@ import {
   LogOut, Menu, X,
 } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
+import { useNavigationGuard } from '@/context/NavigationGuardContext'
 
 const NAV_ITEMS = [
   { label: 'Dashboard',      Icon: LayoutDashboard, path: '/admin' },
@@ -22,6 +23,8 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
   const router = useRouter()
   const { user, logout } = useAuth()
   const [mobileOpen, setMobileOpen] = useState(false)
+  // cancelling going back in the middle of an edit
+  const { confirmNavigation } = useNavigationGuard()
 
   function isActive(path: string) {
     if (path === '/admin') return pathname === '/admin'
@@ -29,6 +32,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
   }
 
   function navigate(path: string) {
+    if (!confirmNavigation()) return
     router.push(path)
     setMobileOpen(false)
   }

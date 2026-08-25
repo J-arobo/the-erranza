@@ -109,18 +109,52 @@ class AdminBookingController extends Controller
         return response()->json(['booking' => $booking], 201);
     }
 
-    // Searching Endpoints
+    // Searching Endpoints for traveller in admin side.
     public function searchTravellers(Request $request)
     {
         $search = $request->string('search');
         abort_if(!$search, 422, 'Enter a search term.');
 
-        $users = \App\Models\User::where('name', 'like', "%{$search}%")
-            ->orWhere('email', 'like', "%{$search}%")
+        $users = \App\Models\User::where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('email', 'like', "%{$search}%");
+            })
+            ->whereDoesntHave('roles', fn ($q) => $q->whereIn('name', ['admin', 'super_admin', 'partner']))
             ->limit(10)
             ->get(['id', 'name', 'email']);
 
         return response()->json(['users' => $users]);
     }
+
+    // Clickable bookings - detail/edit page
+    public function show(Request $request, Booking $booking)
+    {
+        $booking->load([
+            'listing:id,title,vendor_id',
+            'listing.vendor:id,business_name',
+            'traveller:id,name,email,phone',
+            'payments',
+        ]);
+
+        return response()->json(['booking' => $booking]);
+    }
+
+    public function update(Request $request, Booking $booking)
+    {
+        $validated = $request->validate([
+            'status' => ['sometimes', 'in:pending,confirmed,completed,cancelled'],
+            'guests' => ['sometimes', 'integer', 'min:1'],
+            'check_in' => ['sometimes', 'nullable', 'date'],
+            'check_out' => ['sometimes', 'nullable', 'date'],
+            'total' => ['sometimes', 'numeric', 'min:0'],
+            'special_requests' => ['sometimes', 'nullable', 'string'],
+        ]);
+
+        $booking->update($validated);
+        $booking->load(['listing:id,title,vendor_id', 'listing.vendor:id,business_name', 'traveller:id,name,email,phone', 'payments']);
+
+        return response()->json(['booking' => $booking]);
+    }
+
 
 }

@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/context/AuthContext'
 import { apiFetch } from '@/lib/api'
 import AdminShell from '@/components/admin/AdminShell'
+import { NavigationGuardProvider } from '@/context/NavigationGuardContext'
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const { isLoggedIn, ready, logout } = useAuth()
@@ -41,5 +42,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   if (!ready || !isLoggedIn || !verified) return null
 
-  return <AdminShell>{children}</AdminShell>
+  return (
+    <NavigationGuardProvider>
+      <AdminShell>{children}</AdminShell>
+    </NavigationGuardProvider>
+  )
 }

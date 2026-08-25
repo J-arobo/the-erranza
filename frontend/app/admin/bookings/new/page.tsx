@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { apiFetch, apiErrorMessage } from '@/lib/api'
+import { useNavigationGuard } from '@/context/NavigationGuardContext'
 
 type ApiListing = { id: number; title: string; price: string; category: string }
 type ApiListingDetail = ApiListing & {
@@ -198,6 +199,18 @@ export default function AdminNewBookingPage() {
     }
   }
 
+  // Confirm before leaving without saving
+  useEffect(() => {
+    const isDirty = listingId !== null || selectedTraveller !== null || travellerName.trim() !== '' || travellerEmail.trim() !== ''
+    if (!isDirty) return
+
+    function handleBeforeUnload(e: BeforeUnloadEvent) {
+      e.preventDefault()
+    }
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [listingId, selectedTraveller, travellerName, travellerEmail])
+
   // Auto-computed total — still editable, for negotiated/custom amounts.
   useEffect(() => {
     if (!listingDetail) return
@@ -233,7 +246,7 @@ export default function AdminNewBookingPage() {
   const disabledRanges = listingDetail ? parseUnavailable(listingDetail.unavailable_dates) : []
 
   async function submit() {
-    if (!listingId || !guests || !total) return
+    if (!listingId || !guests || !total || !checkIn) return
 
     setSubmitting(true)
     setError('')
@@ -471,13 +484,16 @@ export default function AdminNewBookingPage() {
 
         {error && <div className="px-4 py-3 rounded-xl bg-red-50 text-red-600 text-sm">{error}</div>}
 
-        <button onClick={submit} disabled={submitting || !listingId || !total}
+        <button onClick={submit} disabled={submitting || !listingId || !total || !checkIn}
           className="bg-[#2c4a1e] text-white py-3 rounded-xl font-semibold text-sm hover:bg-[#3d6b28] disabled:opacity-50">
           {submitting ? 'Creating…' : 'Create booking'}
         </button>
 
         {listingId && !total && (
           <p className="text-xs text-red-500 -mt-3">Enter a total before creating the booking.</p>
+        )}
+        {listingId && !checkIn && (
+          <p className="text-xs text-red-500 -mt-3">Select a date on the calendar before creating the booking.</p>
         )}
       </div>
     </div>

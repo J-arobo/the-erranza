@@ -35,17 +35,31 @@ export default function AdminBookingsPage() {
   const router = useRouter()
   const [status, setStatus] = useState('All')
   const [bookings, setBookings] = useState<ApiBooking[]>([])
+  const [page, setPage] = useState(1)
+  const [lastPage, setLastPage] = useState(1)
   const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
   const [error, setError] = useState('')
 
   useEffect(() => {
     setLoading(true)
+    setPage(1)
     const params = status !== 'All' ? `?status=${status}` : ''
-    apiFetch<{ data: ApiBooking[] }>(`/admin/bookings${params}`)
-      .then((res) => setBookings(res.data))
+    apiFetch<{ data: ApiBooking[]; current_page: number; last_page: number }>(`/admin/bookings${params}`)
+      .then((res) => { setBookings(res.data); setLastPage(res.last_page) })
       .catch((err) => setError(apiErrorMessage(err)))
       .finally(() => setLoading(false))
   }, [status])
+
+  function loadMore() {
+    setLoadingMore(true)
+    const nextPage = page + 1
+    const statusParam = status !== 'All' ? `&status=${status}` : ''
+    apiFetch<{ data: ApiBooking[]; current_page: number; last_page: number }>(`/admin/bookings?page=${nextPage}${statusParam}`)
+      .then((res) => { setBookings(b => [...b, ...res.data]); setPage(res.current_page); setLastPage(res.last_page) })
+      .catch((err) => setError(apiErrorMessage(err)))
+      .finally(() => setLoadingMore(false))
+  }
 
   return (
     <div className="p-5 lg:p-8 max-w-5xl mx-auto">
@@ -83,7 +97,8 @@ export default function AdminBookingsPage() {
           {bookings.map((b) => {
             const payStatus = paymentStatus(b.payments)
             return (
-              <div key={b.id} className="bg-white rounded-2xl border border-[#e0d9cc] shadow-sm p-4">
+              <div key={b.id} onClick={() => router.push(`/admin/bookings/${b.id}`)}
+                className="bg-white rounded-2xl border border-[#e0d9cc] shadow-sm p-4 cursor-pointer hover:shadow-md transition-all">
                 <div className="flex items-start justify-between gap-3 mb-2">
                   <div className="min-w-0">
                     <p className="text-sm font-bold text-[#1a1a1a] truncate">{b.listing.title}</p>
@@ -116,6 +131,14 @@ export default function AdminBookingsPage() {
           })}
         </div>
       )}
+
+      {!loading && page < lastPage && (
+        <button onClick={loadMore} disabled={loadingMore}
+          className="w-full text-center text-sm font-semibold text-[#2c4a1e] py-3 mt-3 focus:outline-none disabled:opacity-50">
+          {loadingMore ? 'Loading…' : 'Show more'}
+        </button>
+      )}
+
     </div>
   )
 }
