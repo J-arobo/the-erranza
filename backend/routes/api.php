@@ -146,6 +146,8 @@ Route::prefix('vendor')->middleware(['auth:sanctum', 'vendor'])->group(function 
     Route::post('/notifications/{notification}/read', [VendorNotificationController::class, 'markRead']);
     Route::post('/notifications/read-all', [VendorNotificationController::class, 'markAllRead']);
     Route::post('/celebration-seen', [VendorProfileController::class, 'markCelebrationSeen']);
+    // Vendor Tour
+    Route::post('/tour-seen', [VendorProfileController::class, 'markTourSeen']);
     //vendor stats
     Route::get('/stats', [VendorStatsController::class, 'index']);
     // Earnings 

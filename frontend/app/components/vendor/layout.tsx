@@ -5,16 +5,30 @@ import { useAuth } from '@/context/AuthContext'
 import VendorShell from '@/components/vendor/VendorShell'
 import VerificationGate from '@/components/vendor/VerificationGate'
 import VerificationCelebration from '@/components/vendor/VerificationCelebration'
+import VendorTour from '@/components/vendor/VendorTour'
 
 export default function VendorLayout({ children }: { children: React.ReactNode }) {
-  const { isLoggedIn, user } = useAuth()
+  const { isLoggedIn, user, ready, markCelebrationSeen, markTourSeen } = useAuth()
   const router = useRouter()
   const pathname = usePathname()
   const isOnboardingRoute = pathname === '/vendor/onboarding'
   const isPartner = !!user?.roles?.includes('partner')
   const isVerified = user?.verificationStatus === 'approved'
 
+
   const [showCelebration, setShowCelebration] = useState(false)
+  const [showTour, setShowTour] = useState(false)
+
+  useEffect(() => {
+    if (!isVerified || !user || user.celebrationSeen) return
+    setShowCelebration(true)
+    markCelebrationSeen()
+  }, [isVerified, user?.id, user?.celebrationSeen, markCelebrationSeen])
+
+  useEffect(() => {
+    if (!isVerified || !user || user.tourSeen || showCelebration) return
+    setShowTour(true)
+  }, [isVerified, user?.id, user?.tourSeen, showCelebration])
 
   useEffect(() => {
     if (!isVerified || !user) return
@@ -51,6 +65,7 @@ export default function VendorLayout({ children }: { children: React.ReactNode }
   return (
     <>
       {showCelebration && <VerificationCelebration onDismiss={() => setShowCelebration(false)} />}
+      {showTour && <VendorTour onFinish={() => { setShowTour(false); markTourSeen() }} />}
       <VendorShell>{children}</VendorShell>
     </>
   )

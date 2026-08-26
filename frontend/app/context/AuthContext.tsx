@@ -16,6 +16,8 @@ type User = {
   onboardingComplete?: boolean
   verificationStatus?: 'pending' | 'approved' | 'rejected' | null
   celebrationSeen?: boolean
+  // Tour
+  tourSeen?: boolean
   roles: Role[]
   activeRole: Role
   createdAt: string
@@ -162,6 +164,8 @@ type ApiUser = {
   onboardingComplete: boolean
   verificationStatus: 'pending' | 'approved' | 'rejected' | null
   celebrationSeen: boolean
+  // Tour
+  tourSeen?: boolean
   createdAt: string
 }
 
@@ -176,6 +180,8 @@ function mapUser(apiUser: ApiUser): User {
     activeRole: apiUser.activeRole as Role,
     onboardingComplete: apiUser.onboardingComplete,
     celebrationSeen: apiUser.celebrationSeen,
+    // Tour
+    tourSeen: apiUser.tourSeen,
     verificationStatus: apiUser.verificationStatus,
     createdAt: apiUser.createdAt,
   }
@@ -306,6 +312,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(u => u ? { ...u, celebrationSeen: true } : u)
     apiFetch('/vendor/celebration-seen', { method: 'POST' }).catch(() => {})
   }, [])
+
+  // Vendor Tour
+  const markTourSeen = useCallback(() => {
+    setUser(u => u ? { ...u, tourSeen: true } : u)
+    apiFetch('/vendor/tour-seen', { method: 'POST' }).catch(() => {})
+  }, [])
+
 
   const becomePartner = useCallback(async () => {
     await apiFetch('/become-partner', { method: 'POST' })

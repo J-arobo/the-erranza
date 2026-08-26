@@ -128,6 +128,8 @@ class AuthController extends Controller
             'onboardingComplete' => $user->vendor?->onboarding_complete ?? false,
             'verificationStatus' => $user->vendor?->verification_status ?? null,
             'celebrationSeen' => $user->vendor?->celebration_seen_at !== null,
+            // Tour
+            'tourSeen' => $user->vendor?->tour_seen_at !== null,
             'createdAt' => $user->created_at,
         ];
     }

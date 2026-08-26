@@ -58,6 +58,15 @@ class VendorProfileController extends Controller
         return response()->json(['message' => 'OK']);
     }
 
+    // Vendor Tour
+    public function markTourSeen(Request $request)
+    {
+        $vendor = $request->user()->vendor;
+        $vendor->update(['tour_seen_at' => now()]);
+
+        return response()->json(['ok' => true]);
+    }
+
     public function completeOnboarding(Request $request)
     {
         $vendor = $request->attributes->get('vendor');

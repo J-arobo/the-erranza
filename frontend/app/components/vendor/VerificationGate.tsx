@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { Clock, XCircle, LogOut, Upload, Check, Pencil } from 'lucide-react'
+import { Clock, XCircle, LogOut, Upload, Check, Pencil, Eye, Loader2 } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { apiFetch, apiErrorMessage } from '@/lib/api'
 
@@ -10,6 +10,9 @@ type Submission = {
   doc_type: 'Government ID' | 'Insurance certificate' | 'Business license'
   status: 'pending' | 'approved' | 'rejected'
   rejection_reason: string | null
+  original_name: string | null
+  file_size: number | null
+  file_url: string | null
   created_at: string
 }
 
@@ -44,6 +47,7 @@ export default function VerificationGate() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [submittingType, setSubmittingType] = useState<string | null>(null)
+  // A picked-but-not-yet-submitted replacement file, staged per doc type.
   const [selectedFiles, setSelectedFiles] = useState<Record<string, File>>({})
   const fileInputRef = useRef<HTMLInputElement>(null)
   const pendingDocType = useRef<string | null>(null)
@@ -60,8 +64,6 @@ export default function VerificationGate() {
     fileInputRef.current?.click()
   }
 
-  // Just stages the file locally — no upload yet, so the vendor gets a
-  // chance to see what they picked (and swap it) before it's actually sent.
   function handleFileSelected(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     const docType = pendingDocType.current
@@ -128,8 +130,9 @@ export default function VerificationGate() {
         ) : (
           <div className="flex flex-col gap-3 mb-6">
             {latest.map((s) => {
-              const file = selectedFiles[s.doc_type]
+              const staged = selectedFiles[s.doc_type]
               const isSubmitting = submittingType === s.doc_type
+              const canReupload = s.status === 'rejected'
 
               return (
                 <div key={s.doc_type} className="border border-gray-200 rounded-xl p-4">
@@ -140,34 +143,50 @@ export default function VerificationGate() {
                         {s.status}
                       </span>
                     </div>
-                    {s.status === 'rejected' && !file && (
-                      <button onClick={() => pickFile(s.doc_type)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#2c4a1e] text-white
-                                   text-xs font-semibold hover:bg-[#3d6b28] transition-colors flex-shrink-0">
-                        <Upload size={13} /> Choose file
+                    {canReupload && !staged && (
+                      <button onClick={() => pickFile(s.doc_type)} disabled={isSubmitting}
+                        title="Re-upload" className="text-gray-400 hover:text-[#1a1a1a] hover:bg-gray-100 rounded-full p-1.5 transition-colors disabled:opacity-50 flex-shrink-0">
+                        <Pencil size={14} />
                       </button>
                     )}
                   </div>
 
-                  {s.status === 'rejected' && s.rejection_reason && (
+                  {canReupload && s.rejection_reason && (
                     <p className="text-xs text-red-500 mt-2">{s.rejection_reason}</p>
                   )}
 
-                  {s.status === 'rejected' && file && (
+                  {/* The file currently on record with us — shown whether or not
+                      a replacement is staged, with a link to actually open it. */}
+                  {!staged && s.original_name && (
+                    <div className="flex items-center justify-between gap-3 mt-3 pt-3 border-t border-gray-100">
+                      <p className="text-xs text-gray-500 truncate">
+                        {s.original_name} {s.file_size ? <span className="text-gray-400">· {formatFileSize(s.file_size)}</span> : null}
+                      </p>
+                      {s.file_url && (
+                        <a href={s.file_url} target="_blank" rel="noopener noreferrer"
+                          className="flex items-center gap-1 text-xs font-semibold text-[#2c4a1e] hover:underline flex-shrink-0">
+                          <Eye size={13} /> View
+                        </a>
+                      )}
+                    </div>
+                  )}
+
+                  {/* A picked replacement, staged but not yet sent. */}
+                  {canReupload && staged && (
                     <div className="mt-3 pt-3 border-t border-gray-100">
                       <div className="flex items-center justify-between gap-3 mb-3">
                         <p className="text-xs text-gray-500 truncate">
-                          {file.name} <span className="text-gray-400">· {formatFileSize(file.size)}</span>
+                          {staged.name} <span className="text-gray-400">· {formatFileSize(staged.size)}</span>
                         </p>
                         <button onClick={() => pickFile(s.doc_type)} disabled={isSubmitting}
-                          title="Change file" className="text-gray-400 hover:text-[#1a1a1a] hover:bg-gray-100 rounded-full p-1.5 transition-colors disabled:opacity-50 flex-shrink-0">
+                          title="Choose a different file" className="text-gray-400 hover:text-[#1a1a1a] hover:bg-gray-100 rounded-full p-1.5 transition-colors disabled:opacity-50 flex-shrink-0">
                           <Pencil size={14} />
                         </button>
                       </div>
                       <button onClick={() => submitReupload(s.doc_type)} disabled={isSubmitting}
                         className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-[#2c4a1e] text-white
                                    text-xs font-semibold hover:bg-[#3d6b28] transition-colors disabled:opacity-50">
-                        {isSubmitting ? 'Submitting…' : <><Check size={13} /> Submit document</>}
+                        {isSubmitting ? <><Loader2 size={13} className="animate-spin" /> Submitting…</> : <><Check size={13} /> Submit document</>}
                       </button>
                     </div>
                   )}
@@ -189,4 +208,4 @@ export default function VerificationGate() {
       </div>
     </div>
   )
-}
+} 
