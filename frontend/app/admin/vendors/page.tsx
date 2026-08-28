@@ -52,9 +52,9 @@ const CARD_BORDER: Record<string, string> = {
 }
 
 const HOVER_BORDER: Record<string, string> = {
-  pending: 'hover:border-amber-400',
-  approved: 'hover:border-[#2c4a1e]',
-  rejected: 'hover:border-red-400',
+  pending: 'hover:border-l-amber-400',
+  approved: 'hover:border-l-[#2c4a1e]',
+  rejected: 'hover:border-l-red-400',
 }
 
 function AdminVendorsPageContent() {
@@ -250,7 +250,7 @@ function AdminVendorsPageContent() {
               <div key={p.vendor.id}
                 onClick={() => openVendorDetail(p.vendor.id)}
                 className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 cursor-pointer transition-colors
-                border-l-4 border-l-amber-400 hover:border-amber-400">
+                border-l-4 border-l-amber-400 hover:border-l-amber-400">
                 <div className="flex items-center justify-between gap-2 mb-1">
                   <p className="text-sm font-bold text-[#1a1a1a]">{p.vendor.business_name}</p>
                   <span className="text-xs text-gray-400">
@@ -277,7 +277,7 @@ function AdminVendorsPageContent() {
             <div key={v.id}
               onClick={() => openVendorDetail(v.id)}
               className={`bg-white rounded-2xl border border-gray-200 shadow-sm p-4 cursor-pointer transition-colors hover:bg-white
-                ${CARD_BORDER[v.verification_status] ?? ''} ${HOVER_BORDER[v.verification_status] ?? 'hover:border-gray-300'}`}>
+                ${CARD_BORDER[v.verification_status] ?? ''} ${HOVER_BORDER[v.verification_status] ?? 'hover:border-l-gray-300'}`}>
               <div className="flex items-center justify-between gap-2 mb-1">
                 <p className="text-sm font-bold text-[#1a1a1a]">{v.business_name}</p>
                 <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full capitalize
@@ -303,7 +303,7 @@ function AdminVendorsPageContent() {
             <div key={v.id}
               onClick={() => openVendorDetail(v.id)}
               className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 cursor-pointer transition-colors
-                border-l-4 border-l-red-500 hover:border-red-500 bg-red-50/40">
+                  border-l-4 border-l-red-500 hover:border-l-red-500 bg-red-50/40">
               <div className="flex items-center justify-between gap-2 mb-1">
                 <p className="text-sm font-bold text-[#1a1a1a]">{v.business_name}</p>
                 <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-red-50 text-red-500">

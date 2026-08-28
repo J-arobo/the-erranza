@@ -155,6 +155,9 @@ function LoginInner() {
     setLoading(true)
     try {
       await login(email.trim(), password)
+      if (redirect.startsWith('/admin')) {
+        sessionStorage.setItem('erranza_admin_verified', 'true')
+      }
       router.replace(redirect)
     } catch (err) {
       if (err instanceof ApiError && err.status === 422) {

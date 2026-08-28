@@ -42,6 +42,7 @@ export default function PartnerSignupPage() {
     try {
       await register(fullName.trim(), email.trim(), password)
       await becomePartner()
+      await new Promise(r => setTimeout(r, 0))
       router.push('/vendor/onboarding')
     } catch (err) {
       setError(apiErrorMessage(err))
@@ -61,6 +62,7 @@ export default function PartnerSignupPage() {
         body: JSON.stringify({ password: confirmPassword }),
       })
       await becomePartner()
+      await new Promise(r => setTimeout(r, 0))
       router.push('/vendor/onboarding')
     } catch (err) {
       if (err instanceof ApiError && err.errors?.password) {

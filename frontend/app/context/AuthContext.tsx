@@ -69,6 +69,7 @@ type AuthContextType = {
   isLoggedIn: boolean
   completeOnboarding: () => void
   markCelebrationSeen: () => void
+  markTourSeen: () => void
   becomePartner: () => Promise<void>
   addSuperAdminRole: () => void
   setActiveRole: (role: Role) => void
@@ -92,6 +93,7 @@ const AuthContext = createContext<AuthContextType>({
   isLoggedIn: false,
   completeOnboarding: () => { },
   markCelebrationSeen: () => { },
+  markTourSeen: () => { },
   becomePartner: async () => { },
   addSuperAdminRole: () => { },
   setActiveRole: () => { },
@@ -279,6 +281,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setToken(null)
     setUser(null)
     setWishlists([])
+    sessionStorage.removeItem('erranza_admin_verified')
   }, [])
 
     // Auto logout on inactivity - 30 minutes
@@ -386,6 +389,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isLoggedIn: !!user,
     completeOnboarding,
     markCelebrationSeen,
+    markTourSeen,
     becomePartner,
     addSuperAdminRole,
     setActiveRole,
@@ -398,7 +402,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     addTrip,
     messages: MOCK_MESSAGES,
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [user, ready, wishlists, wishlistsReady, trips, register, updateProfile, login, logout, becomePartner, markCelebrationSeen])
+  }), [user, ready, wishlists, wishlistsReady, trips, register, updateProfile, login, logout, becomePartner, markCelebrationSeen, markTourSeen])
 
   return (
     <AuthContext.Provider value={value}>

@@ -19,11 +19,17 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       return
     }
 
-    // Re-verify with the server on every admin-area load instead of trusting
-    // the cached client-side role — access can be revoked mid-session (token
-    // expired, role changed, logged out elsewhere) without the local state
-    // knowing, which used to leave the dashboard shell rendered with a raw
-    // "Admin access required." error banner instead of a real login screen.
+    // Even a fully valid, role-matching session isn't enough on its own —
+    // /admin requires having actually typed credentials into the
+    // admin-flagged login flow in THIS browser tab. A traveller-context
+    // session that happens to hold the admin role doesn't get waved
+    // through just because the token is valid.
+    if (sessionStorage.getItem('erranza_admin_verified') !== 'true') {
+      logout()
+      router.push('/login?redirect=/admin')
+      return
+    }
+
     apiFetch<{ user: { roles: string[] } }>('/auth/me')
       .then(({ user }) => {
         const stillAdmin = user.roles.includes('admin') || user.roles.includes('super_admin')
