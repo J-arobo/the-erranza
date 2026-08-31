@@ -92,6 +92,10 @@ export default function BookingDetailPage({ params }: Props) {
   // Booking accept confirmation
   const [confirmingAccept, setConfirmingAccept] = useState(false)
 
+  // Trip completion handshake — vendor enters the code the guest was given
+  const [completingTrip, setCompletingTrip] = useState(false)
+  const [completionCode, setCompletionCode] = useState('')
+
   useEffect(() => {
     apiFetch<{ booking: ApiBookingDetail }>(`/vendor/bookings/${bookingId}`)
       .then(({ booking }) => setBooking(booking))
@@ -148,6 +152,25 @@ export default function BookingDetailPage({ params }: Props) {
       })
       setBooking(b => b ? { ...b, status: 'cancelled', decline_reason: declineReason.trim() } : b)
       setDeclining(false)
+    } catch (err) {
+      setError(apiErrorMessage(err))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function confirmCompletion() {
+    if (!completionCode.trim()) return
+    setBusy(true)
+    setError('')
+    try {
+      await apiFetch(`/vendor/bookings/${bookingId}/complete/confirm`, {
+        method: 'POST',
+        body: JSON.stringify({ code: completionCode.trim() }),
+      })
+      setBooking(b => b ? { ...b, status: 'completed' } : b)
+      setCompletingTrip(false)
+      setCompletionCode('')
     } catch (err) {
       setError(apiErrorMessage(err))
     } finally {
@@ -442,9 +465,15 @@ export default function BookingDetailPage({ params }: Props) {
         </div>
       )}
 
-      {/* ── Confirmed: message + cancel ── */}
-      {booking.status === 'confirmed' && !cancelling && (
+      {/* ── Confirmed: complete trip + message + cancel ── */}
+      {booking.status === 'confirmed' && !cancelling && !completingTrip && (
         <div className="flex flex-col gap-2">
+          <button
+            onClick={() => setCompletingTrip(true)}
+            className="w-full py-3 rounded-xl bg-[#2c4a1e] text-white text-sm
+                       font-semibold hover:bg-[#3d6b28] transition-colors">
+            Complete trip
+          </button>
           <button
             onClick={() => router.push('/vendor/messages')}
             className="w-full py-3 rounded-xl bg-white border border-gray-200 text-sm
@@ -457,6 +486,33 @@ export default function BookingDetailPage({ params }: Props) {
                        font-semibold text-red-500 hover:bg-red-50 transition-colors">
             Cancel booking
           </button>
+        </div>
+      )}
+
+      {/* ── Complete trip: code entry ── */}
+      {completingTrip && (
+        <div className="bg-white rounded-2xl border border-[#e0d9cc] shadow-sm p-5 flex flex-col gap-3">
+          <p className="text-sm font-semibold text-[#1a1a1a]">Enter the guest's completion code</p>
+          <p className="text-xs text-gray-400 -mt-2">
+            They received a code by email and in their Bookings inbox — ask them for it to close out this trip.
+          </p>
+          <input value={completionCode} onChange={(e) => setCompletionCode(e.target.value)}
+            inputMode="numeric" maxLength={6} placeholder="6-digit code"
+            className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-center tracking-[0.3em] font-semibold
+                       outline-none focus:border-[#2c4a1e] transition-colors" />
+          <div className="flex gap-3">
+            <button onClick={() => { setCompletingTrip(false); setCompletionCode('') }}
+              className="flex-1 py-2.5 rounded-xl bg-white border border-gray-200 text-sm
+                         font-semibold text-[#1a1a1a] hover:bg-gray-50 transition-colors">
+              Cancel
+            </button>
+            <button onClick={confirmCompletion} disabled={!completionCode.trim() || busy}
+              className="flex-1 py-2.5 rounded-xl bg-[#2c4a1e] text-white text-sm
+                         font-semibold hover:bg-[#3d6b28] transition-colors
+                         disabled:opacity-40 disabled:cursor-not-allowed">
+              {busy ? 'Confirming…' : 'Confirm completion'}
+            </button>
+          </div>
         </div>
       )}
 

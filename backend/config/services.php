@@ -40,6 +40,9 @@ return [
         'secret' => env('PAYSTACK_SECRET_KEY'),
     ],
 
+    // Extra charges
+    'extra_charge_callback_url' => env('MPESA_EXTRA_CHARGE_CALLBACK_URL'),
+
     // M-Pesa configuration
     'mpesa' => [
         'env' => env('MPESA_ENV', 'sandbox'),

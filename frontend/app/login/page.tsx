@@ -157,6 +157,8 @@ function LoginInner() {
       await login(email.trim(), password)
       if (redirect.startsWith('/admin')) {
         sessionStorage.setItem('erranza_admin_verified', 'true')
+      } else if (redirect.startsWith('/super-admin')) {
+        sessionStorage.setItem('erranza_super_admin_verified', 'true')
       }
       router.replace(redirect)
     } catch (err) {
@@ -183,7 +185,7 @@ function LoginInner() {
     showPassword, onToggleShowPassword: () => setShowPassword(s => !s),
     fieldErrors, error, loading, onSubmit: handleSubmit,
     onForgotPassword: goToForgotPassword, onGoToSignup: goToSignup,
-    isAdminLogin: redirect.startsWith('/admin'),
+    isAdminLogin: redirect.startsWith('/admin') || redirect.startsWith('/super-admin'),
   }
 
   return (

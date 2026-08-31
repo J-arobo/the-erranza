@@ -46,7 +46,7 @@ use App\Http\Controllers\Api\Vendor\VendorListingPhotoController;
 use App\Http\Controllers\Api\PublicBookingPaymentController;
 use App\Http\Controllers\Api\BookingCompletionController;
 use App\Http\Controllers\Api\MpesaBookingPayoutController;
-
+use App\Http\Controllers\Api\BookingExtraChargeController;
 
 Route::prefix('auth')->group(function () {
     Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:6,1');
@@ -69,6 +69,7 @@ Route::get('/listings/{listing}', [ListingController::class, 'show']);
 // Public M-Pesa callbacks — Safaricom calls these directly, no auth token available.
 Route::post('/mpesa/booking-payout/result', [MpesaBookingPayoutController::class, 'result']);
 Route::post('/mpesa/booking-payout/timeout', [MpesaBookingPayoutController::class, 'timeout']);
+Route::post('/mpesa/extra-charge/callback', [BookingExtraChargeController::class, 'callback']);
 // Public — Safaricom calls this directly, no auth token available.
 Route::post('/payments/mpesa/callback', [MpesaController::class, 'callback']);
 // Public — Safaricom calls this directly, no auth token available.
@@ -117,6 +118,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/payments/mpesa/status/{checkoutRequestId}', [MpesaController::class, 'status']);
     // Trip Completion
     Route::post('/bookings/{booking}/complete/initiate', [BookingCompletionController::class, 'initiate']);
+    // Extra charges
+    Route::post('/extra-charges/{charge}/pay', [BookingExtraChargeController::class, 'pay']);
+    Route::post('/extra-charges/{charge}/decline', [BookingExtraChargeController::class, 'decline']);
+    Route::get('/extra-charges/{charge}/status', [BookingExtraChargeController::class, 'status']);
 
 });
 
@@ -177,6 +182,8 @@ Route::prefix('vendor')->middleware(['auth:sanctum', 'vendor'])->group(function 
     Route::delete('/team-members/{member}', [VendorTeamMemberController::class, 'destroy']);
     // Trip completion
     Route::post('/bookings/{booking}/complete/confirm', [BookingCompletionController::class, 'confirm']);
+    // Extra charges
+    Route::post('/bookings/{booking}/extra-charges', [BookingExtraChargeController::class, 'store']);
 });
 
 Route::prefix('admin')->middleware(['auth:sanctum', 'admin'])->group(function () {
@@ -250,8 +257,13 @@ Route::prefix('super-admin')->middleware(['auth:sanctum', 'super_admin'])->group
     Route::post('/disputes/{dispute}/override', [SuperAdminDisputeController::class, 'override']);
 
     Route::get('/financials', [SuperAdminFinancialController::class, 'index']);
+    // Payouts route for super admin to view all payouts and their statuses
+    Route::get('/payouts', [SuperAdminFinancialController::class, 'payouts']);
 
     Route::get('/audit-log', [SuperAdminAuditLogController::class, 'index']);
+
+    Route::get('/bookings', [SuperAdminFinancialController::class, 'bookings']);
+    Route::get('/bookings/{booking}', [SuperAdminFinancialController::class, 'bookingDetail']);
 });
 
 Route::get('/user', function (Request $request) {

@@ -2,7 +2,7 @@
 import { use, useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
-import { ArrowLeft, Calendar, Users, MessageCircle, AlertTriangle } from 'lucide-react'
+import { ArrowLeft, Calendar, Users, MessageCircle, AlertTriangle, CheckCircle2, Star } from 'lucide-react'
 import { apiFetch, apiErrorMessage } from '@/lib/api'
 
 type Props = { params: Promise<{ id: string }> }
@@ -58,6 +58,18 @@ export default function TripDetailPage({ params }: Props) {
   //Payment plan state
   const [payingId, setPayingId] = useState<number | null>(null)
 
+  // Trip completion handshake
+  const [initiatingCompletion, setInitiatingCompletion] = useState(false)
+  const [completionInitiated, setCompletionInitiated] = useState(false)
+  const [completionExpiresAt, setCompletionExpiresAt] = useState<string | null>(null)
+
+  // Post-completion rating
+  const [showReviewForm, setShowReviewForm] = useState(false)
+  const [rating, setRating] = useState(0)
+  const [hoverRating, setHoverRating] = useState(0)
+  const [comment, setComment] = useState('')
+  const [submittingReview, setSubmittingReview] = useState(false)
+
   useEffect(() => {
     apiFetch<{ booking: ApiBookingDetail }>(`/bookings/${id}`)
       .then(({ booking }) => setBooking(booking))
@@ -93,6 +105,42 @@ export default function TripDetailPage({ params }: Props) {
       setError(apiErrorMessage(err))
     } finally {
       setCancelling(false)
+    }
+  }
+
+  // Either side can start the completion handshake — this generates a
+  // one-time code and sends it to the traveller (email + Bookings inbox);
+  // the traveller hands it to the host in person, who enters it back to
+  // close out the trip.
+  async function handleInitiateCompletion() {
+    setInitiatingCompletion(true)
+    setError('')
+    try {
+      const { expires_at } = await apiFetch<{ ok: boolean; expires_at: string }>(`/bookings/${id}/complete/initiate`, { method: 'POST' })
+      setCompletionInitiated(true)
+      setCompletionExpiresAt(expires_at)
+    } catch (err) {
+      setError(apiErrorMessage(err))
+    } finally {
+      setInitiatingCompletion(false)
+    }
+  }
+
+  async function submitReview() {
+    if (!rating || !comment.trim()) return
+    setSubmittingReview(true)
+    setError('')
+    try {
+      const { review } = await apiFetch<{ review: { id: number; rating: number; comment: string } }>(`/bookings/${id}/review`, {
+        method: 'POST',
+        body: JSON.stringify({ rating, comment: comment.trim() }),
+      })
+      setBooking(b => b ? { ...b, review } : b)
+      setShowReviewForm(false)
+    } catch (err) {
+      setError(apiErrorMessage(err))
+    } finally {
+      setSubmittingReview(false)
     }
   }
 
@@ -210,10 +258,35 @@ export default function TripDetailPage({ params }: Props) {
           </div>
         )}
 
-        {booking.special_requests && (
-          <div className="mb-5">
-            <p className="text-sm font-bold text-[#1a1a1a] mb-1">Special requests</p>
-            <p className="text-sm text-gray-600">{booking.special_requests}</p>
+        {booking.status === 'confirmed' && (
+          <div className="bg-[#eaf5e4] rounded-xl p-4 mb-5">
+            {completionInitiated ? (
+              <div className="flex items-start gap-2">
+                <CheckCircle2 size={16} color="#2c4a1e" className="flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-semibold text-[#2c4a1e]">Code sent!</p>
+                  <p className="text-xs text-[#2c4a1e]/80 mt-0.5">
+                    Check your email or your Bookings inbox thread, and give the code to your host when the trip wraps up
+                    {completionExpiresAt ? ` — valid until ${formatDate(completionExpiresAt)}` : ''}.
+                  </p>
+                  <button onClick={handleInitiateCompletion} disabled={initiatingCompletion}
+                    className="text-xs font-semibold text-[#2c4a1e] underline mt-2 disabled:opacity-50">
+                    {initiatingCompletion ? 'Resending…' : 'Resend code'}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-[#2c4a1e]">Trip wrapping up?</p>
+                  <p className="text-xs text-[#2c4a1e]/80 mt-0.5">Get a code to give your host and close out the booking.</p>
+                </div>
+                <button onClick={handleInitiateCompletion} disabled={initiatingCompletion}
+                  className="flex-shrink-0 bg-[#2c4a1e] text-white text-xs font-semibold px-4 py-2 rounded-full hover:bg-[#3d6b28] transition-colors disabled:opacity-50">
+                  {initiatingCompletion ? 'Sending…' : 'Complete trip'}
+                </button>
+              </div>
+            )}
           </div>
         )}
 
@@ -274,7 +347,51 @@ export default function TripDetailPage({ params }: Props) {
         {booking.review && (
           <div className="mb-5">
             <p className="text-sm font-bold text-[#1a1a1a] mb-1">Your review</p>
+            <div className="flex gap-0.5 mb-1">
+              {[1, 2, 3, 4, 5].map(n => (
+                <Star key={n} size={14} fill={n <= booking.review!.rating ? '#EAF98E' : 'none'}
+                  color={n <= booking.review!.rating ? '#2c4a1e' : '#d1d5db'} />
+              ))}
+            </div>
             <p className="text-sm text-gray-600">{booking.review.comment}</p>
+          </div>
+        )}
+
+        {booking.status === 'completed' && !booking.review && (
+          <div className="mb-5">
+            {!showReviewForm ? (
+              <button onClick={() => setShowReviewForm(true)}
+                className="w-full flex items-center justify-center gap-2 bg-[#eaf5e4] text-[#2c4a1e] py-3.5 rounded-xl font-semibold text-sm hover:bg-[#dcefd2] transition-colors">
+                <Star size={16} /> Rate your trip
+              </button>
+            ) : (
+              <div className="border border-gray-200 rounded-xl p-4">
+                <p className="text-sm font-bold text-[#1a1a1a] mb-3">How was your trip?</p>
+                <div className="flex gap-1 mb-3">
+                  {[1, 2, 3, 4, 5].map(n => (
+                    <button key={n} onClick={() => setRating(n)}
+                      onMouseEnter={() => setHoverRating(n)} onMouseLeave={() => setHoverRating(0)}
+                      className="focus:outline-none">
+                      <Star size={26} fill={n <= (hoverRating || rating) ? '#EAF98E' : 'none'}
+                        color={n <= (hoverRating || rating) ? '#2c4a1e' : '#d1d5db'} />
+                    </button>
+                  ))}
+                </div>
+                <textarea value={comment} onChange={(e) => setComment(e.target.value)}
+                  rows={3} placeholder="Tell other travellers about your experience..."
+                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#2c4a1e] transition-colors resize-none mb-3" />
+                <div className="flex gap-2">
+                  <button onClick={() => setShowReviewForm(false)}
+                    className="flex-1 py-2.5 rounded-lg border border-gray-200 text-sm font-semibold text-[#1a1a1a]">
+                    Cancel
+                  </button>
+                  <button onClick={submitReview} disabled={!rating || !comment.trim() || submittingReview}
+                    className="flex-1 py-2.5 rounded-lg bg-[#2c4a1e] text-white text-sm font-semibold hover:bg-[#3d6b28] transition-colors disabled:opacity-40">
+                    {submittingReview ? 'Submitting…' : 'Submit review'}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 

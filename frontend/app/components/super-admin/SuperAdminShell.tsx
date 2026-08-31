@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import {
   LayoutDashboard, Shield, Settings, CreditCard, ShieldAlert,
-  Scale, TrendingUp, History, LogOut, Menu, X,
+  Scale, TrendingUp, History, LogOut, Menu, Search, X,
 } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 
@@ -16,6 +16,7 @@ const NAV_ITEMS = [
   { label: 'Disputes',    Icon: Scale,            path: '/super-admin/disputes' },
   { label: 'Financials',  Icon: TrendingUp,       path: '/super-admin/financials' },
   { label: 'Audit Log',   Icon: History,          path: '/super-admin/audit-log' },
+  { label: 'Booking Tracker', Icon: Search,          path: '/super-admin/bookings' },
 ]
 
 export default function SuperAdminShell({ children }: { children: React.ReactNode }) {

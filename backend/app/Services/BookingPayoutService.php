@@ -3,24 +3,33 @@
 namespace App\Services;
 
 use App\Models\Booking;
+use App\Models\BookingExtraCharge;
 use App\Models\BookingPayout;
+use App\Models\Vendor;
 use Illuminate\Support\Facades\Log;
 
 class BookingPayoutService
 {
-    // Fires the instant a trip is confirmed completed. Vendor leg attempts
-    // a real B2C disbursement now; commission leg is recorded but only
-    // ever actually sent once ERRANZA_COMMISSION_ACCOUNT is set AND that
-    // account is M-Pesa-reachable (a paybill/till, not just a bank account
-    // number) — see processCommissionLeg().
+    // Fires the instant a trip is confirmed completed.
     public static function process(Booking $booking): void
     {
         $booking->loadMissing('listing.vendor');
-        $vendor = $booking->listing->vendor;
+        self::disburseSplit($booking, $booking->listing->vendor, (float) $booking->total);
+    }
 
+    // Fires when a guest pays an approved extra charge — same split logic,
+    // just against the charge's amount instead of the booking's total.
+    public static function disburseForExtraCharge(BookingExtraCharge $charge): void
+    {
+        $charge->loadMissing('booking', 'vendor');
+        self::disburseSplit($charge->booking, $charge->vendor, (float) $charge->amount);
+    }
+
+    private static function disburseSplit(Booking $booking, Vendor $vendor, float $amount): void
+    {
         $commissionRate = $vendor->plan === 'plus' ? 0.08 : 0.12;
-        $commission = round((float) $booking->total * $commissionRate, 2);
-        $net = round((float) $booking->total - $commission, 2);
+        $commission = round($amount * $commissionRate, 2);
+        $net = round($amount - $commission, 2);
 
         $vendorLeg = BookingPayout::create([
             'booking_id' => $booking->id,
@@ -44,7 +53,7 @@ class BookingPayoutService
         self::processCommissionLeg($commissionLeg);
     }
 
-    private static function processVendorLeg(BookingPayout $leg, $vendor): void
+    private static function processVendorLeg(BookingPayout $leg, Vendor $vendor): void
     {
         if ($vendor->payout_method !== 'mobile' || !$vendor->payout_details) {
             $leg->update(['failure_reason' => "Vendor's payout method is bank transfer — not automatable via M-Pesa B2C, needs manual processing."]);
@@ -82,10 +91,8 @@ class BookingPayoutService
     private static function processCommissionLeg(BookingPayout $leg): void
     {
         if (!config('services.mpesa.commission_account')) {
-            return; // stays 'pending' — ledger entry only, see class-level note
+            return;
         }
-
-        // Stub for when Account B (or a paybill/till behind it) actually
-        // exists — same sendB2C() shape as processVendorLeg() above.
+        // Stub for when Account B (or a paybill/till behind it) exists.
     }
 }

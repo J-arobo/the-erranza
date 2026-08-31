@@ -282,6 +282,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null)
     setWishlists([])
     sessionStorage.removeItem('erranza_admin_verified')
+    sessionStorage.removeItem('erranza_super_admin_verified')
   }, [])
 
     // Auto logout on inactivity - 30 minutes

@@ -65,6 +65,11 @@ class Booking extends Model
     {
         return $this->hasMany(BookingPayout::class);
     }
+    // Charges
+    public function extraCharges(): HasMany
+    {
+        return $this->hasMany(BookingExtraCharge::class);
+    }
 
     // Reviews relationship
     public function review(): \Illuminate\Database\Eloquent\Relations\HasOne
