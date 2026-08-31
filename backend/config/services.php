@@ -55,7 +55,9 @@ return [
         'security_credential' => env('MPESA_SECURITY_CREDENTIAL'),
         'refund_result_url' => env('MPESA_REFUND_RESULT_URL'),
         'refund_timeout_url' => env('MPESA_REFUND_TIMEOUT_URL'),
+        'earnings_payout_result_url' => env('MPESA_EARNINGS_PAYOUT_RESULT_URL'),
+        'earnings_payout_timeout_url' => env('MPESA_EARNINGS_PAYOUT_TIMEOUT_URL'),
+        'commission_account' => env('ERRANZA_COMMISSION_ACCOUNT'),
     ],
-
 
 ];

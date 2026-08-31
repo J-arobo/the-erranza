@@ -44,6 +44,8 @@ use App\Http\Controllers\Api\Vendor\VendorPayoutVerificationController;
 use App\Http\Controllers\Api\Vendor\VendorListingPhotoController;
 // Admin booking for someone
 use App\Http\Controllers\Api\PublicBookingPaymentController;
+use App\Http\Controllers\Api\BookingCompletionController;
+use App\Http\Controllers\Api\MpesaBookingPayoutController;
 
 
 Route::prefix('auth')->group(function () {
@@ -64,6 +66,9 @@ Route::prefix('auth')->group(function () {
 // Public listing browsing — no auth required.
 Route::get('/listings', [ListingController::class, 'index']);
 Route::get('/listings/{listing}', [ListingController::class, 'show']);
+// Public M-Pesa callbacks — Safaricom calls these directly, no auth token available.
+Route::post('/mpesa/booking-payout/result', [MpesaBookingPayoutController::class, 'result']);
+Route::post('/mpesa/booking-payout/timeout', [MpesaBookingPayoutController::class, 'timeout']);
 // Public — Safaricom calls this directly, no auth token available.
 Route::post('/payments/mpesa/callback', [MpesaController::class, 'callback']);
 // Public — Safaricom calls this directly, no auth token available.
@@ -110,6 +115,9 @@ Route::middleware('auth:sanctum')->group(function () {
     // M-Pesa payment initialization
     Route::post('/payments/mpesa/initiate', [MpesaController::class, 'initiate']);
     Route::get('/payments/mpesa/status/{checkoutRequestId}', [MpesaController::class, 'status']);
+    // Trip Completion
+    Route::post('/bookings/{booking}/complete/initiate', [BookingCompletionController::class, 'initiate']);
+
 });
 
 Route::prefix('vendor')->middleware(['auth:sanctum', 'vendor'])->group(function () {
@@ -167,6 +175,8 @@ Route::prefix('vendor')->middleware(['auth:sanctum', 'vendor'])->group(function 
 
     Route::post('/team-members', [VendorTeamMemberController::class, 'store']);
     Route::delete('/team-members/{member}', [VendorTeamMemberController::class, 'destroy']);
+    // Trip completion
+    Route::post('/bookings/{booking}/complete/confirm', [BookingCompletionController::class, 'confirm']);
 });
 
 Route::prefix('admin')->middleware(['auth:sanctum', 'admin'])->group(function () {
