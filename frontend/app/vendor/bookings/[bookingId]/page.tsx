@@ -69,6 +69,7 @@ type ApiBookingDetail = {
   traveller: { id: number; name: string; email: string }
   travelers: { id: number; name: string }[]
   messages: { id: number; sender_type: 'guest' | 'vendor'; text: string; created_at: string }[]
+  extra_charges: { id: number; amount: string; description: string; status: string }[]
 }
 
 export default function BookingDetailPage({ params }: Props) {
@@ -95,6 +96,12 @@ export default function BookingDetailPage({ params }: Props) {
   // Trip completion handshake — vendor enters the code the guest was given
   const [completingTrip, setCompletingTrip] = useState(false)
   const [completionCode, setCompletionCode] = useState('')
+
+  // Request an extra charge
+  const [requestingCharge, setRequestingCharge] = useState(false)
+  const [chargeAmount, setChargeAmount] = useState('')
+  const [chargeDescription, setChargeDescription] = useState('')
+  const [submittingCharge, setSubmittingCharge] = useState(false)
 
   useEffect(() => {
     apiFetch<{ booking: ApiBookingDetail }>(`/vendor/bookings/${bookingId}`)
@@ -156,6 +163,27 @@ export default function BookingDetailPage({ params }: Props) {
       setError(apiErrorMessage(err))
     } finally {
       setBusy(false)
+    }
+  }
+
+  // Request an extra charge
+  async function requestExtraCharge() {
+    if (!chargeAmount || !chargeDescription.trim()) return
+    setSubmittingCharge(true)
+    setError('')
+    try {
+      const { charge } = await apiFetch<{ charge: { id: number; amount: string; description: string; status: string } }>(`/vendor/bookings/${bookingId}/extra-charges`, {
+        method: 'POST',
+        body: JSON.stringify({ amount: Number(chargeAmount), description: chargeDescription.trim() }),
+      })
+      setBooking(b => b ? { ...b, extra_charges: [...b.extra_charges, charge] } : b)
+      setRequestingCharge(false)
+      setChargeAmount('')
+      setChargeDescription('')
+    } catch (err) {
+      setError(apiErrorMessage(err))
+    } finally {
+      setSubmittingCharge(false)
     }
   }
 
@@ -552,7 +580,66 @@ export default function BookingDetailPage({ params }: Props) {
         </div>
       )}
 
-      {(booking.status === 'completed' || booking.status === 'cancelled' || booking.status === 'alternative_proposed') && (
+{booking.status === 'completed' && booking.extra_charges.length > 0 && (
+        <div className="bg-white rounded-2xl border border-[#e0d9cc] shadow-sm p-5 mb-5">
+          <p className="text-sm font-semibold text-[#1a1a1a] mb-3">Extra charges</p>
+          <div className="flex flex-col divide-y divide-gray-100">
+            {booking.extra_charges.map((c) => (
+              <div key={c.id} className="flex items-center justify-between py-2.5">
+                <div>
+                  <p className="text-sm font-semibold text-[#1a1a1a]">{c.description}</p>
+                  <p className="text-xs text-gray-400">{formatKsh(c.amount)}</p>
+                </div>
+                <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full capitalize
+                  ${c.status === 'paid' ? 'bg-[#eaf5e4] text-[#2c4a1e]' : c.status === 'pending' ? 'bg-amber-50 text-amber-700' : 'bg-red-50 text-red-600'}`}>
+                  {c.status}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {booking.status === 'completed' && !requestingCharge && (
+        <div className="flex flex-col gap-2 mb-5">
+          <button onClick={() => setRequestingCharge(true)}
+            className="w-full py-3 rounded-xl bg-white border border-gray-200 text-sm
+                       font-semibold text-[#1a1a1a] hover:bg-gray-50 transition-colors">
+            Request extra charge
+          </button>
+          <button
+            onClick={() => router.push('/vendor/messages')}
+            className="w-full py-3 rounded-xl bg-white border border-gray-200 text-sm
+                       font-semibold text-[#1a1a1a] hover:bg-gray-50 transition-colors">
+            Message guest
+          </button>
+        </div>
+      )}
+
+      {requestingCharge && (
+        <div className="bg-white rounded-2xl border border-[#e0d9cc] shadow-sm p-5 flex flex-col gap-3 mb-5">
+          <p className="text-sm font-semibold text-[#1a1a1a]">Request an extra charge</p>
+          <p className="text-xs text-gray-400 -mt-2">The guest has to approve and pay this themselves — nothing charges automatically.</p>
+          <input value={chargeAmount} onChange={(e) => setChargeAmount(e.target.value)} type="number" min="1"
+            placeholder="Amount (Ksh)"
+            className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#2c4a1e] transition-colors" />
+          <textarea value={chargeDescription} onChange={(e) => setChargeDescription(e.target.value)}
+            rows={3} placeholder="What's this for? e.g. Damage to the tent, extra activity add-on..."
+            className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#2c4a1e] transition-colors resize-none" />
+          <div className="flex gap-3">
+            <button onClick={() => { setRequestingCharge(false); setChargeAmount(''); setChargeDescription('') }}
+              className="flex-1 py-2.5 rounded-xl bg-white border border-gray-200 text-sm font-semibold text-[#1a1a1a] hover:bg-gray-50 transition-colors">
+              Cancel
+            </button>
+            <button onClick={requestExtraCharge} disabled={!chargeAmount || !chargeDescription.trim() || submittingCharge}
+              className="flex-1 py-2.5 rounded-xl bg-[#2c4a1e] text-white text-sm font-semibold hover:bg-[#3d6b28] transition-colors disabled:opacity-40">
+              {submittingCharge ? 'Sending…' : 'Send request'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {(booking.status === 'cancelled' || booking.status === 'alternative_proposed') && (
         <button
           onClick={() => router.push('/vendor/messages')}
           className="w-full py-3 rounded-xl bg-white border border-gray-200 text-sm
@@ -560,7 +647,6 @@ export default function BookingDetailPage({ params }: Props) {
           Message guest
         </button>
       )}
-
     </div>
   )
 }

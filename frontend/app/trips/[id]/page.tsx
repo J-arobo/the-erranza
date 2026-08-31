@@ -30,6 +30,7 @@ type ApiBookingDetail = {
   payment_plan: 'full' | 'instalments'
   payments: { id: number; amount: string; due_date: string; status: 'pending' | 'paid'; paid_at: string | null }[]
   review: { id: number; rating: number; comment: string } | null
+  extra_charges: { id: number; amount: string; description: string; status: string }[]
 }
 
 // No stored "days before check-in" field exists per policy tier, so these
@@ -69,6 +70,10 @@ export default function TripDetailPage({ params }: Props) {
   const [hoverRating, setHoverRating] = useState(0)
   const [comment, setComment] = useState('')
   const [submittingReview, setSubmittingReview] = useState(false)
+  // Extra charges
+  const [payingChargeId, setPayingChargeId] = useState<number | null>(null)
+  const [chargePhone, setChargePhone] = useState('')
+  const [decliningChargeId, setDecliningChargeId] = useState<number | null>(null)
 
   useEffect(() => {
     apiFetch<{ booking: ApiBookingDetail }>(`/bookings/${id}`)
@@ -143,6 +148,47 @@ export default function TripDetailPage({ params }: Props) {
       setSubmittingReview(false)
     }
   }
+
+  // Extra charges
+  async function payExtraCharge(chargeId: number) {
+    if (!chargePhone.trim()) return
+    setError('')
+    try {
+      await apiFetch(`/extra-charges/${chargeId}/pay`, {
+        method: 'POST',
+        body: JSON.stringify({ phone: chargePhone.trim() }),
+      })
+      const deadline = Date.now() + 45000
+      const poll = async (): Promise<void> => {
+        if (Date.now() > deadline) throw new Error('This is taking longer than expected. Try again if you were not charged.')
+        const result = await apiFetch<{ status: string }>(`/extra-charges/${chargeId}/status`)
+        if (result.status === 'paid') {
+          setBooking(b => b ? { ...b, extra_charges: b.extra_charges.map(c => c.id === chargeId ? { ...c, status: 'paid' } : c) } : b)
+          return
+        }
+        if (result.status === 'failed') throw new Error('Payment was not completed. Please try again.')
+        await new Promise(r => setTimeout(r, 2000))
+        return poll()
+      }
+      await poll()
+    } catch (err) {
+      setError(apiErrorMessage(err))
+    } finally {
+      setPayingChargeId(null)
+      setChargePhone('')
+    }
+  }
+
+  async function declineExtraCharge(chargeId: number) {
+    setError('')
+    try {
+      await apiFetch(`/extra-charges/${chargeId}/decline`, { method: 'POST' })
+      setBooking(b => b ? { ...b, extra_charges: b.extra_charges.map(c => c.id === chargeId ? { ...c, status: 'declined' } : c) } : b)
+    } catch (err) {
+      setError(apiErrorMessage(err))
+    }
+  }
+
 
   if (loading) {
     return (
@@ -257,6 +303,43 @@ export default function TripDetailPage({ params }: Props) {
             <p className="text-sm text-gray-600">{booking.special_requests}</p>
           </div>
         )}
+
+        {/* Extra charges */}
+        {booking.extra_charges.filter(c => c.status === 'pending').map((c) => (
+          <div key={c.id} className="border border-amber-200 bg-amber-50 rounded-xl p-4 mb-5">
+            <p className="text-sm font-semibold text-amber-900 mb-1">Extra charge requested</p>
+            <p className="text-sm text-amber-800 mb-1">{c.description}</p>
+            <p className="text-lg font-bold text-amber-900 mb-3">Ksh {Math.round(Number(c.amount)).toLocaleString()}</p>
+            {payingChargeId === c.id ? (
+              <div className="flex flex-col gap-2">
+                <input value={chargePhone} onChange={(e) => setChargePhone(e.target.value)}
+                  placeholder="M-Pesa number, e.g. 0712345678"
+                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm bg-white outline-none focus:border-[#2c4a1e] transition-colors" />
+                <div className="flex gap-2">
+                  <button onClick={() => setPayingChargeId(null)}
+                    className="flex-1 py-2 rounded-lg border border-gray-200 bg-white text-sm font-semibold text-[#1a1a1a]">
+                    Cancel
+                  </button>
+                  <button onClick={() => payExtraCharge(c.id)} disabled={!chargePhone.trim()}
+                    className="flex-1 py-2 rounded-lg bg-[#2c4a1e] text-white text-sm font-semibold disabled:opacity-40">
+                    Confirm & pay
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <button onClick={() => declineExtraCharge(c.id)}
+                  className="flex-1 py-2.5 rounded-lg border border-red-200 bg-white text-red-600 text-sm font-semibold">
+                  Decline
+                </button>
+                <button onClick={() => setPayingChargeId(c.id)}
+                  className="flex-1 py-2.5 rounded-lg bg-[#2c4a1e] text-white text-sm font-semibold">
+                  Approve & pay
+                </button>
+              </div>
+            )}
+          </div>
+        ))}
 
         {booking.status === 'confirmed' && (
           <div className="bg-[#eaf5e4] rounded-xl p-4 mb-5">

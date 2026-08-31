@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { apiFetch, apiErrorMessage } from '@/lib/api'
+import { useRouter } from 'next/navigation'
 
 type VendorPayout = {
   vendor_id: number
@@ -51,6 +52,7 @@ function formatKsh(v: number | string) {
 }
 
 export default function SuperAdminFinancialsPage() {
+  const router = useRouter()
   const [data, setData] = useState<Financials | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -67,7 +69,7 @@ export default function SuperAdminFinancialsPage() {
 
     apiFetch<PayoutsResponse>('/super-admin/payouts')
       .then(setPayoutsData)
-      .catch(() => {})
+      .catch(() => { })
   }, [])
 
   function loadMorePayouts() {
@@ -167,7 +169,10 @@ export default function SuperAdminFinancialsPage() {
             ) : (
               <div className="flex flex-col divide-y divide-gray-100">
                 {payoutsData.payouts.data.map((p) => (
-                  <div key={p.id} className="py-3">
+                  <button key={p.id} onClick={() => p.booking && router.push(`/super-admin/bookings/${p.booking.id}`)}
+                    disabled={!p.booking}
+                    className="w-full text-left py-3 hover:bg-gray-50 transition-colors -mx-5 px-5 disabled:cursor-default disabled:hover:bg-transparent">
+
                     <div className="flex items-center justify-between gap-3 mb-1">
                       <div className="min-w-0">
                         <p className="text-sm font-semibold text-[#1a1a1a] truncate">
@@ -188,7 +193,7 @@ export default function SuperAdminFinancialsPage() {
                     {p.reference && p.status === 'paid' && (
                       <p className="text-xs text-gray-400 mt-1">Ref: {p.reference}</p>
                     )}
-                  </div>
+                  </button>
                 ))}
               </div>
             )}
