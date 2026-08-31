@@ -10,13 +10,13 @@ import { apiFetch } from '@/lib/api'
 
 const NAV_ITEMS = [
   { label: 'Dashboard', Icon: LayoutDashboard, path: '/vendor' },
-  { label: 'Listings', Icon: List, path: '/vendor/listings' },
-  { label: 'Bookings', Icon: Calendar, path: '/vendor/bookings' },
-  { label: 'Messages', Icon: MessageCircle, path: '/vendor/messages' },
-  { label: 'Earnings', Icon: TrendingUp, path: '/vendor/earnings' },
+  { label: 'Listings', Icon: List, path: '/vendor/listings', tour: 'nav-listings' },
+  { label: 'Bookings', Icon: Calendar, path: '/vendor/bookings', tour: 'nav-bookings' },
+  { label: 'Messages', Icon: MessageCircle, path: '/vendor/messages', tour: 'nav-messages' },
+  { label: 'Earnings', Icon: TrendingUp, path: '/vendor/earnings', tour: 'nav-earnings' },
   { label: 'Reviews', Icon: Star, path: '/vendor/reviews' },
   { label: 'Support', Icon: LifeBuoy, path: '/vendor/support' },
-  { label: 'Profile', Icon: User, path: '/vendor/profile' },
+  { label: 'Profile', Icon: User, path: '/vendor/profile', tour: 'nav-profile' },
 ]
 
 const NOTIF_ICON: Record<string, typeof Calendar> = {
@@ -223,9 +223,10 @@ export default function VendorShell({ children }: { children: React.ReactNode })
 
         {/* Nav */}
         <nav className="flex-1 px-3 py-4 flex flex-col gap-1 overflow-y-auto">
-          {NAV_ITEMS.map(({ label, Icon, path }) => (
+          {NAV_ITEMS.map(({ label, Icon, path, tour }) => (
             <button
               key={path}
+              data-tour={tour}
               onClick={() => navigate(path)}
               className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm
                           font-medium transition-all text-left w-full
