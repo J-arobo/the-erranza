@@ -26,6 +26,8 @@ return [
         'http://192.168.1.148:3001',
         'http://172.20.10.6:3001',
         'https://erranza-six.vercel.app',
+        'https://erranza.co.ke',
+        'https://www.erranza.co.ke',
     ],
 
     'allowed_origins_patterns' => [],
