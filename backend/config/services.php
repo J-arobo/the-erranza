@@ -63,4 +63,13 @@ return [
         'commission_account' => env('ERRANZA_COMMISSION_ACCOUNT'),
     ],
 
+    // KCB
+    'buni' => [
+        'base_url'        => env('BUNI_BASE_URL'),
+        'client_id'       => env('BUNI_CLIENT_ID'),
+        'client_secret'   => env('BUNI_CLIENT_SECRET'),
+        'callback_secret' => env('BUNI_CALLBACK_SECRET'),
+    ],
+
+
 ];

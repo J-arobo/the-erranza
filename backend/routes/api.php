@@ -47,6 +47,9 @@ use App\Http\Controllers\Api\PublicBookingPaymentController;
 use App\Http\Controllers\Api\BookingCompletionController;
 use App\Http\Controllers\Api\MpesaBookingPayoutController;
 use App\Http\Controllers\Api\BookingExtraChargeController;
+// KCB Buni
+// Ensure the BuniController class exists in the specified namespace
+use App\Http\Controllers\Api\BuniController;
 
 Route::prefix('auth')->group(function () {
     Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:6,1');
@@ -70,6 +73,9 @@ Route::get('/listings/{listing}', [ListingController::class, 'show']);
 Route::post('/mpesa/booking-payout/result', [MpesaBookingPayoutController::class, 'result']);
 Route::post('/mpesa/booking-payout/timeout', [MpesaBookingPayoutController::class, 'timeout']);
 Route::post('/mpesa/extra-charge/callback', [BookingExtraChargeController::class, 'callback']);
+// Public — KCB Buni calls this directly, no auth token available.
+Route::post('/payments/buni/callback', [BuniController::class, 'callback']);
+
 // Public — Safaricom calls this directly, no auth token available.
 Route::post('/payments/mpesa/callback', [MpesaController::class, 'callback']);
 // Public — Safaricom calls this directly, no auth token available.
