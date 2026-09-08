@@ -15,7 +15,8 @@ use Illuminate\Support\Facades\Http;
 
 //For debugging
 use Illuminate\Support\Facades\Log;
-
+// Group Pricing
+use App\Services\ListingPricingService;
 
 class MpesaController extends Controller
 {
@@ -57,6 +58,9 @@ class MpesaController extends Controller
             'check_in' => ['nullable', 'date'],
             'check_out' => ['nullable', 'date'],
             'departure_id' => ['nullable', 'exists:listing_departures,id'],
+            'duration_option_id' => ['nullable', 'exists:listing_duration_options,id'],
+            'pricing_mode' => ['nullable', 'in:individual,group'],
+            'group_tier_id' => ['nullable', 'exists:listing_group_pricing_tiers,id'],
             'phone' => ['required', 'string'],
             'company_name' => ['nullable', 'string', 'max:255'],
             'company_tax_pin' => ['nullable', 'string', 'max:20'],
@@ -76,8 +80,17 @@ class MpesaController extends Controller
             ? max(1, Carbon::parse($validated['check_out'])->diffInDays(Carbon::parse($effectiveCheckIn)))
             : 1;
 
-        $total = $listing->price * $validated['guests'] * $nights;
+        $pricing = ListingPricingService::calculate($listing, [
+            'guests' => $validated['guests'],
+            'nights' => $nights,
+            'check_in' => $effectiveCheckIn,
+            'duration_option_id' => $validated['duration_option_id'] ?? null,
+            'pricing_mode' => $validated['pricing_mode'] ?? 'individual',
+            'group_tier_id' => $validated['group_tier_id'] ?? null,
+        ]);
+        $total = $pricing['total'];
         $amount = (int) round($total);
+
 
         $shortcode = config('services.mpesa.shortcode');
         $passkey = config('services.mpesa.passkey');
@@ -99,11 +112,11 @@ class MpesaController extends Controller
                 'TransactionDesc' => "Booking payment for {$listing->title}",
             ]);
 
-            if (!$response->successful()) {
-                Log::error('Mpesa STK push failed', ['status' => $response->status(), 'body' => $response->body()]);
-            }
-            abort_unless($response->successful(), 502, 'Could not start M-Pesa payment. Please try again.');
-    
+        if (!$response->successful()) {
+            Log::error('Mpesa STK push failed', ['status' => $response->status(), 'body' => $response->body()]);
+        }
+        abort_unless($response->successful(), 502, 'Could not start M-Pesa payment. Please try again.');
+
 
         $data = $response->json();
         abort_if(($data['ResponseCode'] ?? null) !== '0', 422, $data['ResponseDescription'] ?? 'M-Pesa could not process this request.');

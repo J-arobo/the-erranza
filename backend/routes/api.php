@@ -69,6 +69,8 @@ Route::prefix('auth')->group(function () {
 // Public listing browsing — no auth required.
 Route::get('/listings', [ListingController::class, 'index']);
 Route::get('/listings/{listing}', [ListingController::class, 'show']);
+// Quotations
+Route::post('/listings/{listing}/quote', [ListingController::class, 'quote']);
 // Public M-Pesa callbacks — Safaricom calls these directly, no auth token available.
 Route::post('/mpesa/booking-payout/result', [MpesaBookingPayoutController::class, 'result']);
 Route::post('/mpesa/booking-payout/timeout', [MpesaBookingPayoutController::class, 'timeout']);

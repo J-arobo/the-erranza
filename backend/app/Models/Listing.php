@@ -10,7 +10,7 @@ class Listing extends Model
 {
     protected $fillable = [
         'vendor_id', 'title', 'category', 'location', 'description',
-        'price', 'child_price', 'extra_guest_price', 'status',
+        'price', 'child_price', 'extra_guest_price', 'status', 'allow_custom_dates',
         'min_guests', 'max_guests', 'min_nights', 'min_lead_time_days',
         'bedrooms', 'beds', 'bathrooms', 'lat', 'lng',
         'cancellation_policy', 'custom_cancellation_text',
@@ -26,6 +26,7 @@ class Listing extends Model
             'house_rules' => 'array',
             'safety_info' => 'array',
             'flagged' => 'boolean',
+            'allow_custom_dates' => 'boolean',
             'price' => 'decimal:2',
             'child_price' => 'decimal:2',
             'extra_guest_price' => 'decimal:2',
@@ -62,6 +63,10 @@ class Listing extends Model
     public function groupDiscounts(): HasMany
     {
         return $this->hasMany(ListingGroupDiscount::class);
+    }
+    public function groupPricingTiers(): HasMany
+    {
+        return $this->hasMany(ListingGroupPricingTier::class)->orderBy('people_count');
     }
 
     public function departures(): HasMany

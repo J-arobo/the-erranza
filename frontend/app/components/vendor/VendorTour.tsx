@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { X, List, Calendar, MessageCircle, TrendingUp, User as UserIcon } from 'lucide-react'
 
 const STEPS = [
@@ -15,24 +15,38 @@ type Rect = { top: number; left: number; width: number; height: number }
 export default function VendorTour({ onFinish }: { onFinish: () => void }) {
   const [step, setStep] = useState(0)
   const [rect, setRect] = useState<Rect | null>(null)
+  const openedDrawerRef = useRef(false)
   const isLast = step === STEPS.length - 1
   const current = STEPS[step]
 
-  // Measures the real nav item on every step change — and re-measures on
-  // resize/scroll so the popover tracks it. Falls back to null (centered
-  // popover, no arrow) if the target isn't in the DOM or has no size, which
-  // covers narrow viewports where the sidebar lives behind a closed drawer.
+  // Measures the real nav item on every step change. On a desktop-width
+  // viewport the sidebar is always in the DOM. Below that breakpoint the
+  // same nav items only exist once the mobile drawer is open — so if the
+  // target isn't found, this opens it itself (via the hamburger button's
+  // own click handler, not by duplicating its logic) and re-measures,
+  // closing the drawer again once the tour finishes.
   useEffect(() => {
     function measure() {
       const el = document.querySelector(`[data-tour="${current.target}"]`)
       const r = el?.getBoundingClientRect()
       if (r && r.width > 0 && r.height > 0) {
         setRect({ top: r.top, left: r.left, width: r.width, height: r.height })
+        return true
+      }
+      return false
+    }
+
+    if (!measure()) {
+      const opener = document.querySelector<HTMLElement>('[data-tour-toggle="open-mobile-nav"]')
+      if (opener) {
+        opener.click()
+        openedDrawerRef.current = true
+        requestAnimationFrame(() => requestAnimationFrame(measure))
       } else {
         setRect(null)
       }
     }
-    measure()
+
     window.addEventListener('resize', measure)
     window.addEventListener('scroll', measure, true)
     return () => {
@@ -40,6 +54,18 @@ export default function VendorTour({ onFinish }: { onFinish: () => void }) {
       window.removeEventListener('scroll', measure, true)
     }
   }, [step, current.target])
+
+  function closeDrawerIfOpened() {
+    if (openedDrawerRef.current) {
+      document.querySelector<HTMLElement>('[data-tour-toggle="close-mobile-nav"]')?.click()
+      openedDrawerRef.current = false
+    }
+  }
+
+  function handleFinish() {
+    closeDrawerIfOpened()
+    onFinish()
+  }
 
   const popoverStyle: React.CSSProperties = rect
     ? {
@@ -61,7 +87,7 @@ export default function VendorTour({ onFinish }: { onFinish: () => void }) {
           <div className="absolute w-3 h-3 bg-white rotate-45" style={{ left: -6, top: '50%', marginTop: -6 }} />
         )}
 
-        <button onClick={onFinish} aria-label="Skip tour"
+        <button onClick={handleFinish} aria-label="Skip tour"
           className="absolute top-3 right-3 w-7 h-7 rounded-full flex items-center justify-center text-gray-400 hover:bg-gray-100 hover:text-[#1a1a1a] transition-colors">
           <X size={14} />
         </button>
@@ -86,14 +112,14 @@ export default function VendorTour({ onFinish }: { onFinish: () => void }) {
                 Back
               </button>
             )}
-            <button onClick={() => isLast ? onFinish() : setStep(s => s + 1)}
+            <button onClick={() => isLast ? handleFinish() : setStep(s => s + 1)}
               className="bg-[#2c4a1e] text-white px-4 py-2 rounded-xl font-semibold text-sm hover:bg-[#3d6b28] transition-colors">
               {isLast ? 'Got it, thanks!' : 'Next'}
             </button>
           </div>
         </div>
 
-        <button onClick={onFinish}
+        <button onClick={handleFinish}
           className="w-full text-center text-xs text-gray-400 hover:text-gray-600 mt-3 transition-colors">
           Skip tour
         </button>

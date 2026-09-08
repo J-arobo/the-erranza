@@ -35,6 +35,7 @@ export default function VendorListingsPage() {
   const [error, setError] = useState('')
   const [busyId, setBusyId] = useState<number | null>(null)
   const [pausingId, setPausingId] = useState<number | null>(null)
+  const [activatingId, setActivatingId] = useState<number | null>(null)
   const [deletingId, setDeletingId] = useState<number | null>(null)
 
   const [toast, setToast] = useState<string | null>(null)
@@ -79,7 +80,7 @@ export default function VendorListingsPage() {
 
   function handlePauseClick(listing: ApiListing) {
     if (listing.status === 'paused') {
-      togglePause(listing.id)
+      setActivatingId(listing.id)
       return
     }
     setPausingId(listing.id)
@@ -89,6 +90,12 @@ export default function VendorListingsPage() {
     if (pausingId === null) return
     await togglePause(pausingId)
     setPausingId(null)
+  }
+  // Confirmation for activating a paused listing
+  async function confirmActivate() {
+    if (activatingId === null) return
+    await togglePause(activatingId)
+    setActivatingId(null)
   }
 
   async function confirmDelete() {
@@ -273,6 +280,34 @@ export default function VendorListingsPage() {
                 className="flex-1 py-3 rounded-xl bg-[#2c4a1e] text-white text-sm font-semibold
                            hover:bg-[#3d6b28] transition-colors disabled:opacity-50">
                 {busyId === pausingId ? 'Pausing…' : 'Pause listing'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Activate confirmation */}
+      {activatingId !== null && (
+        <div
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
+          style={{ background: 'rgba(0,0,0,0.4)' }}
+          onClick={(e) => { if (e.target === e.currentTarget) setActivatingId(null) }}
+        >
+          <div className="bg-white w-full sm:max-w-sm rounded-t-3xl sm:rounded-2xl p-6">
+            <h2 className="text-lg font-bold text-[#1a1a1a] mb-2">Activate this listing?</h2>
+            <p className="text-sm text-gray-500 mb-5">
+              Guests will be able to find and book this listing again.
+            </p>
+            <div className="flex gap-2">
+              <button onClick={() => setActivatingId(null)}
+                className="flex-1 py-3 rounded-xl border border-gray-200 text-sm font-semibold
+                           text-[#1a1a1a] hover:bg-gray-50 transition-colors">
+                Cancel
+              </button>
+              <button onClick={confirmActivate} disabled={busyId === activatingId}
+                className="flex-1 py-3 rounded-xl bg-[#2c4a1e] text-white text-sm font-semibold
+                           hover:bg-[#3d6b28] transition-colors disabled:opacity-50">
+                {busyId === activatingId ? 'Activating…' : 'Activate listing'}
               </button>
             </div>
           </div>

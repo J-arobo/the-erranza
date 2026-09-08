@@ -81,6 +81,32 @@ class VendorListingController extends Controller
             'group_discounts' => ['sometimes', 'array'],
             'group_discounts.*.min_guests' => ['required', 'integer', 'min:1'],
             'group_discounts.*.discount_percent' => ['required', 'integer', 'min:0', 'max:100'],
+            // Group Pricing
+            'group_pricing_tiers' => ['sometimes', 'array'],
+            'group_pricing_tiers.*.people_count' => ['required', 'integer', 'min:1'],
+            'group_pricing_tiers.*.total_price' => ['required', 'numeric', 'min:0'],
+            'seasonal_rates' => ['sometimes', 'array'],
+            'seasonal_rates.*.label' => ['required', 'string', 'max:255'],
+            'seasonal_rates.*.start_date' => ['required', 'date'],
+            'seasonal_rates.*.end_date' => ['required', 'date'],
+            'seasonal_rates.*.price' => ['required', 'numeric', 'min:0'],
+
+            'departures' => ['sometimes', 'array'],
+            'departures.*.date' => ['required', 'date'],
+            'departures.*.capacity' => ['required', 'integer', 'min:1'],
+            'departures.*.booked' => ['nullable', 'integer', 'min:0'],
+
+            'blocked_dates' => ['sometimes', 'array'],
+            'blocked_dates.*.start_date' => ['required', 'date'],
+            'blocked_dates.*.end_date' => ['required', 'date'],
+            'blocked_dates.*.reason' => ['nullable', 'string', 'max:100'],
+
+            'extras' => ['sometimes', 'array'],
+            'extras.*.label' => ['required', 'string', 'max:255'],
+            'extras.*.price' => ['required', 'numeric', 'min:0'],
+            'extras.*.default_selected' => ['nullable', 'boolean'],
+
+            'allow_custom_dates' => ['nullable', 'boolean'],
         ]);
 
         $listing = DB::transaction(function () use ($vendor, $validated) {
@@ -89,7 +115,7 @@ class VendorListingController extends Controller
                     'title', 'category', 'location', 'description', 'price', 'child_price',
                     'extra_guest_price', 'min_guests', 'max_guests', 'min_nights', 'min_lead_time_days',
                     'cancellation_policy', 'custom_cancellation_text', 'amenities', 'excluded',
-                    'house_rules', 'safety_info',
+                    'house_rules', 'safety_info', 'allow_custom_dates',
                     //Room details
                     'bedrooms', 'beds', 'bathrooms', 'lat', 'lng',
                 ])->toArray(),
@@ -108,11 +134,16 @@ class VendorListingController extends Controller
             foreach ($validated['group_discounts'] ?? [] as $discount) {
                 $listing->groupDiscounts()->create($discount);
             }
+            // Group Discount
+            foreach ($validated['group_pricing_tiers'] ?? [] as $tier) {
+                $listing->groupPricingTiers()->create($tier);
+            }
+
 
             return $listing;
         });
 
-        $listing->load(['images', 'itinerary', 'durationOptions', 'groupDiscounts']);
+        $listing->load(['images', 'itinerary', 'durationOptions', 'groupDiscounts', 'groupPricingTiers', 'seasonalRates', 'departures', 'blockedDates', 'extras']);
 
         return response()->json(['listing' => $listing], 201);
     }
@@ -124,7 +155,8 @@ class VendorListingController extends Controller
 
         $listing->load([
             'images', 'itinerary', 'durationOptions', 'seasonalRates',
-            'groupDiscounts', 'departures', 'blockedDates', 'extras',
+            'groupDiscounts', 'groupPricingTiers', 'departures', 'blockedDates', 'extras',
+            'seasonalRates', 'departures', 'blockedDates', 'extras',
         ]);
         $listing->loadCount('bookings');
         $listing->loadSum(['bookings as earnings' => fn ($q) => $q->where('status', 'completed')], 'total');
@@ -185,6 +217,11 @@ class VendorListingController extends Controller
             'group_discounts.*.min_guests' => ['required', 'integer', 'min:1'],
             'group_discounts.*.discount_percent' => ['required', 'integer', 'min:0', 'max:100'],
 
+            // Group Pricing
+            'group_pricing_tiers' => ['sometimes', 'array'],
+            'group_pricing_tiers.*.people_count' => ['required', 'integer', 'min:1'],
+            'group_pricing_tiers.*.total_price' => ['required', 'numeric', 'min:0'],
+
             'seasonal_rates' => ['sometimes', 'array'],
             'seasonal_rates.*.label' => ['required', 'string', 'max:255'],
             'seasonal_rates.*.start_date' => ['required', 'date'],
@@ -195,6 +232,8 @@ class VendorListingController extends Controller
             'departures.*.date' => ['required', 'date'],
             'departures.*.capacity' => ['required', 'integer', 'min:1'],
             'departures.*.booked' => ['nullable', 'integer', 'min:0'],
+            'departures.*.id' => ['nullable', 'integer', 'exists:listing_departures,id'],
+
 
             'blocked_dates' => ['sometimes', 'array'],
             'blocked_dates.*.start_date' => ['required', 'date'],
@@ -205,6 +244,8 @@ class VendorListingController extends Controller
             'extras.*.label' => ['required', 'string', 'max:255'],
             'extras.*.price' => ['required', 'numeric', 'min:0'],
             'extras.*.default_selected' => ['nullable', 'boolean'],
+
+            'allow_custom_dates' => ['nullable', 'boolean'],
         ]);
 
         DB::transaction(function () use ($listing, $validated) {
@@ -212,7 +253,7 @@ class VendorListingController extends Controller
                 'title', 'category', 'location', 'description', 'price', 'child_price',
                 'extra_guest_price', 'status', 'min_guests', 'max_guests', 'min_nights', 'min_lead_time_days',
                 'cancellation_policy', 'custom_cancellation_text', 'amenities', 'excluded',
-                'house_rules', 'safety_info',
+                'house_rules', 'safety_info', 'allow_custom_dates',
                 // Room details
                 'bedrooms', 'beds', 'bathrooms', 'lat', 'lng',
             ])->toArray());
@@ -245,30 +286,56 @@ class VendorListingController extends Controller
                 }
             }
 
+            // Group Pricing
+            if (array_key_exists('group_pricing_tiers', $validated)) {
+                $listing->groupPricingTiers()->delete();
+                foreach ($validated['group_pricing_tiers'] as $tier) {
+                    $listing->groupPricingTiers()->create($tier);
+                }
+            }
+
             if (array_key_exists('seasonal_rates', $validated)) {
                 $listing->seasonalRates()->delete();
-                foreach ($validated['seasonal_rates'] as $rate) {
+                foreach ($validated['seasonal_rates'] ?? [] as $rate) {
                     $listing->seasonalRates()->create($rate);
                 }
             }
 
             if (array_key_exists('departures', $validated)) {
-                $listing->departures()->delete();
-                foreach ($validated['departures'] as $departure) {
-                    $listing->departures()->create($departure);
+                $existing = $listing->departures()->get()->keyBy('id');
+                $keepIds = [];
+
+                foreach ($validated['departures'] as $d) {
+                    $current = !empty($d['id']) ? $existing->get($d['id']) : null;
+
+                    if ($current) {
+                        $keepIds[] = $current->id;
+                        // A departure with existing bookings is immutable here — any
+                        // date/capacity change from the client is ignored rather than
+                        // risking orphaning a traveller's confirmed booking. The vendor
+                        // is told this in the UI and pointed to support instead.
+                        if ($current->booked > 0) continue;
+                        $current->update(['date' => $d['date'], 'capacity' => $d['capacity']]);
+                    } else {
+                        $keepIds[] = $listing->departures()->create($d)->id;
+                    }
                 }
+
+                // Only remove departures the vendor actually took out of the list,
+                // and only if nobody has booked them.
+                $listing->departures()->whereNotIn('id', $keepIds)->where('booked', 0)->delete();
             }
 
             if (array_key_exists('blocked_dates', $validated)) {
                 $listing->blockedDates()->delete();
-                foreach ($validated['blocked_dates'] as $block) {
+                foreach ($validated['blocked_dates'] ?? [] as $block) {
                     $listing->blockedDates()->create($block);
                 }
             }
 
             if (array_key_exists('extras', $validated)) {
                 $listing->extras()->delete();
-                foreach ($validated['extras'] as $extra) {
+                foreach ($validated['extras'] ?? [] as $extra) {
                     $listing->extras()->create($extra);
                 }
             }
@@ -276,7 +343,8 @@ class VendorListingController extends Controller
 
         $listing->load([
             'images', 'itinerary', 'durationOptions', 'seasonalRates',
-            'groupDiscounts', 'departures', 'blockedDates', 'extras',
+            'groupDiscounts', 'groupPricingTiers', 'departures', 'blockedDates', 'extras',
+            'seasonalRates', 'departures', 'blockedDates', 'extras',
         ]);
 
         return response()->json(['listing' => $listing]);

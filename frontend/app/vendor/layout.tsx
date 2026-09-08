@@ -25,9 +25,9 @@ export default function VendorLayout({ children }: { children: React.ReactNode }
   }, [isVerified, user?.id, user?.celebrationSeen, markCelebrationSeen])
 
   useEffect(() => {
-    if (!isVerified || !user || user.tourSeen || showCelebration) return
+    if (!isVerified || !user || user.tourSeen || !user.celebrationSeen) return
     setShowTour(true)
-  }, [isVerified, user?.id, user?.tourSeen, showCelebration])
+  }, [isVerified, user?.id, user?.tourSeen, user?.celebrationSeen])
 
   useEffect(() => {
     if (!ready) return
@@ -62,7 +62,12 @@ export default function VendorLayout({ children }: { children: React.ReactNode }
 
   return (
     <>
-      {showCelebration && <VerificationCelebration onDismiss={() => setShowCelebration(false)} />}
+      {showCelebration && (
+        <VerificationCelebration onDismiss={() => {
+          setShowCelebration(false)
+          if (user && !user.tourSeen) setShowTour(true)
+        }} />
+      )}
       {showTour && <VendorTour onFinish={() => { setShowTour(false); markTourSeen() }} />}
       <VendorShell>{children}</VendorShell>
     </>

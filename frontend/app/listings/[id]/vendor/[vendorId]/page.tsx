@@ -111,6 +111,10 @@ type ApiListingDetail = {
   vendor: { id: number; business_name: string; logo_url: string | null }
   cancellation_policy: 'flexible' | 'moderate' | 'strict' | 'custom'
   custom_cancellation_text: string | null
+  group_pricing_tiers: { id: number; people_count: number; total_price: string }[]
+  departures: { id: number; date: string; capacity: number; booked: number }[]
+  allow_custom_dates: boolean
+  min_guests: number | null
 }
 
 type ApiListingSummary = { id: number; title: string; price: string; images: { url: string }[] }
@@ -355,6 +359,11 @@ export default function VendorDetailPage({ params }: Props) {
   const [showSidebarCal, setShowSidebarCal] = useState(false)
   const [showGuestPanel, setShowGuestPanel] = useState(false)
   const [showMobileDatePicker, setShowMobileDatePicker] = useState(false)
+  const [pricingMode, setPricingMode] = useState<'individual' | 'group'>('individual')
+  const [groupTierId, setGroupTierId] = useState<number | null>(null)
+  const [showGroupPanel, setShowGroupPanel] = useState(false)
+  const [selectedDepartureId, setSelectedDepartureId] = useState<number | null>(null)
+  const [showMinGuestsWarning, setShowMinGuestsWarning] = useState(false)
 
   useEffect(() => {
     apiFetch<{ listing: ApiListingDetail }>(`/listings/${vendorId}`)
@@ -368,6 +377,10 @@ export default function VendorDetailPage({ params }: Props) {
       .then(({ data }) => setOtherListings(data.filter(l => String(l.id) !== vendorId).slice(0, 4)))
       .catch(() => { })
   }, [vendorId])
+
+  useEffect(() => {
+    if (listing?.min_guests && adults < listing.min_guests) setAdults(listing.min_guests)
+  }, [listing])
 
   if (loading) {
     return (
@@ -400,9 +413,16 @@ export default function VendorDetailPage({ params }: Props) {
   const visibleReviewsDesktop = reviews.slice(0, 2)
   const visibleReviewsMobile = reviews.slice(0, 1)
   const basePrice = Math.round(Number(listing.price))
+  const selectedGroupTier = listing?.group_pricing_tiers?.find(t => t.id === groupTierId) ?? null
+  const effectiveGuests = pricingMode === 'group' && selectedGroupTier ? selectedGroupTier.people_count : guests
+  const effectiveTotal = pricingMode === 'group' && selectedGroupTier ? Number(selectedGroupTier.total_price) : basePrice * guests
+  const todayStr = new Date().toISOString().slice(0, 10)
+  const usesDepartures = listing.departures.length > 0
+  const upcomingDepartures = listing.departures.filter(d => d.date >= todayStr).sort((a, b) => a.date.localeCompare(b.date))
   const rating = listing.reviews_avg_rating ? Number(listing.reviews_avg_rating).toFixed(2) : '4.50'
   const lat = listing.lat != null && isFinite(Number(listing.lat)) ? Number(listing.lat) : null
   const lng = listing.lng != null && isFinite(Number(listing.lng)) ? Number(listing.lng) : null
+
   const responseTime = listing.avg_response_minutes !== null ? formatDuration(listing.avg_response_minutes) : null
 
   const cancellationPolicy = CANCELLATION_POLICIES[listing.cancellation_policy] ?? CANCELLATION_POLICIES.moderate
@@ -883,33 +903,136 @@ export default function VendorDetailPage({ params }: Props) {
                     </div>
                   </div>
 
+                  {listing.group_pricing_tiers && listing.group_pricing_tiers.length > 0 && (
+                    <div className="flex gap-2 mb-4">
+                      {(['individual', 'group'] as const).map((m) => (
+                        <button key={m} type="button"
+                          onClick={() => { setPricingMode(m); if (m === 'individual') setGroupTierId(null) }}
+                          className="flex-1 py-2 rounded-xl text-sm font-semibold transition-colors"
+                          style={{
+                            background: pricingMode === m ? '#304333' : '#fff',
+                            color: pricingMode === m ? '#fff' : '#304333',
+                            border: '1px solid ' + (pricingMode === m ? '#304333' : '#b0a898'),
+                          }}>
+                          {m === 'individual' ? 'Individual' : 'Group'}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
                   <div className="relative mb-4">
                     <div className="rounded-xl overflow-hidden" style={{ border: '1px solid #b0a898' }}>
-                      <div className="p-3 cursor-pointer hover:bg-[#f9f5ef] transition-colors"
-                        style={{ borderBottom: '1px solid #b0a898' }}
-                        onClick={() => setShowSidebarCal(true)}>
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-[#304333] mb-0.5">Tour date</p>
-                        <p className="text-sm font-semibold" style={{ color: selectedDate ? '#304333' : '#78716c' }}>
-                          {selectedDate
-                            ? selectedDate.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' })
-                            : 'Add date'}
-                        </p>
-                      </div>
-                      <div className="p-3 flex items-center justify-between cursor-pointer hover:bg-[#f9f5ef] transition-colors"
-                        onClick={() => setShowGuestPanel(s => !s)}>
-                        <div>
-                          <p className="text-[10px] font-bold uppercase tracking-widest text-[#304333] mb-0.5">Guests</p>
-                          <p className="text-sm font-semibold text-[#304333]">{guests} guest{guests > 1 ? 's' : ''}</p>
+
+                      {usesDepartures ? (
+                        <>
+                          <div className="p-3" style={{ borderBottom: '1px solid #b0a898' }}>
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-[#304333] mb-2">Tour date</p>
+                            {upcomingDepartures.length === 0 ? (
+                              <p className="text-sm" style={{ color: '#b0453a' }}>No upcoming departures available.</p>
+                            ) : (
+                              <div className="flex flex-col gap-1.5">
+                                {upcomingDepartures.map((dep) => {
+                                  const full = dep.booked >= dep.capacity
+                                  const selected = selectedDepartureId === dep.id
+                                  return (
+                                    <button key={dep.id} type="button"
+                                      onClick={() => { setSelectedDepartureId(dep.id); setSelectedDate(null) }}
+                                      disabled={full}
+                                      className="flex items-center justify-between p-2 rounded-lg text-left transition-colors"
+                                      style={{
+                                        border: '1px solid ' + (selected ? '#304333' : '#e8e0d0'),
+                                        background: selected ? '#f0f5ec' : 'transparent',
+                                        opacity: full ? 0.5 : 1, cursor: full ? 'not-allowed' : 'pointer',
+                                      }}>
+                                      <div className="flex items-center gap-2">
+                                        <span className="w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0"
+                                          style={{ border: '2px solid ' + (selected ? '#304333' : '#b0a898') }}>
+                                          {selected && <span className="w-2 h-2 rounded-full" style={{ background: '#304333' }} />}
+                                        </span>
+                                        <span className="text-sm text-[#304333]">
+                                          {new Date(dep.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                        </span>
+                                      </div>
+                                      <span className="text-xs" style={{ color: '#78716c' }}>
+                                        {full ? 'Fully booked' : `${dep.capacity - dep.booked} spots left`}
+                                      </span>
+                                    </button>
+                                  )
+                                })}
+                              </div>
+                            )}
+                          </div>
+
+                          {listing.allow_custom_dates && (
+                            <div className="p-3 cursor-pointer hover:bg-[#f9f5ef] transition-colors"
+                              style={{ borderBottom: '1px solid #b0a898' }}
+                              onClick={() => setShowSidebarCal(true)}>
+                              <p className="text-[10px] font-bold uppercase tracking-widest text-[#304333] mb-0.5">Custom date</p>
+                              <p className="text-sm font-semibold" style={{ color: selectedDate ? '#304333' : '#78716c' }}>
+                                {selectedDate
+                                  ? selectedDate.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' })
+                                  : 'Or pick your own date'}
+                              </p>
+                            </div>
+                          )}
+                        </>
+                      ) : (
+                        <div className="p-3 cursor-pointer hover:bg-[#f9f5ef] transition-colors"
+                          style={{ borderBottom: '1px solid #b0a898' }}
+                          onClick={() => setShowSidebarCal(true)}>
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-[#304333] mb-0.5">Tour date</p>
+                          <p className="text-sm font-semibold" style={{ color: selectedDate ? '#304333' : '#78716c' }}>
+                            {selectedDate
+                              ? selectedDate.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' })
+                              : 'Add date'}
+                          </p>
                         </div>
-                        <ChevronRight size={16} color="#78716c"
-                          style={{ transform: showGuestPanel ? 'rotate(-90deg)' : 'rotate(90deg)', transition: 'transform 0.2s' }} />
-                      </div>
+                      )}
+
+                      {pricingMode === 'group' ? (
+                        <div className="p-3">
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-[#304333] mb-2">Group size</p>
+                          <div className="flex flex-col gap-1.5">
+                            {listing.group_pricing_tiers!.map((t) => {
+                              const selected = groupTierId === t.id
+                              return (
+                                <button key={t.id} type="button"
+                                  onClick={() => setGroupTierId(t.id)}
+                                  className="w-full flex items-center justify-between p-2 rounded-lg text-left transition-colors"
+                                  style={{
+                                    background: selected ? '#f0f5ec' : 'transparent',
+                                    border: '1px solid ' + (selected ? '#304333' : '#e8e0d0'),
+                                  }}>
+                                  <div className="flex items-center gap-2">
+                                    <span className="w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0"
+                                      style={{ border: '2px solid ' + (selected ? '#304333' : '#b0a898') }}>
+                                      {selected && <span className="w-2 h-2 rounded-full" style={{ background: '#304333' }} />}
+                                    </span>
+                                    <span className="text-sm font-semibold text-[#304333]">{t.people_count} people</span>
+                                  </div>
+                                  <span className="text-sm text-[#304333]">Ksh {Number(t.total_price).toLocaleString()} total</span>
+                                </button>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="p-3 flex items-center justify-between cursor-pointer hover:bg-[#f9f5ef] transition-colors"
+                          onClick={() => setShowGuestPanel(s => !s)}>
+                          <div>
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-[#304333] mb-0.5">Guests</p>
+                            <p className="text-sm font-semibold text-[#304333]">{guests} guest{guests > 1 ? 's' : ''}</p>
+                          </div>
+                          <ChevronRight size={16} color="#78716c"
+                            style={{ transform: showGuestPanel ? 'rotate(-90deg)' : 'rotate(90deg)', transition: 'transform 0.2s' }} />
+                        </div>
+                      )}
                     </div>
 
                     {showSidebarCal && (
                       <div className="absolute bg-white rounded-xl shadow-xl z-50 p-4"
                         style={{ top: 60, border: '1px solid #e8e0d0', right: 0, width: 660 }}>
-                        <DesktopCalendar selected={selectedDate} onSelect={(d) => { setSelectedDate(d); setShowSidebarCal(false) }} />
+                        <DesktopCalendar selected={selectedDate} onSelect={(d) => { setSelectedDate(d); setSelectedDepartureId(null); setShowSidebarCal(false) }} />
                         <div className="flex justify-between items-center mt-3 pt-3" style={{ borderTop: '1px solid #e8e0d0' }}>
                           <button onClick={() => setSelectedDate(null)}
                             className="text-sm font-semibold text-[#304333] underline"
@@ -925,11 +1048,11 @@ export default function VendorDetailPage({ params }: Props) {
                       </div>
                     )}
 
-                    {showGuestPanel && (
+                    {showGuestPanel && pricingMode === 'individual' && (
                       <div className="absolute bg-white rounded-xl shadow-xl z-50 p-5"
                         style={{ top: '100%', marginTop: 4, border: '1px solid #e8e0d0', left: 0, right: 0 }}>
                         {[
-                          { label: 'Adults', sub: 'Age 13+', count: adults, set: setAdults, min: 1, max: 16 },
+                          { label: 'Adults', sub: 'Age 13+', count: adults, set: setAdults, min: listing.min_guests ?? 1, max: 16 },
                           { label: 'Children', sub: 'Ages 2–12', count: children, set: setChildren, min: 0, max: Math.max(0, 16 - adults) },
                           { label: 'Infants', sub: 'Under 2', count: infants, set: setInfants, min: 0, max: 5 },
                           { label: 'Pets', sub: 'Bringing a service animal?', count: pets, set: setPets, min: 0, max: 5 },
@@ -969,8 +1092,27 @@ export default function VendorDetailPage({ params }: Props) {
                   </div>
 
                   <button
-                    onClick={() => router.push(`/listings/${vendorId}/vendor/${vendorId}/book?guests=${guests}${selectedDate ? `&date=${selectedDate.toISOString()}` : ''}`)}
-                    className="w-full py-3.5 rounded-xl font-semibold text-sm text-white mb-3 transition-opacity hover:opacity-90"
+                    onClick={() => {
+                      if (pricingMode === 'individual' && listing.min_guests && guests < listing.min_guests) {
+                        setShowMinGuestsWarning(true)
+                        return
+                      }
+                      const dateStr = selectedDepartureId
+                        ? upcomingDepartures.find(d => d.id === selectedDepartureId)?.date
+                        : selectedDate
+                          ? `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}`
+                          : null
+                      const params = new URLSearchParams({ guests: String(effectiveGuests) })
+                      if (dateStr) params.set('date', dateStr)
+                      if (!selectedDepartureId && selectedDate) params.set('custom', '1')
+                      if (pricingMode === 'group' && groupTierId) {
+                        params.set('pricing_mode', 'group')
+                        params.set('group_tier_id', String(groupTierId))
+                      }
+                      router.push(`/listings/${vendorId}/vendor/${vendorId}/book?${params.toString()}`)
+                    }}
+                    disabled={(pricingMode === 'group' && !groupTierId) || (pricingMode === 'individual' && !selectedDepartureId && !selectedDate)}
+                    className="w-full py-3.5 rounded-xl font-semibold text-sm text-white mb-3 transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
                     style={{ background: 'linear-gradient(to right, #e8612a, #d44d1a)', border: 'none', cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}>
                     Reserve
                   </button>
@@ -978,15 +1120,18 @@ export default function VendorDetailPage({ params }: Props) {
 
                   <div className="flex flex-col gap-2.5">
                     <div className="flex justify-between text-sm">
-                      <span className="text-[#304333] underline cursor-pointer">Ksh {basePrice.toLocaleString()} × {guests} guest{guests > 1 ? 's' : ''}</span>
-                      <span className="text-[#304333]">Ksh {(basePrice * guests).toLocaleString()}</span>
+                      <span className="text-[#304333] underline cursor-pointer">
+                        {pricingMode === 'group' && selectedGroupTier
+                          ? `Group of ${selectedGroupTier.people_count}`
+                          : `Ksh ${basePrice.toLocaleString()} × ${guests} guest${guests > 1 ? 's' : ''}`}
+                      </span>
+                      <span className="text-[#304333]">Ksh {effectiveTotal.toLocaleString()}</span>
                     </div>
                     <div className="flex justify-between pt-3" style={{ borderTop: '1px solid #e8e0d0' }}>
                       <span className="text-sm font-semibold text-[#304333]">Total</span>
-                      <span className="text-sm font-semibold text-[#304333]">Ksh {(basePrice * guests).toLocaleString()}</span>
+                      <span className="text-sm font-semibold text-[#304333]">Ksh {effectiveTotal.toLocaleString()}</span>
                     </div>
                   </div>
-
                 </div>
               </div>
             </div>
@@ -1369,7 +1514,7 @@ export default function VendorDetailPage({ params }: Props) {
               </div>
               {selectedDate ? (
                 <p className="text-xs font-semibold" style={{ color: '#2c4a1e' }}>
-                  {selectedDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} · Ksh {(basePrice * guests).toLocaleString()}
+                  {selectedDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} · Ksh {effectiveTotal.toLocaleString()}
                 </p>
               ) : (
                 <button onClick={() => setShowAllReviewsPage(true)}
@@ -1382,7 +1527,7 @@ export default function VendorDetailPage({ params }: Props) {
             <button
               onClick={() => {
                 if (selectedDate) {
-                  router.push(`/listings/${id}/vendor/${vendorId}/book?guests=${guests}&date=${selectedDate.toISOString()}`)
+                  router.push(`/listings/${id}/vendor/${vendorId}/book?guests=${effectiveGuests}&date=${selectedDate.toISOString()}${pricingMode === 'group' && groupTierId ? `&pricing_mode=group&group_tier_id=${groupTierId}` : ''}`)
                 } else {
                   setShowMobileDatePicker(true)
                 }
@@ -1445,6 +1590,25 @@ export default function VendorDetailPage({ params }: Props) {
                 ))}
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Minimum guests warning modal */}
+      {showMinGuestsWarning && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center"
+          style={{ background: 'rgba(0,0,0,0.4)' }}
+          onClick={(e) => { if (e.target === e.currentTarget) setShowMinGuestsWarning(false) }}>
+          <div className="bg-white w-full max-w-sm mx-4 rounded-2xl p-6">
+            <h2 className="text-lg font-bold mb-2" style={{ color: '#304333' }}>Minimum guests required</h2>
+            <p className="text-sm mb-5" style={{ color: '#78716c' }}>
+              This tour requires at least {listing.min_guests} guests. Please increase your guest count to continue.
+            </p>
+            <button onClick={() => setShowMinGuestsWarning(false)}
+              className="w-full py-3 rounded-xl text-white text-sm font-semibold"
+              style={{ background: '#304333', border: 'none', cursor: 'pointer' }}>
+              Got it
+            </button>
           </div>
         </div>
       )}

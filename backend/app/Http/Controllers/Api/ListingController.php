@@ -7,6 +7,9 @@ use App\Models\Booking;
 use App\Models\Listing;
 use App\Models\Message;
 use Illuminate\Http\Request;
+use App\Models\ListingDeparture;
+use App\Services\ListingPricingService;
+use Carbon\Carbon;
 
 class ListingController extends Controller
 {
@@ -63,6 +66,7 @@ class ListingController extends Controller
             'durationOptions',
             'seasonalRates',
             'groupDiscounts',
+            'groupPricingTiers',
             'departures',
             'blockedDates',
             'vendor:id,business_name,bio,logo_url,languages,verification_status,created_at',
@@ -116,4 +120,40 @@ class ListingController extends Controller
 
         return response()->json(['listing' => $listing]);
     }
+
+        // This method calculates a price quote for a listing based on the provided parameters.
+        public function quote(Request $request, Listing $listing)
+        {
+            $validated = $request->validate([
+                'guests' => ['required', 'integer', 'min:1'],
+                'check_in' => ['nullable', 'date'],
+                'check_out' => ['nullable', 'date'],
+                'departure_id' => ['nullable', 'exists:listing_departures,id'],
+                'duration_option_id' => ['nullable', 'exists:listing_duration_options,id'],
+                'pricing_mode' => ['nullable', 'in:individual,group'],
+                'group_tier_id' => ['nullable', 'exists:listing_group_pricing_tiers,id'],
+            ]);
+    
+            $checkIn = $validated['check_in'] ?? null;
+            if (!empty($validated['departure_id'])) {
+                $departure = ListingDeparture::where('id', $validated['departure_id'])
+                    ->where('listing_id', $listing->id)->first();
+                $checkIn = $departure?->date->toDateString() ?? $checkIn;
+            }
+    
+            $nights = !empty($validated['check_out']) && $checkIn
+                ? max(1, Carbon::parse($validated['check_out'])->diffInDays(Carbon::parse($checkIn)))
+                : 1;
+    
+            $pricing = ListingPricingService::calculate($listing, [
+                'guests' => $validated['guests'],
+                'nights' => $nights,
+                'check_in' => $checkIn,
+                'duration_option_id' => $validated['duration_option_id'] ?? null,
+                'pricing_mode' => $validated['pricing_mode'] ?? 'individual',
+                'group_tier_id' => $validated['group_tier_id'] ?? null,
+            ]);
+    
+            return response()->json($pricing);
+        }
 }

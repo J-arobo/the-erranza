@@ -14,6 +14,7 @@ use Illuminate\Validation\ValidationException;
 //For Paystack integration
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
+use App\Services\ListingPricingService;
 
 class BookingController extends Controller
 {
@@ -35,6 +36,9 @@ class BookingController extends Controller
             'check_in' => ['nullable', 'date', 'after_or_equal:today'],
             'check_out' => ['nullable', 'date', 'after:check_in'],
             'departure_id' => ['nullable', 'exists:listing_departures,id'],
+            'duration_option_id' => ['nullable', 'exists:listing_duration_options,id'],
+            'pricing_mode' => ['nullable', 'in:individual,group'],
+            'group_tier_id' => ['nullable', 'exists:listing_group_pricing_tiers,id'],
             'special_requests' => ['nullable', 'string'],
             'payment_plan' => ['nullable', 'in:full,instalments'],
         ]);
@@ -107,14 +111,19 @@ class BookingController extends Controller
             }
         }
 
-        // Simplified pricing: base price × guests × nights (when a check-out
-        // date is given). Duration options, seasonal rates and group
-        // discounts still aren't factored in server-side.
         $nights = $validated['check_out'] ?? null
             ? max(1, Carbon::parse($validated['check_out'])->diffInDays(Carbon::parse($effectiveCheckIn)))
             : 1;
 
-        $total = $listing->price * $validated['guests'] * $nights;
+        $pricing = ListingPricingService::calculate($listing, [
+            'guests' => $validated['guests'],
+            'nights' => $nights,
+            'check_in' => $effectiveCheckIn,
+            'duration_option_id' => $validated['duration_option_id'] ?? null,
+            'pricing_mode' => $validated['pricing_mode'] ?? 'individual',
+            'group_tier_id' => $validated['group_tier_id'] ?? null,
+        ]);
+        $total = $pricing['total'];
         $paymentPlan = $validated['payment_plan'] ?? 'full';
 
         $booking = DB::transaction(function () use ($request, $listing, $departure, $effectiveCheckIn, $validated, $total, $paymentPlan) {
@@ -183,7 +192,7 @@ class BookingController extends Controller
 
         return response()->json(['booking' => $booking], 201);
     }
-    
+
     // Dates to be reserved only after booking is confirmed. This endpoint is for initializing the payment process and returning the necessary data to the frontend.
     public function initializeBookingPayment(Request $request)
     {
@@ -193,6 +202,9 @@ class BookingController extends Controller
             'check_in' => ['nullable', 'date'],
             'check_out' => ['nullable', 'date'],
             'departure_id' => ['nullable', 'exists:listing_departures,id'],
+            'duration_option_id' => ['nullable', 'exists:listing_duration_options,id'],
+            'pricing_mode' => ['nullable', 'in:individual,group'],
+            'group_tier_id' => ['nullable', 'exists:listing_group_pricing_tiers,id'],
         ]);
 
         $listing = Listing::findOrFail($validated['listing_id']);
@@ -205,7 +217,15 @@ class BookingController extends Controller
             ? max(1, Carbon::parse($validated['check_out'])->diffInDays(Carbon::parse($effectiveCheckIn)))
             : 1;
 
-        $total = $listing->price * $validated['guests'] * $nights;
+        $pricing = ListingPricingService::calculate($listing, [
+            'guests' => $validated['guests'],
+            'nights' => $nights,
+            'check_in' => $effectiveCheckIn,
+            'duration_option_id' => $validated['duration_option_id'] ?? null,
+            'pricing_mode' => $validated['pricing_mode'] ?? 'individual',
+            'group_tier_id' => $validated['group_tier_id'] ?? null,
+        ]);
+        $total = $pricing['total'];
         $reference = 'booking_' . Str::random(16);
 
         return response()->json([
@@ -224,6 +244,9 @@ class BookingController extends Controller
             'check_in' => ['nullable', 'date', 'after_or_equal:today'],
             'check_out' => ['nullable', 'date', 'after:check_in'],
             'departure_id' => ['nullable', 'exists:listing_departures,id'],
+            'duration_option_id' => ['nullable', 'exists:listing_duration_options,id'],
+            'pricing_mode' => ['nullable', 'in:individual,group'],
+            'group_tier_id' => ['nullable', 'exists:listing_group_pricing_tiers,id'],
             'special_requests' => ['nullable', 'string'],
         ]);
 
@@ -291,9 +314,18 @@ class BookingController extends Controller
         $nights = $validated['check_out'] ?? null
             ? max(1, Carbon::parse($validated['check_out'])->diffInDays(Carbon::parse($effectiveCheckIn)))
             : 1;
-        $total = $listing->price * $validated['guests'] * $nights;
+        $pricing = ListingPricingService::calculate($listing, [
+            'guests' => $validated['guests'],
+            'nights' => $nights,
+            'check_in' => $effectiveCheckIn,
+            'duration_option_id' => $validated['duration_option_id'] ?? null,
+            'pricing_mode' => $validated['pricing_mode'] ?? 'individual',
+            'group_tier_id' => $validated['group_tier_id'] ?? null,
+        ]);
+        $total = $pricing['total'];
 
         $expectedAmount = (int) round($total * 100);
+
         abort_unless((int) $data['amount'] === $expectedAmount, 422, 'Payment amount does not match booking total.');
 
         $booking = DB::transaction(function () use ($request, $listing, $departure, $effectiveCheckIn, $validated, $total, $data) {
@@ -350,7 +382,7 @@ class BookingController extends Controller
         $this->authorizeOwnership($request, $booking);
 
         $booking->load(['listing.images', 'listing.itinerary', 'listing.vendor:id,business_name,phone', 'messages.sender:id,name,avatar_url', 'review', 'payments', 'extraCharges']);
-        
+
         return response()->json(['booking' => $booking]);
     }
 

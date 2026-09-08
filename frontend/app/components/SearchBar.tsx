@@ -544,6 +544,8 @@ export default function SearchBar({
                   setEndDate(null)
                   setGuests(EMPTY_GUESTS)
                   setActiveCard('where')
+                  onSearch(modalTab, '', 0)
+                  handleClose()
                 }}
                 className="text-sm font-semibold text-[#304333]"
                 style={{ WebkitTapHighlightColor: 'transparent' }}

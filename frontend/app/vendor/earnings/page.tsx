@@ -92,10 +92,18 @@ export default function VendorEarningsPage() {
 
   return (
     <div className="p-5 lg:p-8 max-w-3xl mx-auto">
-      <h1 className="text-2xl font-bold text-[#1a1a1a] mb-1">Earnings</h1>
+      <div className="flex items-center gap-2 mb-1">
+        <h1 className="text-2xl font-bold text-[#1a1a1a]">Earnings</h1>
+        <button onClick={toggleHideEarnings}
+          className="text-gray-400 hover:text-[#1a1a1a] transition-colors focus:outline-none"
+          title={hideEarnings ? 'Show figures' : 'Hide figures'}>
+          {hideEarnings ? <EyeOff size={16} /> : <Eye size={16} />}
+        </button>
+      </div>
       <p className="text-xs text-gray-400 mb-6">
         Shown after Erranza's {Math.round(earnings.commission_rate * 100)}% commission — what you actually receive.
       </p>
+
 
       {error && (
         <div className="mb-4 px-4 py-3 rounded-xl bg-red-50 text-red-600 text-sm">{error}</div>
@@ -111,13 +119,6 @@ export default function VendorEarningsPage() {
         ].map(({ label, value }) => (
           <div key={label}
             className="relative bg-white rounded-2xl border border-[#e0d9cc] shadow-sm p-4">
-            {label === 'Total earned' && (
-              <button onClick={toggleHideEarnings}
-                className="absolute top-4 right-4 text-gray-400 hover:text-[#1a1a1a] transition-colors focus:outline-none"
-                title={hideEarnings ? 'Show figures' : 'Hide figures'}>
-                {hideEarnings ? <EyeOff size={15} /> : <Eye size={15} />}
-              </button>
-            )}
             <p className="text-xl font-bold text-[#1a1a1a]">{value}</p>
             <p className="text-xs text-gray-400 mt-0.5">{label}</p>
           </div>

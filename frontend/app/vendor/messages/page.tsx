@@ -7,6 +7,19 @@ function formatTimestamp(ts: string) {
   return new Date(ts).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
 }
 
+function formatTime(ts: string) {
+  return new Date(ts).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+}
+function formatDateSeparator(ts: string) {
+  const d = new Date(ts)
+  const today = new Date()
+  const yesterday = new Date(today)
+  yesterday.setDate(today.getDate() - 1)
+  if (d.toDateString() === today.toDateString()) return 'Today'
+  if (d.toDateString() === yesterday.toDateString()) return 'Yesterday'
+  return d.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })
+}
+
 const AVATAR_COLORS = ['#f0c4d4', '#c4d4f0', '#d4f0c4', '#f0e0c4', '#e0c4f0']
 function avatarColor(name: string): string {
   let hash = 0
@@ -52,6 +65,8 @@ export default function VendorMessagesPage() {
 
   const [reply, setReply] = useState('')
   const [sending, setSending] = useState(false)
+  // We use this to track when the thread was opened, so we can mark messages as read if they were sent before this timestamp.
+  const [openTimestamp, setOpenTimestamp] = useState<number | null>(null)
 
   useEffect(() => {
     apiFetch<{ threads: Thread[] }>('/vendor/messages')
@@ -156,7 +171,7 @@ export default function VendorMessagesPage() {
 
       {/* Thread */}
       {activeTravellerId !== null ? (
-        <div className="flex-1 flex flex-col bg-[#f3f4f6]">
+        <div className="flex-1 flex flex-col bg-white">
           {threadLoading || !activeThread ? (
             <div className="flex-1 flex items-center justify-center">
               <div className="w-8 h-8 rounded-full border-2 border-[#2c4a1e] border-t-transparent animate-spin" />
@@ -185,8 +200,18 @@ export default function VendorMessagesPage() {
                 {activeThread.messages.map((m, i) => {
                   const prevListingId = i > 0 ? activeThread.messages[i - 1].listing?.id ?? null : null
                   const showListingTag = m.listing && m.listing.id !== prevListingId
+                  const prevDate = i > 0 ? new Date(activeThread.messages[i - 1].created_at).toDateString() : null
+                  const showDateSeparator = new Date(m.created_at).toDateString() !== prevDate
+                  const outgoing = m.sender_type === 'vendor'
                   return (
                     <div key={m.id}>
+                      {showDateSeparator && (
+                        <div className="flex justify-center my-2">
+                          <span className="bg-white border border-gray-200 text-gray-500 text-[11px] font-medium px-3 py-1.5 rounded-full">
+                            {formatDateSeparator(m.created_at)}
+                          </span>
+                        </div>
+                      )}
                       {showListingTag && (
                         <div className="flex justify-center my-1">
                           <div className="bg-white border border-gray-200 text-gray-500 text-xs font-medium px-3 py-1.5 rounded-full flex items-center gap-1.5">
@@ -194,18 +219,25 @@ export default function VendorMessagesPage() {
                           </div>
                         </div>
                       )}
-                      <div className={`flex flex-col ${m.sender_type === 'vendor' ? 'items-end' : 'items-start'}`}>
-                        <div className={`px-4 py-2.5 rounded-2xl text-sm max-w-[75%]
-                          ${m.sender_type === 'vendor'
-                            ? 'bg-[#2c4a1e] text-white rounded-br-sm'
-                            : 'bg-white text-[#1a1a1a] border border-[#e0d9cc] shadow-sm rounded-bl-sm'}`}>
+                      <div className={`flex flex-col ${outgoing ? 'items-end' : 'items-start'}`}>
+                        {openTimestamp === m.id && (
+                          <span className="text-[11px] text-gray-400 mb-1 px-1">
+                            {formatTime(m.created_at)}
+                          </span>
+                        )}
+                        <button type="button"
+                          onClick={() => setOpenTimestamp(id => id === m.id ? null : m.id)}
+                          className={`text-left px-4 py-2.5 text-sm max-w-[75%]
+            ${outgoing
+                              ? 'bg-[#2c4a1e] text-white rounded-[20px] rounded-br-[6px]'
+                              : 'bg-[#e9e9eb] text-[#111b21] rounded-[20px] rounded-bl-[6px]'}`}>
                           {m.text}
-                        </div>
-                        <span className="text-[10px] text-gray-400 mt-1 px-1">{formatTimestamp(m.created_at)}</span>
+                        </button>
                       </div>
                     </div>
                   )
                 })}
+
               </div>
               <div className="px-4 py-3 bg-white border-t border-gray-100 flex gap-2">
                 <input type="text" value={reply} onChange={(e) => setReply(e.target.value)}

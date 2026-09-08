@@ -32,6 +32,8 @@ type ApiListingDetail = {
   min_lead_time_days: number | null
   vendor: { business_name: string }
   departures: { id: number; date: string; capacity: number; booked: number }[]
+  group_pricing_tiers: { id: number; people_count: number; total_price: string }[]
+  allow_custom_dates: boolean
 }
 
 function toDateStr(d: Date): string {
@@ -167,6 +169,15 @@ function BookingPageContent({ params }: Props) {
   const [sheetCheckIn, setSheetCheckIn] = useState<Date | null>(selectedCheckIn)
   const [sheetCheckOut, setSheetCheckOut] = useState<Date | null>(selectedCheckOut)
   const [selectedDepartureId, setSelectedDepartureId] = useState<number | null>(null)
+  const [useCustomDate, setUseCustomDate] = useState(false)
+  const [pricingMode] = useState<'individual' | 'group'>(() => searchParams.get('pricing_mode') === 'group' ? 'group' : 'individual')
+  const [groupTierId] = useState<number | null>(() => {
+    const raw = searchParams.get('group_tier_id')
+    return raw ? Number(raw) : null
+  })
+  const [quotedTotal, setQuotedTotal] = useState<number | null>(null)
+
+
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState('')
   // client need to reach the bottom to activate the book button
@@ -192,10 +203,15 @@ function BookingPageContent({ params }: Props) {
     return () => window.removeEventListener('pageshow', handlePageShow)
   }, [])
 
-  useState(() => {
+  useEffect(() => {
     apiFetch<{ listing: ApiListingDetail }>(`/listings/${vendorId}`)
       .then(({ listing }) => {
         setListing(listing)
+        const forceCustom = searchParams.get('custom') === '1'
+        if (forceCustom) {
+          setUseCustomDate(true)
+          return
+        }
         const todayStr = new Date().toISOString().slice(0, 10)
         const upcoming = listing.departures.filter(d => d.date >= todayStr).sort((a, b) => a.date.localeCompare(b.date))
         if (upcoming.length > 0) {
@@ -205,12 +221,43 @@ function BookingPageContent({ params }: Props) {
       })
       .catch(() => setNotFound(true))
       .finally(() => setLoading(false))
-  })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [vendorId])
 
   //Clamp - guest minimum to be shown early
   useEffect(() => {
-    if (listing?.min_guests && guests < listing.min_guests) setGuests(listing.min_guests)
-  }, [listing])
+    if (listing?.min_guests && guests < listing.min_guests && pricingMode === 'individual') setGuests(listing.min_guests)
+  }, [listing, pricingMode])
+
+  // Server-authoritative price quote — mirrors ListingPricingService so the
+  // displayed total matches what checkout will actually charge (duration
+  // options, seasonal rates and group pricing all live server-side only).
+  useEffect(() => {
+    if (!listing) return
+    if (pricingMode === 'group' && !groupTierId) { setQuotedTotal(null); return }
+
+    const departureId = bookingUsesDeparture ? selectedDepartureId : null
+    const params: Record<string, unknown> = {
+      guests,
+      pricing_mode: pricingMode,
+      group_tier_id: groupTierId,
+    }
+    if (departureId) {
+      params.departure_id = departureId
+    } else if (selectedCheckIn) {
+      params.check_in = toDateStr(selectedCheckIn)
+      if (selectedCheckOut) params.check_out = toDateStr(selectedCheckOut)
+    } else {
+      setQuotedTotal(null)
+      return
+    }
+
+    let cancelled = false
+    apiFetch<{ total: number }>(`/listings/${listing.id}/quote`, { method: 'POST', body: JSON.stringify(params) })
+      .then(({ total }) => { if (!cancelled) setQuotedTotal(total) })
+      .catch(() => { if (!cancelled) setQuotedTotal(null) })
+    return () => { cancelled = true }
+  }, [listing, guests, pricingMode, groupTierId, selectedDepartureId, selectedCheckIn, selectedCheckOut])
 
 
   if (loading) {
@@ -244,20 +291,21 @@ function BookingPageContent({ params }: Props) {
   const todayStr = new Date().toISOString().slice(0, 10)
   const upcomingDepartures = listing.departures.filter(d => d.date >= todayStr).sort((a, b) => a.date.localeCompare(b.date))
   const usesDepartures = listing.departures.length > 0
+  const bookingUsesDeparture = usesDepartures && !useCustomDate
 
   const stepIndex = STEPS.indexOf(step)
   const basePrice = Math.round(Number(listing.price))
   const nights = (!usesDepartures && selectedCheckIn && selectedCheckOut)
     ? Math.max(1, Math.round((selectedCheckOut.getTime() - selectedCheckIn.getTime()) / 86400000))
     : 1
-  const totalPrice = basePrice * guests * nights
+  const totalPrice = quotedTotal ?? (basePrice * guests * nights)
   const insurancePrice = totalPrice * 0.12
   const finalTotal = insurance ? totalPrice + insurancePrice : totalPrice
   const tourImage = listing.images[0]?.url ?? FALLBACK_IMAGE
   const guideName = listing.vendor.business_name
   const rating = listing.reviews_avg_rating ? Number(listing.reviews_avg_rating).toFixed(2) : '4.50'
   // Payment
-  const dateReady = usesDepartures ? !!selectedDepartureId : !!selectedCheckIn
+  const dateReady = bookingUsesDeparture ? !!selectedDepartureId : !!selectedCheckIn
 
   function handleSheetCalSelect(date: Date) {
     if (!sheetCheckIn || (sheetCheckIn && sheetCheckOut)) {
@@ -276,11 +324,15 @@ function BookingPageContent({ params }: Props) {
     }
     if (step === 'message') { setStep('confirm'); return }
     if (step === 'confirm') {
-      if (usesDepartures ? !selectedDepartureId : !selectedCheckIn) {
+      if (bookingUsesDeparture ? !selectedDepartureId : !selectedCheckIn) {
         setSubmitError('Please select your tour dates first.')
         return
       }
-      if (listing!.min_guests && guests < listing!.min_guests) {
+      if (pricingMode === 'group' && !groupTierId) {
+        setSubmitError('Please choose a group size.')
+        return
+      }
+      if (pricingMode === 'individual' && listing!.min_guests && guests < listing!.min_guests) {
         setSubmitError(`This tour requires a minimum of ${listing!.min_guests} guests.`)
         return
       }
@@ -292,7 +344,7 @@ function BookingPageContent({ params }: Props) {
 
   async function handlePaystackPayment() {
     if (payingRef.current) return
-    if (usesDepartures ? !selectedDepartureId : !selectedCheckIn) {
+    if (bookingUsesDeparture ? !selectedDepartureId : !selectedCheckIn) {
       setSubmitError('Please select your tour dates first.')
       return
     }
@@ -301,9 +353,9 @@ function BookingPageContent({ params }: Props) {
     setPayingViaGateway(true)
     setSubmitError('')
     try {
-      const bookingParams = usesDepartures
-        ? { departure_id: selectedDepartureId }
-        : { check_in: toDateStr(selectedCheckIn!), check_out: selectedCheckOut ? toDateStr(selectedCheckOut) : null }
+      const bookingParams = bookingUsesDeparture
+      ? { departure_id: selectedDepartureId }
+      : { check_in: toDateStr(selectedCheckIn!), check_out: selectedCheckOut ? toDateStr(selectedCheckOut) : null }
 
       const { reference, amount, email } = await apiFetch<{ reference: string; amount: number; email: string }>(
         '/payments/initialize',
@@ -312,6 +364,8 @@ function BookingPageContent({ params }: Props) {
           body: JSON.stringify({
             listing_id: listing!.id,
             guests,
+            pricing_mode: pricingMode,
+            group_tier_id: groupTierId,
             ...bookingParams,
           }),
         }
@@ -339,6 +393,8 @@ function BookingPageContent({ params }: Props) {
               reference: response.reference,
               listing_id: listing!.id,
               guests,
+              pricing_mode: pricingMode,
+              group_tier_id: groupTierId,
               ...bookingParams,
             }),
           })
@@ -369,7 +425,7 @@ function BookingPageContent({ params }: Props) {
 
   async function handleMpesaPayment() {
     if (payingRef.current) return
-    if (usesDepartures ? !selectedDepartureId : !selectedCheckIn) {
+    if (bookingUsesDeparture ? !selectedDepartureId : !selectedCheckIn) {
       setSubmitError('Please select your tour dates first.')
       return
     }
@@ -383,15 +439,17 @@ function BookingPageContent({ params }: Props) {
     setPayingViaGateway(true)
     setSubmitError('')
     try {
-      const bookingParams = usesDepartures
-        ? { departure_id: selectedDepartureId }
-        : { check_in: toDateStr(selectedCheckIn!), check_out: selectedCheckOut ? toDateStr(selectedCheckOut) : null }
+      const bookingParams = bookingUsesDeparture
+      ? { departure_id: selectedDepartureId }
+      : { check_in: toDateStr(selectedCheckIn!), check_out: selectedCheckOut ? toDateStr(selectedCheckOut) : null }
 
       const { checkout_request_id } = await apiFetch<{ checkout_request_id: string }>('/payments/mpesa/initiate', {
         method: 'POST',
         body: JSON.stringify({
           listing_id: listing!.id,
           guests,
+          pricing_mode: pricingMode,
+          group_tier_id: groupTierId,
           phone: mpesaPhone.trim(),
           ...bookingParams,
           ...(bookingFor === 'company' ? { company_name: companyName.trim() || null, company_tax_pin: companyTaxPin.trim() || null, billing_email: billingEmail.trim() || null } : {}),
@@ -498,7 +556,7 @@ function BookingPageContent({ params }: Props) {
       <div className="border-t border-gray-100 pt-3 flex flex-col gap-3">
 
         {/* Date */}
-        {usesDepartures ? (
+        {bookingUsesDeparture ? (
           <div>
             <p className="text-sm font-semibold text-[#1a1a1a] mb-2">Tour date</p>
             {upcomingDepartures.length === 0 ? (
@@ -526,6 +584,12 @@ function BookingPageContent({ params }: Props) {
                 })}
               </div>
             )}
+            {listing.allow_custom_dates && (
+              <button type="button" onClick={() => { setUseCustomDate(true); setSelectedDepartureId(null) }}
+                className="text-xs font-semibold text-[#1a1a1a] underline mt-2">
+                Or pick a custom date
+              </button>
+            )}
           </div>
         ) : (
           <div>
@@ -547,43 +611,69 @@ function BookingPageContent({ params }: Props) {
                 Change
               </button>
             </div>
+            {usesDepartures && (
+              <button type="button" onClick={() => { setUseCustomDate(false); setSelectedCheckIn(null); setSelectedCheckOut(null) }}
+                className="text-xs font-semibold text-[#1a1a1a] underline mt-2">
+                Or choose a fixed departure date instead
+              </button>
+            )}
           </div>
         )}
 
 
-        {/* Guests */}
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm font-semibold text-[#1a1a1a]">Guests</p>
-            <p className="text-sm text-gray-500">{guests} adult{guests > 1 ? 's' : ''}</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setGuests(g => Math.max(listing!.min_guests ?? 1, g - 1))}
-              className="w-7 h-7 rounded-full border border-gray-300 text-sm
-                         flex items-center justify-center hover:border-[#1a1a1a]"
-            >−</button>
-            <span className="text-sm font-semibold w-4 text-center">{guests}</span>
-            <button
-              onClick={() => setGuests(g => Math.min(listing!.max_guests ?? 20, g + 1))}
-              className="w-7 h-7 rounded-full border border-gray-300 text-sm
-                         flex items-center justify-center hover:border-[#1a1a1a]"
-            >+</button>
-          </div>
-        </div>
-        {listing.min_guests ? (
-          <p className="text-xs text-gray-400 -mt-2">Minimum {listing.min_guests} guests for this tour.</p>
-        ) : null}
 
+        {/* Guests */}
+        {pricingMode === 'group' && groupTierId ? (
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-semibold text-[#1a1a1a]">Group size</p>
+              <p className="text-sm text-gray-500">{guests} people (group price)</p>
+            </div>
+            <button
+              onClick={() => router.push(`/listings/${id}/vendor/${vendorId}`)}
+              className="text-sm text-[#1a1a1a] font-semibold flex-shrink-0"
+            >
+              Change
+            </button>
+          </div>
+        ) : (
+
+          <>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-semibold text-[#1a1a1a]">Guests</p>
+                <p className="text-sm text-gray-500">{guests} adult{guests > 1 ? 's' : ''}</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setGuests(g => Math.max(listing!.min_guests ?? 1, g - 1))}
+                  className="w-7 h-7 rounded-full border border-gray-300 text-sm
+                             flex items-center justify-center hover:border-[#1a1a1a]"
+                >−</button>
+                <span className="text-sm font-semibold w-4 text-center">{guests}</span>
+                <button
+                  onClick={() => setGuests(g => Math.min(listing!.max_guests ?? 20, g + 1))}
+                  className="w-7 h-7 rounded-full border border-gray-300 text-sm
+                             flex items-center justify-center hover:border-[#1a1a1a]"
+                >+</button>
+              </div>
+            </div>
+            {listing.min_guests ? (
+              <p className="text-xs text-gray-400 -mt-2">Minimum {listing.min_guests} guests for this tour.</p>
+            ) : null}
+          </>
+        )}
 
         {/* Price */}
         <div className="flex items-center justify-between">
           <div>
             <p className="text-sm font-semibold text-[#1a1a1a]">Total price</p>
             <p className="text-sm text-gray-500">
-              {usesDepartures
-                ? `Ksh ${basePrice.toLocaleString()} × ${guests} = Ksh ${totalPrice.toLocaleString()}`
-                : `Ksh ${basePrice.toLocaleString()} × ${guests} × ${nights} night${nights !== 1 ? 's' : ''} = Ksh ${totalPrice.toLocaleString()}`}
+              {pricingMode === 'group' && groupTierId
+                ? `Group of ${guests} — Ksh ${totalPrice.toLocaleString()}`
+                : usesDepartures
+                  ? `Ksh ${basePrice.toLocaleString()} × ${guests} = Ksh ${totalPrice.toLocaleString()}`
+                  : `Ksh ${basePrice.toLocaleString()} × ${guests} × ${nights} night${nights !== 1 ? 's' : ''} = Ksh ${totalPrice.toLocaleString()}`}
             </p>
           </div>
         </div>
@@ -796,8 +886,10 @@ function BookingPageContent({ params }: Props) {
               <h2 className="text-sm font-bold text-[#1a1a1a] mb-3">Price details</h2>
               <div className="flex flex-col gap-2">
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-500">
-                    {guests} {guests === 1 ? 'person' : 'people'} × Ksh {basePrice.toLocaleString()}{!usesDepartures ? ` × ${nights} night${nights !== 1 ? 's' : ''}` : ''}
+                <span className="text-sm text-gray-500">
+                    {pricingMode === 'group' && groupTierId
+                      ? `Group of ${guests}`
+                      : `${guests} ${guests === 1 ? 'person' : 'people'} × Ksh ${basePrice.toLocaleString()}${!usesDepartures ? ` × ${nights} night${nights !== 1 ? 's' : ''}` : ''}`}
                   </span>
                   <span className="text-sm text-[#1a1a1a]">Ksh {totalPrice.toLocaleString()}</span>
                 </div>

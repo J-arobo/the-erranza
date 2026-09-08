@@ -280,7 +280,7 @@ export default function VendorShell({ children }: { children: React.ReactNode })
                 <p className="text-white text-lg font-bold">Erranza</p>
                 <p className="text-white/50 text-xs">Vendor Dashboard</p>
               </div>
-              <button onClick={() => setMobileOpen(false)}>
+              <button data-tour-toggle="close-mobile-nav" onClick={() => setMobileOpen(false)}>
                 <X size={20} color="white" />
               </button>
             </div>
@@ -291,8 +291,8 @@ export default function VendorShell({ children }: { children: React.ReactNode })
             </div>
 
             <nav className="flex-1 px-3 py-4 flex flex-col gap-1 overflow-y-auto">
-              {NAV_ITEMS.map(({ label, Icon, path }) => (
-                <button key={path} onClick={() => navigate(path)}
+              {NAV_ITEMS.map(({ label, Icon, path, tour }) => (
+                <button key={path} data-tour={tour} onClick={() => navigate(path)}
                   className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm
                               font-medium transition-all text-left w-full
                     ${isActive(path)
@@ -331,7 +331,7 @@ export default function VendorShell({ children }: { children: React.ReactNode })
         {/* Mobile top bar */}
         <div className="lg:hidden flex items-center justify-between px-4 py-3
                         bg-white border-b border-gray-100 flex-shrink-0">
-          <button onClick={() => setMobileOpen(true)}
+          <button data-tour-toggle="open-mobile-nav" onClick={() => setMobileOpen(true)}
             className="w-9 h-9 rounded-xl bg-[#f3f4f6] flex items-center justify-center">
             <Menu size={18} color="#2c4a1e" />
           </button>

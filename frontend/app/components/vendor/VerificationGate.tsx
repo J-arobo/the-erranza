@@ -3,7 +3,7 @@ import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Clock, XCircle, LogOut, Upload, Check, Pencil, Eye, Loader2 } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
-import { apiFetch, apiErrorMessage } from '@/lib/api'
+import { apiFetch, apiErrorMessage, uploadWithProgress } from '@/lib/api'
 
 type Submission = {
   id: number
@@ -51,6 +51,8 @@ export default function VerificationGate() {
   const [selectedFiles, setSelectedFiles] = useState<Record<string, File>>({})
   const fileInputRef = useRef<HTMLInputElement>(null)
   const pendingDocType = useRef<string | null>(null)
+  // Upload status
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null)
 
   useEffect(() => {
     apiFetch<{ submissions: Submission[] }>('/vendor/verification-submissions')
@@ -77,15 +79,15 @@ export default function VerificationGate() {
     const file = selectedFiles[docType]
     if (!file) return
     setSubmittingType(docType)
+    setUploadProgress(0)
     setError('')
     try {
       const formData = new FormData()
       formData.append('doc_type', docType)
       formData.append('document', file)
-      const { submission } = await apiFetch<{ submission: Submission }>('/vendor/verification-submissions', {
-        method: 'POST',
-        body: formData,
-      })
+      const { submission } = await uploadWithProgress<{ submission: Submission }>(
+        '/vendor/verification-submissions', formData, setUploadProgress
+      )
       setSubmissions(s => [submission, ...s])
       setSelectedFiles(f => {
         const next = { ...f }
@@ -96,6 +98,7 @@ export default function VerificationGate() {
       setError(apiErrorMessage(err))
     } finally {
       setSubmittingType(null)
+      setUploadProgress(null)
     }
   }
 
@@ -183,10 +186,15 @@ export default function VerificationGate() {
                           <Pencil size={14} />
                         </button>
                       </div>
+                      {isSubmitting && uploadProgress !== null && (
+                        <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden mb-2">
+                          <div className="h-full bg-[#2c4a1e] transition-all duration-150" style={{ width: `${uploadProgress}%` }} />
+                        </div>
+                      )}
                       <button onClick={() => submitReupload(s.doc_type)} disabled={isSubmitting}
                         className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-[#2c4a1e] text-white
                                    text-xs font-semibold hover:bg-[#3d6b28] transition-colors disabled:opacity-50">
-                        {isSubmitting ? <><Loader2 size={13} className="animate-spin" /> Submitting…</> : <><Check size={13} /> Submit document</>}
+                        {isSubmitting ? `Uploading… ${uploadProgress ?? 0}%` : <><Check size={13} /> Submit document</>}
                       </button>
                     </div>
                   )}

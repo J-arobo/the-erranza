@@ -6,7 +6,7 @@ import {
   X, Check, LogOut, Pencil, Trash2
 } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
-import { apiFetch, apiErrorMessage } from '@/lib/api'
+import { apiFetch, apiErrorMessage, uploadWithProgress } from '@/lib/api'
 
 const STEP_LABELS = ['Business details', 'Categories', 'Plan', 'Payment', 'Pending review']
 const STEP_ICONS = [Building2, Layers, Package, CreditCard, Clock]
@@ -101,6 +101,9 @@ export default function VendorOnboardingPage() {
 
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState('')
+  // Upload progress
+  const [idUploadProgress, setIdUploadProgress] = useState<number | null>(null)
+  const [insuranceUploadProgress, setInsuranceUploadProgress] = useState<number | null>(null)
 
   useEffect(() => {
     apiFetch<{ submissions: ApiSubmission[] }>('/vendor/verification-submissions')
@@ -151,18 +154,22 @@ export default function VendorOnboardingPage() {
     e.target.value = ''
     if (!file) return
     setUploadingId(true)
+    setIdUploadProgress(0)
     setUploadError('')
     try {
       const formData = new FormData()
       formData.append('doc_type', 'Government ID')
       formData.append('document', file)
-      const res = await apiFetch<{ submission: { id: number } }>('/vendor/verification-submissions', { method: 'POST', body: formData })
+      const res = await uploadWithProgress<{ submission: { id: number } }>(
+        '/vendor/verification-submissions', formData, setIdUploadProgress
+      )
       setIdUploaded(true)
       setIdFile({ name: file.name, size: file.size, submissionId: res.submission.id })
     } catch (err) {
       setUploadError(apiErrorMessage(err))
     } finally {
       setUploadingId(false)
+      setIdUploadProgress(null)
     }
   }
 
@@ -186,18 +193,22 @@ export default function VendorOnboardingPage() {
     e.target.value = ''
     if (!file) return
     setUploadingInsurance(true)
+    setInsuranceUploadProgress(0)
     setUploadError('')
     try {
       const formData = new FormData()
       formData.append('doc_type', 'Insurance certificate')
       formData.append('document', file)
-      const res = await apiFetch<{ submission: { id: number } }>('/vendor/verification-submissions', { method: 'POST', body: formData })
+      const res = await uploadWithProgress<{ submission: { id: number } }>(
+        '/vendor/verification-submissions', formData, setInsuranceUploadProgress
+      )
       setInsuranceUploaded(true)
       setInsuranceFile({ name: file.name, size: file.size, submissionId: res.submission.id })
     } catch (err) {
       setUploadError(apiErrorMessage(err))
     } finally {
       setUploadingInsurance(false)
+      setInsuranceUploadProgress(null)
     }
   }
 
@@ -413,6 +424,14 @@ export default function VendorOnboardingPage() {
                     </button>
                   )}
                 </div>
+
+                {/* Upload status */}
+                {uploadingId && idUploadProgress !== null && (
+                  <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden mt-3">
+                    <div className="h-full bg-[#2c4a1e] transition-all duration-150" style={{ width: `${idUploadProgress}%` }} />
+                  </div>
+                )}
+
                 {idFile && (
                   <div className="flex items-center justify-between gap-3 mt-3 pt-3 border-t border-gray-100">
                     <p className="text-xs text-gray-500 truncate">
@@ -453,6 +472,14 @@ export default function VendorOnboardingPage() {
                     </button>
                   )}
                 </div>
+
+                {/* Upload status */}
+                {uploadingInsurance && insuranceUploadProgress !== null && (
+                  <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden mt-3">
+                    <div className="h-full bg-[#2c4a1e] transition-all duration-150" style={{ width: `${insuranceUploadProgress}%` }} />
+                  </div>
+                )}
+                
                 {insuranceFile && (
                   <div className="flex items-center justify-between gap-3 mt-3 pt-3 border-t border-gray-100">
                     <p className="text-xs text-gray-500 truncate">

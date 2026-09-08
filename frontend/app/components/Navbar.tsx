@@ -1,7 +1,7 @@
 'use client'
 import { useState, useRef, useEffect } from 'react'
 import { createPortal } from 'react-dom'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import {
   User, LayoutDashboard, X, Globe, HelpCircle,
   Home, Newspaper, Briefcase, Shield,
@@ -77,6 +77,8 @@ const MENU_SECTIONS_LOGGEDIN = [
 ]
 
 export default function Navbar({ categoryBar }: { categoryBar?: React.ReactNode }) {
+  // Path for traveler switching to partner dashboard and vice versa
+  const pathname = usePathname()
   const router = useRouter()
   const { isLoggedIn, user, logout, setActiveRole } = useAuth()
   const [menuOpen, setMenuOpen] = useState(false)
@@ -86,10 +88,10 @@ export default function Navbar({ categoryBar }: { categoryBar?: React.ReactNode 
   const [mounted, setMounted] = useState(false)
   const helpRef = useRef<HTMLButtonElement>(null)
   const profileBtnRef = useRef<HTMLButtonElement>(null)
-
   const isPartner = !!user?.roles?.includes('partner')
-  const activeRole = user?.activeRole ?? 'traveller'
+  const activeRole = pathname.startsWith('/vendor') ? 'partner' : (user?.activeRole ?? 'traveller')
   const menuSections = isLoggedIn ? MENU_SECTIONS_LOGGEDIN : MENU_SECTIONS_GUEST
+  
 
   // Wait for client mount before rendering portal
   useEffect(() => { setMounted(true) }, [])
