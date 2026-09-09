@@ -41,6 +41,7 @@ class VendorListingController extends Controller
             'price' => ['required', 'numeric', 'min:0'],
             'child_price' => ['nullable', 'numeric', 'min:0'],
             'extra_guest_price' => ['nullable', 'numeric', 'min:0'],
+            'included_guests' => ['nullable', 'integer', 'min:1'],
             'status' => ['nullable', 'in:draft,active'],
             'min_guests' => ['nullable', 'integer', 'min:1'],
             'max_guests' => ['nullable', 'integer', 'min:1'],
@@ -170,12 +171,13 @@ class VendorListingController extends Controller
 
         $validated = $request->validate([
             'title' => ['sometimes', 'string', 'max:255'],
-            'category' => ['sometimes', 'string', 'max:100', Rule::in($listing->vendor->categories ?? [])],
+            'category' => ['sometimes', 'string', 'max:100', Rule::in(array_unique([...($listing->vendor->categories ?? []), $listing->category]))],
             'location' => ['sometimes', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
             'price' => ['sometimes', 'numeric', 'min:0'],
             'child_price' => ['nullable', 'numeric', 'min:0'],
             'extra_guest_price' => ['nullable', 'numeric', 'min:0'],
+            'included_guests' => ['nullable', 'integer', 'min:1'],
             'status' => ['sometimes', 'in:draft,active,paused'],
             'min_guests' => ['nullable', 'integer', 'min:1'],
             'max_guests' => ['nullable', 'integer', 'min:1'],

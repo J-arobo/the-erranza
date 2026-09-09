@@ -12,7 +12,7 @@ class Listing extends Model
         'vendor_id', 'title', 'category', 'location', 'description',
         'price', 'child_price', 'extra_guest_price', 'status', 'allow_custom_dates',
         'min_guests', 'max_guests', 'min_nights', 'min_lead_time_days',
-        'bedrooms', 'beds', 'bathrooms', 'lat', 'lng',
+        'bedrooms', 'beds', 'bathrooms', 'lat', 'lng', 'included_guests' => 'integer',
         'cancellation_policy', 'custom_cancellation_text',
         'amenities', 'excluded', 'flagged', 'flag_reason', 'views',
         'house_rules', 'safety_info',

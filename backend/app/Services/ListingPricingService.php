@@ -80,8 +80,11 @@ class ListingPricingService
         $extraGuestPrice = $listing->extra_guest_price !== null
             ? (float) $listing->extra_guest_price
             : $basePrice;
+        $includedGuests = max(1, (int) ($listing->included_guests ?? 1));
+        $extraGuestCount = max(0, $guests - $includedGuests);
 
-        $perNight = $basePrice + ($guests > 1 ? ($guests - 1) * $extraGuestPrice : 0);
+        $perNight = $basePrice + $extraGuestCount * $extraGuestPrice;
+
         $total = round($perNight * $nights, 2);
 
         return [
@@ -90,6 +93,7 @@ class ListingPricingService
                 'mode' => 'individual',
                 'base_price' => $basePrice,
                 'extra_guest_price' => $extraGuestPrice,
+                'included_guests' => $includedGuests,
                 'guests' => $guests,
                 'nights' => $nights,
                 'duration_option_id' => $durationOption?->id,

@@ -192,6 +192,10 @@ Route::prefix('vendor')->middleware(['auth:sanctum', 'vendor'])->group(function 
     Route::post('/bookings/{booking}/complete/confirm', [BookingCompletionController::class, 'confirm']);
     // Extra charges
     Route::post('/bookings/{booking}/extra-charges', [BookingExtraChargeController::class, 'store']);
+    // vendor booking creation for someone else
+    Route::post('/bookings', [VendorBookingController::class, 'store']);
+    Route::get('/travellers/search', [VendorBookingController::class, 'searchTravellers']);
+
 });
 
 Route::prefix('admin')->middleware(['auth:sanctum', 'admin'])->group(function () {

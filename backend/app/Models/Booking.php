@@ -11,7 +11,7 @@ class Booking extends Model
 {
     protected $fillable = [
         'listing_id', 'departure_id', 'traveller_id', 'status', 'guests', 'total', 'payment_plan',
-        'check_in', 'check_out', 'proposed_date', 'payment_token', 'created_by_admin',
+        'check_in', 'check_out', 'proposed_date', 'payment_token', 'created_by_admin', 'created_by_vendor',
         'company_name', 'company_tax_pin', 'billing_email', 'invoice_expires_at',
         'refund_percent', 'refund_amount', 'special_requests', 'decline_reason',
         'completion_code', 'completion_code_expires_at', 'vendor_completed_at', 'traveller_completed_at',

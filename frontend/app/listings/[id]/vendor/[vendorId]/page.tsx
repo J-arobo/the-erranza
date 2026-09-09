@@ -574,18 +574,57 @@ export default function VendorDetailPage({ params }: Props) {
         </div>
 
         <div className="flex-1 overflow-y-auto px-5 pb-32">
-          <h1 className="text-2xl font-bold text-[#304333] mb-1">Select tour date</h1>
-          <p className="text-sm text-[#78716c] mb-6">Add your preferred tour date</p>
-          <DesktopCalendar selected={selectedDate} onSelect={setSelectedDate} stacked />
+          {usesDepartures && !listing.allow_custom_dates ? (
+            <>
+              <h1 className="text-2xl font-bold text-[#304333] mb-1">Tour date</h1>
+              <p className="text-sm text-[#78716c] mb-6">This tour only runs on the fixed dates below.</p>
+              <div className="flex flex-col gap-2">
+                {upcomingDepartures.map((dep) => {
+                  const full = dep.booked >= dep.capacity
+                  const selected = selectedDepartureId === dep.id
+                  return (
+                    <button key={dep.id} type="button" disabled={full}
+                      onClick={() => { setSelectedDepartureId(dep.id); setSelectedDate(null) }}
+                      className="flex items-center justify-between p-3 rounded-xl text-left"
+                      style={{
+                        border: '1px solid ' + (selected ? '#304333' : '#e8e0d0'),
+                        background: selected ? '#f0f5ec' : 'transparent',
+                        opacity: full ? 0.5 : 1,
+                      }}>
+                      <span className="text-sm text-[#304333]">
+                        {new Date(dep.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                      </span>
+                      <span className="text-xs" style={{ color: '#78716c' }}>
+                        {full ? 'Fully booked' : `${dep.capacity - dep.booked} spots left`}
+                      </span>
+                    </button>
+                  )
+                })}
+                {upcomingDepartures.length === 0 && (
+                  <p className="text-sm" style={{ color: '#b0453a' }}>No upcoming departures available.</p>
+                )}
+              </div>
+            </>
+          ) : (
+            <>
+              <h1 className="text-2xl font-bold text-[#304333] mb-1">Select tour date</h1>
+              <p className="text-sm text-[#78716c] mb-6">Add your preferred tour date</p>
+              <DesktopCalendar selected={selectedDate} onSelect={(d) => { setSelectedDate(d); setSelectedDepartureId(null) }} stacked />
+            </>
+          )}
         </div>
 
         <div className="fixed bottom-0 left-0 right-0 bg-white px-5"
           style={{ borderTop: '1px solid #e8e0d0', paddingTop: 14, paddingBottom: 'calc(14px + env(safe-area-inset-bottom, 0px))' }}>
           <div className="flex items-center justify-between">
             <div>
-              {selectedDate ? (
+            {selectedDate ? (
                 <p className="text-sm font-semibold text-[#304333]">
                   {selectedDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                </p>
+              ) : selectedDepartureId ? (
+                <p className="text-sm font-semibold text-[#304333]">
+                  {upcomingDepartures.find(d => d.id === selectedDepartureId)?.date}
                 </p>
               ) : (
                 <p className="text-sm font-semibold text-[#304333]">Add dates for prices</p>
@@ -597,7 +636,7 @@ export default function VendorDetailPage({ params }: Props) {
             </div>
             <button
               onClick={() => setShowMobileDatePicker(false)}
-              disabled={!selectedDate}
+              disabled={!selectedDate && !selectedDepartureId}
               className="px-8 py-3 rounded-xl font-semibold text-sm transition-opacity"
               style={{
                 background: selectedDate ? '#304333' : '#e8e0d0',
@@ -1140,26 +1179,57 @@ export default function VendorDetailPage({ params }: Props) {
           <Divider />
           {/* Select tour date */}
           <div ref={dateSectionRef}>
-            <h2 className="text-xl font-semibold text-[#304333] mb-1">
-              {selectedDate ? `Selected: ${selectedDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}` : 'Select a date'}
-            </h2>
-            <p className="text-sm text-[#78716c] mb-4">
-              {listing.min_lead_time_days
-                ? `Requires at least ${listing.min_lead_time_days} days' notice`
-                : 'Add your preferred tour date'}
-            </p>
-            <div className="hidden sm:block">
-              <DesktopCalendar selected={selectedDate} onSelect={setSelectedDate} />
-            </div>
-            <div className="sm:hidden">
-              <MiniCalendar selected={selectedDate} onSelect={setSelectedDate} />
-            </div>
-            {selectedDate && (
-              <button onClick={() => setSelectedDate(null)}
-                className="mt-3 text-sm font-semibold text-[#304333] underline"
-                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
-                Clear date
-              </button>
+            {usesDepartures && !listing.allow_custom_dates ? (
+              <>
+                <h2 className="text-xl font-semibold text-[#304333] mb-1">Fixed departure dates only</h2>
+                <p className="text-sm text-[#78716c] mb-4">
+                  This tour only runs on the dates below — pick one from the booking box above.
+                </p>
+                <div className="flex flex-col gap-2 max-w-sm">
+                  {upcomingDepartures.map((dep) => {
+                    const full = dep.booked >= dep.capacity
+                    return (
+                      <div key={dep.id}
+                        className="flex items-center justify-between p-3 rounded-xl"
+                        style={{ border: '1px solid #e8e0d0', opacity: full ? 0.5 : 1 }}>
+                        <span className="text-sm text-[#304333]">
+                          {new Date(dep.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                        </span>
+                        <span className="text-xs" style={{ color: '#78716c' }}>
+                          {full ? 'Fully booked' : `${dep.capacity - dep.booked} spots left`}
+                        </span>
+                      </div>
+                    )
+                  })}
+                  {upcomingDepartures.length === 0 && (
+                    <p className="text-sm" style={{ color: '#b0453a' }}>No upcoming departures available.</p>
+                  )}
+                </div>
+              </>
+            ) : (
+              <>
+                <h2 className="text-xl font-semibold text-[#304333] mb-1">
+                  {selectedDate ? `Selected: ${selectedDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}` : 'Select a date'}
+                </h2>
+                <p className="text-sm text-[#78716c] mb-4">
+                  {listing.min_lead_time_days
+                    ? `Requires at least ${listing.min_lead_time_days} days' notice`
+                    : 'Add your preferred tour date'}
+                </p>
+                <div className="hidden sm:block">
+                  <DesktopCalendar selected={selectedDate} onSelect={(d) => { setSelectedDate(d); setSelectedDepartureId(null) }} />
+                </div>
+                <div className="sm:hidden">
+                  <MiniCalendar selected={selectedDate} onSelect={(d) => { setSelectedDate(d); setSelectedDepartureId(null) }} />
+                </div>
+                {selectedDate && (
+                  <button onClick={() => setSelectedDate(null)}
+                    className="mt-3 text-sm font-semibold text-[#304333] underline"
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                    Clear date
+                  </button>
+                )}
+              </>
             )}
           </div>
 

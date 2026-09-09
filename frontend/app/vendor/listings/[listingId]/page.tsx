@@ -102,6 +102,7 @@ type ApiListingDetail = {
   departures: { id: number; date: string; capacity: number; booked: number }[]
   blocked_dates: { id: number; start_date: string; end_date: string; reason: string | null }[]
   extras: { id: number; label: string; price: string; default_selected: boolean }[]
+  included_guests: number
 }
 
 function toDateInput(v: string | null | undefined): string {
@@ -129,40 +130,68 @@ type SnapshotInput = {
   houseRules: string[]; safetyInfo: { key: string; note: string }[]
   additionalRules: string; additionalRequests: string
   allowCustomDates: boolean
+  includedGuests: string
 }
 
 function formatSnapshot(f: SnapshotInput): Record<string, string> {
+  const houseRuleLabel = (key: string) => HOUSE_RULES_CATALOG.find(r => r.key === key)?.label ?? key
+  const safetyLabel = (key: string) => SAFETY_CATALOG.find(c => c.key === key)?.label ?? key
+  const policyLabel = (id: string) => POLICIES.find(p => p.id === id)?.label ?? id
+
   return {
-    'Title': f.title,
-    'Category': f.category,
-    'Location': f.locationPlaces.join('|'),
-    'Photos': f.images.join('|'),
-    'Description': f.description,
+    'Title': f.title || 'None',
+    'Category': f.category || 'None',
+    'Location': f.locationPlaces.length > 0 ? f.locationPlaces.join(' → ') : 'None set',
+    'Photos': `${f.images.length} photo${f.images.length === 1 ? '' : 's'}`,
+    'Description': f.description || 'None',
     'Status': f.status,
-    'Itinerary': JSON.stringify(f.itinerary.map(d => ({ t: d.title, d: d.description }))),
-    "What's included": f.amenities.slice().sort().join('|'),
-    'Group size': `${f.minGuests}-${f.maxGuests}`,
-    'Minimum nights': f.minNights,
-    'Duration options': JSON.stringify(f.durationOptions.map(d => ({ l: d.label, p: d.price }))),
-    'Base price': f.price,
-    'Child price': f.childPrice,
-    'Price per additional guest': f.extraGuestPrice,
-    'Group discounts': JSON.stringify(f.groupDiscounts.map(g => ({ m: g.min_guests, p: g.discount_percent }))),
-    'Group pricing': JSON.stringify(f.groupPricingTiers.map(t => ({ p: t.people_count, t: t.total_price }))),
-    'Extras & add-ons': JSON.stringify(f.extras.map(e => ({ l: e.label, p: e.price, d: e.default_selected }))),
-    'Seasonal rates': JSON.stringify(f.seasonalRates.map(r => ({ l: r.label, s: r.start_date, e: r.end_date, p: r.price }))),
-    'Minimum lead time': f.minLeadTimeDays,
-    'Departures': JSON.stringify(f.departures.map(d => ({ date: d.date, cap: d.capacity }))),
-    'Blocked dates': JSON.stringify(f.blockedDates.map(b => ({ s: b.start_date, e: b.end_date, r: b.reason }))),
-    'Cancellation policy': f.cancellationPolicy,
-    'Custom cancellation text': f.customCancellationPolicy,
-    'House/tour rules': JSON.stringify(f.houseRules.slice().sort()),
-    'Safety info': JSON.stringify(f.safetyInfo.map(s => ({ k: s.key, n: s.note })).sort((a, b) => a.k.localeCompare(b.k))),
-    'Additional rules': f.additionalRules,
-    'Additional requests': f.additionalRequests,
-    'Allow custom dates': String(f.allowCustomDates)
+    'Itinerary': f.itinerary.length > 0
+      ? f.itinerary.map(d => `Day ${d.day}: ${d.title}`).join('; ')
+      : 'No days added',
+    "What's included": f.amenities.length > 0 ? f.amenities.slice().sort().join(', ') : 'None selected',
+    'Group size': `Min ${f.minGuests || '—'}, Max ${f.maxGuests || '—'}`,
+    'Minimum nights': f.minNights ? `${f.minNights} nights` : 'No minimum',
+    'Duration options': f.durationOptions.length > 0
+      ? f.durationOptions.map(d => d.price ? `${d.label} (Ksh ${d.price})` : d.label).join('; ')
+      : 'None added',
+    'Base price': f.price ? `Ksh ${f.price}` : 'Not set',
+    'Included guests': f.includedGuests ? `${f.includedGuests} guest${f.includedGuests === '1' ? '' : 's'}` : '1 guest',
+    'Child price': f.childPrice ? `Ksh ${f.childPrice}` : 'Same as adult price',
+    'Price per additional guest': f.extraGuestPrice ? `Ksh ${f.extraGuestPrice}` : 'Not set',
+    'Group discounts': f.groupDiscounts.length > 0
+      ? f.groupDiscounts.map(g => `${g.min_guests}+ guests: ${g.discount_percent}% off`).join('; ')
+      : 'None',
+    'Group pricing': f.groupPricingTiers.length > 0
+      ? f.groupPricingTiers.map(t => `${t.people_count} people: Ksh ${t.total_price}`).join('; ')
+      : 'None',
+    'Extras & add-ons': f.extras.length > 0
+      ? f.extras.map(e => `${e.label} (Ksh ${e.price}${e.default_selected ? ', default' : ''})`).join('; ')
+      : 'None',
+    'Seasonal rates': f.seasonalRates.length > 0
+      ? f.seasonalRates.map(r => `${r.label}: ${r.start_date} to ${r.end_date} at Ksh ${r.price}`).join('; ')
+      : 'None',
+    'Minimum lead time': f.minLeadTimeDays ? `${f.minLeadTimeDays} days before departure` : 'None',
+    'Departures': f.departures.length > 0
+      ? f.departures.map(d => `${d.date} (capacity ${d.capacity})`).join('; ')
+      : 'None added',
+    'Blocked dates': f.blockedDates.length > 0
+      ? f.blockedDates.map(b => `${b.start_date} to ${b.end_date}${b.reason ? ` (${b.reason})` : ''}`).join('; ')
+      : 'None',
+    'Cancellation policy': policyLabel(f.cancellationPolicy),
+    'Custom cancellation text': f.customCancellationPolicy || 'None',
+    'House/tour rules': f.houseRules.length > 0
+      ? f.houseRules.slice().sort().map(houseRuleLabel).join(', ')
+      : 'None selected',
+    'Safety info': f.safetyInfo.length > 0
+      ? f.safetyInfo.slice().sort((a, b) => a.key.localeCompare(b.key))
+        .map(s => s.note ? `${safetyLabel(s.key)} (${s.note})` : safetyLabel(s.key)).join('; ')
+      : 'None selected',
+    'Additional rules': f.additionalRules || 'None',
+    'Additional requests': f.additionalRequests || 'None',
+    'Allow custom dates': f.allowCustomDates ? 'Yes' : 'No',
   }
 }
+
 
 export default function EditListingPage({ params }: Props) {
   const { listingId } = use(params)
@@ -237,6 +266,7 @@ export default function EditListingPage({ params }: Props) {
   const [extraLabel, setExtraLabel] = useState('')
   const [extraPrice, setExtraPrice] = useState('')
   const [extraGuestPrice, setExtraGuestPrice] = useState('')
+  const [includedGuests, setIncludedGuests] = useState('1')
   const [childPrice, setChildPrice] = useState('')
   const [groupDiscounts, setGroupDiscounts] = useState<GroupDiscount[]>([])
   const [discountMinGuests, setDiscountMinGuests] = useState('')
@@ -267,22 +297,38 @@ export default function EditListingPage({ params }: Props) {
   const [tierTotalPrice, setTierTotalPrice] = useState('')
   // confirm save
   const [showSaveConfirm, setShowSaveConfirm] = useState(false)
+  const [showRevertConfirm, setShowRevertConfirm] = useState(false)
   const [allowCustomDates, setAllowCustomDates] = useState(false)
 
-  function requestSave() {
+  function getFieldDiff() {
     const current = buildSnapshotFields()
     const saved = savedSnapshotRef.current
-    const diff = Object.keys(current).filter(k => current[k] !== saved[k])
+    return Object.keys(current)
+      .filter(k => current[k] !== saved[k])
+      .map(k => ({ label: k, from: saved[k] ?? '', to: current[k] ?? '' }))
+  }
+
+  function requestSave() {
+    const diff = getFieldDiff()
     if (diff.length === 0) { handleSave(); return }
     setChangedFields(diff)
     setShowSaveConfirm(true)
+  }
+
+  function requestRevert() {
+    if (!isDirty) return
+    setShowRevertConfirm(true)
+  }
+
+  function confirmRevert() {
+    loadListing()
+    setShowRevertConfirm(false)
   }
 
   async function confirmSave() {
     setShowSaveConfirm(false)
     await handleSave()
   }
-
 
   function addGroupPricingTier() {
     if (!tierPeopleCount.trim() || !tierTotalPrice.trim()) return
@@ -335,7 +381,7 @@ export default function EditListingPage({ params }: Props) {
 
   const [tab, setTab] = useState('basics')
   const [pendingTab, setPendingTab] = useState<string | null>(null)
-  const [changedFields, setChangedFields] = useState<string[]>([])
+  const [changedFields, setChangedFields] = useState<{ label: string; from: string; to: string }[]>([])
   const savedSnapshotRef = useRef<Record<string, string>>({})
 
   function buildSnapshotFields(): Record<string, string> {
@@ -344,15 +390,19 @@ export default function EditListingPage({ params }: Props) {
       itinerary, amenities, minGuests, maxGuests, minNights, durationOptions,
       price, childPrice, extraGuestPrice, groupDiscounts, groupPricingTiers, extras, seasonalRates,
       minLeadTimeDays, departures, blockedDates, cancellationPolicy, customCancellationPolicy,
-      houseRules, safetyInfo, additionalRules, additionalRequests, allowCustomDates,
+      houseRules, safetyInfo, additionalRules, additionalRequests, allowCustomDates, includedGuests,
     })
   }
+
+  const isDirty = getFieldDiff().length > 0
 
   function requestTabChange(id: string) {
     if (id === tab) return
     const current = buildSnapshotFields()
     const saved = savedSnapshotRef.current
-    const diff = Object.keys(current).filter(k => current[k] !== saved[k])
+    const diff = Object.keys(current)
+      .filter(k => current[k] !== saved[k])
+      .map(k => ({ label: k, from: saved[k] ?? '', to: current[k] ?? '' }))
     if (diff.length > 0) {
       setChangedFields(diff)
       setPendingTab(id)
@@ -444,6 +494,7 @@ export default function EditListingPage({ params }: Props) {
         setAdditionalRules(mappedAdditionalRules)
         setAdditionalRequests(mappedAdditionalRequests)
         setAllowCustomDates(listing.allow_custom_dates)
+        setIncludedGuests(numToStr(listing.included_guests) || '1')
 
         savedSnapshotRef.current = formatSnapshot({
           title: listing.title, category: listing.category, locationPlaces: places,
@@ -462,6 +513,7 @@ export default function EditListingPage({ params }: Props) {
           houseRules: mappedHouseRules, safetyInfo: mappedSafetyInfo,
           additionalRules: mappedAdditionalRules, additionalRequests: mappedAdditionalRequests,
           allowCustomDates: listing.allow_custom_dates,
+          includedGuests: numToStr(listing.included_guests) || '1'
         })
       })
       .catch((err) => {
@@ -664,6 +716,7 @@ export default function EditListingPage({ params }: Props) {
           blocked_dates: blockedDates.map(({ start_date, end_date, reason }) => ({ start_date, end_date, reason: reason || null })),
           extras: extras.map(({ label, price: p, default_selected }) => ({ label, price: p, default_selected })),
           allow_custom_dates: allowCustomDates,
+          included_guests: includedGuests ? Number(includedGuests) : null,
         }),
       })
 
@@ -694,7 +747,7 @@ export default function EditListingPage({ params }: Props) {
         groupPricingTiers: mappedGroupPricingTiers, extras: mappedExtras,
         seasonalRates: mappedSeasonalRates, minLeadTimeDays, departures: mappedDepartures,
         blockedDates: mappedBlockedDates, cancellationPolicy, customCancellationPolicy,
-        houseRules, safetyInfo, additionalRules, additionalRequests, allowCustomDates,
+        houseRules, safetyInfo, additionalRules, additionalRequests, allowCustomDates, includedGuests,
       })
 
       setToast('Listing updated')
@@ -1142,11 +1195,22 @@ export default function EditListingPage({ params }: Props) {
               <p className="text-xs text-gray-400 mt-1.5">Checked items are pre-selected by default for guests.</p>
             </EditableCard>
 
+            <EditableCard label="Guests included in base price" summary={`${includedGuests || '1'} guest${Number(includedGuests) === 1 ? '' : 's'}`}>
+              <input value={includedGuests} onChange={(e) => setIncludedGuests(e.target.value)}
+                type="number" min="1" placeholder="e.g. 2"
+                className="w-32 border border-gray-200 rounded-xl px-4 py-2.5 text-sm
+                           outline-none focus:border-[#2c4a1e] transition-colors" />
+              <p className="text-xs text-gray-400 mt-1.5">
+                E.g. set this to 2 for a couple's rate — the base price covers up to this many guests
+                before "Price per additional guest" kicks in.
+              </p>
+            </EditableCard>
+
             <EditableCard label="Price per additional guest" summary={extraGuestPrice ? `Ksh ${Number(extraGuestPrice).toLocaleString()}` : ''}>
               <MoneyInput value={extraGuestPrice} onChange={setExtraGuestPrice} placeholder="e.g. 10000 (optional)" />
               <p className="text-xs text-gray-400 mt-1.5">Leave blank if your price already covers all guests.</p>
               {price.trim() && extraGuestPrice.trim() && (() => {
-                const base = Number(minGuests) || 2
+                const base = Number(includedGuests) || 1
                 const basePrice = Number(price) || 0
                 const extra = Number(extraGuestPrice) || 0
                 return (
@@ -1504,6 +1568,15 @@ export default function EditListingPage({ params }: Props) {
             <Trash2 size={15} /> Delete listing
           </button>
           <button
+            onClick={requestRevert}
+            disabled={!isDirty}
+            className="px-5 py-3 rounded-xl border border-gray-200 text-sm font-semibold
+                       text-[#1a1a1a] hover:bg-gray-50 transition-colors
+                       disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            Revert changes
+          </button>
+          <button
             onClick={requestSave}
             disabled={!canSave || saving}
             className="bg-[#2c4a1e] text-white px-5 py-3 rounded-xl
@@ -1573,11 +1646,19 @@ export default function EditListingPage({ params }: Props) {
           <div className="bg-white w-full sm:max-w-sm rounded-t-3xl sm:rounded-2xl p-6">
             <h2 className="text-lg font-bold text-[#1a1a1a] mb-2">Save these changes?</h2>
             <p className="text-sm text-gray-500 mb-3">You&apos;re about to update:</p>
-            <ul className="flex flex-wrap gap-1.5 mb-5">
+            <ul className="flex flex-col gap-2.5 mb-5 max-h-72 overflow-y-auto">
               {changedFields.map((f) => (
-                <li key={f} className="bg-[#eaf5e4] text-[#2c4a1e] text-xs font-semibold px-2.5 py-1 rounded-full">{f}</li>
+                <li key={f.label} className="text-sm">
+                  <p className="font-semibold text-[#1a1a1a]">{f.label}</p>
+                  <p className="text-xs text-gray-500 mt-0.5 break-words">
+                    <span className="line-through text-gray-400">{f.from || '—'}</span>
+                    {' → '}
+                    <span className="text-[#2c4a1e] font-medium">{f.to || '—'}</span>
+                  </p>
+                </li>
               ))}
             </ul>
+
             {saveError && (
               <div className="mb-4 px-4 py-3 rounded-xl bg-red-50 text-red-600 text-sm">
                 {saveError}
@@ -1599,6 +1680,43 @@ export default function EditListingPage({ params }: Props) {
         </div>
       )}
 
+      {/* Confirm and revert */}
+      {showRevertConfirm && (
+        <div
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
+          style={{ background: 'rgba(0,0,0,0.4)' }}
+          onClick={(e) => { if (e.target === e.currentTarget) setShowRevertConfirm(false) }}
+        >
+          <div className="bg-white w-full sm:max-w-sm rounded-t-3xl sm:rounded-2xl p-6">
+            <h2 className="text-lg font-bold text-[#1a1a1a] mb-2">Discard your changes?</h2>
+            <p className="text-sm text-gray-500 mb-3">This reloads the listing as it was last saved. You'll lose:</p>
+            <ul className="flex flex-col gap-2.5 mb-5 max-h-64 overflow-y-auto">
+              {getFieldDiff().map((f) => (
+                <li key={f.label} className="text-sm">
+                  <p className="font-semibold text-[#1a1a1a]">{f.label}</p>
+                  <p className="text-xs text-gray-500 mt-0.5 break-words">
+                    <span className="text-red-500 font-medium">{f.to || '—'}</span>
+                    {' → back to '}
+                    <span className="text-gray-400">{f.from || '—'}</span>
+                  </p>
+                </li>
+              ))}
+            </ul>
+            <div className="flex gap-2">
+              <button onClick={() => setShowRevertConfirm(false)}
+                className="flex-1 py-3 rounded-xl border border-gray-200 text-sm font-semibold
+                     text-[#1a1a1a] hover:bg-gray-50 transition-colors">
+                Keep editing
+              </button>
+              <button onClick={confirmRevert}
+                className="flex-1 py-3 rounded-xl bg-red-600 text-white text-sm font-semibold
+                     hover:bg-red-700 transition-colors">
+                Discard changes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {pendingTab && (
         <div
@@ -1609,11 +1727,19 @@ export default function EditListingPage({ params }: Props) {
           <div className="bg-white w-full sm:max-w-sm rounded-t-3xl sm:rounded-2xl p-6">
             <h2 className="text-lg font-bold text-[#1a1a1a] mb-2">You have unsaved changes</h2>
             <p className="text-sm text-gray-500 mb-3">The following have changed and haven&apos;t been saved yet:</p>
-            <ul className="flex flex-wrap gap-1.5 mb-5">
+            <ul className="flex flex-col gap-2.5 mb-5 max-h-72 overflow-y-auto">
               {changedFields.map((f) => (
-                <li key={f} className="bg-[#eaf5e4] text-[#2c4a1e] text-xs font-semibold px-2.5 py-1 rounded-full">{f}</li>
+                <li key={f.label} className="text-sm">
+                  <p className="font-semibold text-[#1a1a1a]">{f.label}</p>
+                  <p className="text-xs text-gray-500 mt-0.5 break-words">
+                    <span className="line-through text-gray-400">{f.from || '—'}</span>
+                    {' → '}
+                    <span className="text-[#2c4a1e] font-medium">{f.to || '—'}</span>
+                  </p>
+                </li>
               ))}
             </ul>
+
             {saveError && (
               <div className="mb-4 px-4 py-3 rounded-xl bg-red-50 text-red-600 text-sm">
                 {saveError}
