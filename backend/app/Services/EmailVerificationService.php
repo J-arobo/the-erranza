@@ -37,10 +37,11 @@ class EmailVerificationService
 
     }
 
-    // Consumes the token: marks the address verified, swapping in a pending
-    // email-change address when there is one. Returns null if the token is
-    // unknown or expired.
-    public static function verifyByToken(string $token): ?User
+    /**
+     * Consumes the token. Returns null if unknown/expired, otherwise
+     * ['user' => User, 'changed' => bool, 'email' => string].
+     */
+    public static function verifyByToken(string $token): ?array
     {
         if (strlen($token) < 20) {
             return null;
@@ -52,15 +53,29 @@ class EmailVerificationService
             return null;
         }
 
+        $oldEmail = $user->email;
+        $wasChange = $user->pending_email !== null && $user->pending_email !== $oldEmail;
+
         $user->forceFill([
             'email' => $user->pending_email ?? $user->email,
             'email_verified_at' => now(),
             'pending_email' => null,
-            // Token left in place until it expires (60 min) so a double-tap or an
-            // email-client link prefetch re-confirms instead of showing "expired".
         ])->save();
 
-        return $user;
+        if ($wasChange) {
+            defer(function () use ($oldEmail, $user) {
+                try {
+                    Mail::to($oldEmail)->send(new \App\Mail\AccountSecurityAlertMail(
+                        'Your login email was changed',
+                        "Your Erranza login email was changed to {$user->email}. If this wasn't you, contact support immediately.",
+                    ));
+                } catch (\Throwable $e) {
+                    Log::error('Failed to send email-change alert', ['error' => $e->getMessage()]);
+                }
+            });
+        }
+
+        return ['user' => $user, 'changed' => $wasChange, 'email' => $user->email];
     }
 
 }

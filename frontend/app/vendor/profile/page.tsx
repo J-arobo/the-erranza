@@ -205,7 +205,7 @@ export default function VendorProfilePage() {
       })
       setCurrentPasswordForEmail(''); setNewEmail('')
       setShowEmailForm(false)
-      setToast('A verification code was sent to your new email address. Check the banner at the top of the page to confirm it.')
+      setToast('We sent a confirmation link to your new email address. Your login email changes once you open it.')
     } catch (err) {
       setEmailError(apiErrorMessage(err))
     } finally {

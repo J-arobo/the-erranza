@@ -157,13 +157,14 @@ class AuthController extends Controller
     // the link may not be signed in, or may be signed in as someone else.
     public function verifyEmailByToken(string $token)
     {
-        abort_if(
-            ! EmailVerificationService::verifyByToken($token),
-            422,
-            'This confirmation link is invalid or has expired.'
-        );
+        $result = EmailVerificationService::verifyByToken($token);
+        abort_if(!$result, 422, 'This confirmation link is invalid or has expired.');
 
-        return response()->json(['verified' => true]);
+        return response()->json([
+            'verified' => true,
+            'changed' => $result['changed'],
+            'email' => $result['email'],
+        ]);
     }
 
     // Let a not-yet-verified account correct a mistyped signup email without a

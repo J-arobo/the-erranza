@@ -1,6 +1,6 @@
 'use client'
-import { useEffect, useState } from 'react'
-import { Mail, X } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { Mail, X, Check } from 'lucide-react'
 import { usePathname } from 'next/navigation'
 import { useAuth } from '@/context/AuthContext'
 import { apiFetch, apiErrorMessage } from '@/lib/api'
@@ -14,6 +14,8 @@ export default function EmailVerificationBanner() {
   const [resending, setResending] = useState(false)
   const [resentJustNow, setResentJustNow] = useState(false)
   const [error, setError] = useState('')
+  const [justChanged, setJustChanged] = useState(false)
+  const prevPending = useRef<string | null | undefined>(undefined)
 
   const needsVerification = !!user && user.emailVerified && !!user.pendingEmail
   const suppressed = pathname?.startsWith('/vendor/onboarding')
@@ -32,13 +34,26 @@ export default function EmailVerificationBanner() {
     } catch { setVisible(true) }
   }, [user?.id, needsVerification])
 
+  // Poll while a change is outstanding — even if the toast was dismissed —
+  // so we catch the confirmation the moment the link is opened anywhere.
   useEffect(() => {
-    if (!needsVerification || !visible || suppressed) return
+    if (!needsVerification || suppressed) return
     const id = setInterval(() => { refreshUser().catch(() => {}) }, 5000)
     return () => clearInterval(id)
-  }, [needsVerification, visible, suppressed, refreshUser])
+  }, [needsVerification, suppressed, refreshUser])
 
-  if (!needsVerification || !visible || suppressed) return null
+  // pending_email -> confirmed transition: flash a success toast.
+  useEffect(() => {
+    if (!user) return
+    if (prevPending.current && !user.pendingEmail && user.emailVerified) {
+      setJustChanged(true)
+      setVisible(false)
+      const t = setTimeout(() => setJustChanged(false), 8000)
+      prevPending.current = user.pendingEmail
+      return () => clearTimeout(t)
+    }
+    prevPending.current = user.pendingEmail
+  }, [user?.pendingEmail, user?.emailVerified, user])
 
   async function handleResend() {
     setResending(true); setError('')
@@ -52,6 +67,25 @@ export default function EmailVerificationBanner() {
       setResending(false)
     }
   }
+
+  if (justChanged) {
+    return (
+      <div className="fixed bottom-5 right-5 z-[300] w-80 max-w-[calc(100vw-2.5rem)] bg-white rounded-2xl shadow-2xl border border-gray-100 p-4 flex items-start gap-3">
+        <div className="w-10 h-10 rounded-full bg-[#e6f0e0] flex items-center justify-center flex-shrink-0">
+          <Check size={18} color="#2c4a1e" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-bold text-[#1a1a1a]">Email updated</p>
+          <p className="text-xs text-gray-500 mt-0.5">Your login email is now {user?.email}.</p>
+        </div>
+        <button onClick={() => setJustChanged(false)} className="text-gray-400 hover:text-gray-600 flex-shrink-0">
+          <X size={16} />
+        </button>
+      </div>
+    )
+  }
+
+  if (!needsVerification || !visible || suppressed) return null
 
   return (
     <div className="fixed bottom-5 right-5 z-[300] w-80 max-w-[calc(100vw-2.5rem)] bg-white rounded-2xl shadow-2xl border border-gray-100 p-4 flex items-start gap-3">
