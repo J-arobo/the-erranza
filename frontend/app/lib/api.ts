@@ -79,15 +79,29 @@ export async function apiFetch<T>(path: string, options: RequestInit = {}): Prom
   const token = getToken()
   const isFormData = options.body instanceof FormData
 
-  const res = await fetch(`${API_BASE_URL}${path}`, {
-    ...options,
-    headers: {
-      ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
-      Accept: 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...options.headers,
-    },
-  })
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), 20000)
+
+  let res: Response
+  try {
+    res = await fetch(`${API_BASE_URL}${path}`, {
+      ...options,
+      signal: options.signal ?? controller.signal,
+      headers: {
+        ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
+        Accept: 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...options.headers,
+      },
+    })
+  } catch (err) {
+    if (err instanceof DOMException && err.name === 'AbortError') {
+      throw new ApiError('This is taking longer than expected — check your connection and try again.', 0)
+    }
+    throw err
+  } finally {
+    clearTimeout(timeout)
+  }
 
   const isJson = res.headers.get('content-type')?.includes('application/json')
   const body = isJson ? await res.json() : null
@@ -102,6 +116,7 @@ export async function apiFetch<T>(path: string, options: RequestInit = {}): Prom
 
   return body as T
 }
+
 
 // failed to login
 export function apiErrorMessage(err: unknown): string {

@@ -42,6 +42,8 @@ use App\Http\Controllers\Api\MpesaController;
 //Mpesa Vendor Payout verification
 use App\Http\Controllers\Api\Vendor\VendorPayoutVerificationController;
 use App\Http\Controllers\Api\Vendor\VendorListingPhotoController;
+// Vendor Payouts
+use App\Http\Controllers\Api\Vendor\VendorPayoutController;
 // Admin booking for someone
 use App\Http\Controllers\Api\PublicBookingPaymentController;
 use App\Http\Controllers\Api\BookingCompletionController;
@@ -189,6 +191,9 @@ Route::prefix('vendor')->middleware(['auth:sanctum', 'vendor'])->group(function 
     Route::get('/stats', [VendorStatsController::class, 'index']);
     // Earnings 
     Route::get('/earnings', [VendorStatsController::class, 'earnings']);
+    // Vendor Payouts
+    Route::get('/payouts', [VendorPayoutController::class, 'index']);
+    Route::post('/payouts/{payout}/retry', [VendorPayoutController::class, 'retry']);
     //Vendor profile
     Route::put('/me', [VendorProfileController::class, 'update']);
     // Vendor payout verification

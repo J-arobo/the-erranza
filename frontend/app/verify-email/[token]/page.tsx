@@ -1,9 +1,10 @@
 'use client'
-import { use, useEffect, useState } from 'react'
+import { use, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { MailCheck, XCircle } from 'lucide-react'
 import { apiFetch, apiErrorMessage } from '@/lib/api'
 import { useAuth } from '@/context/AuthContext'
+
 
 type Props = { params: Promise<{ token: string }> }
 
@@ -11,9 +12,26 @@ export default function VerifyEmailPage({ params }: Props) {
   const { token } = use(params)
   const router = useRouter()
   const { isLoggedIn, refreshUser } = useAuth()
-
+  
   const [state, setState] = useState<'working' | 'done' | 'error'>('working')
   const [error, setError] = useState('')
+  const fired = useRef(false)
+
+  useEffect(() => {
+    if (fired.current) return
+    fired.current = true
+    apiFetch(`/auth/email/verify/${token}`)
+      .then(async () => {
+        setState('done')
+        if (isLoggedIn) await refreshUser().catch(() => {})
+      })
+      .catch((err) => {
+        setState('error')
+        setError(apiErrorMessage(err))
+      })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token])
+
 
   useEffect(() => {
     let cancelled = false

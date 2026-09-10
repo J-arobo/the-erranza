@@ -25,6 +25,15 @@ class BookingPayoutService
         self::disburseSplit($charge->booking, $charge->vendor, (float) $charge->amount);
     }
 
+        // Re-attempts a vendor payout leg that previously failed — used after the
+    // vendor fixes their M-Pesa number. Resets the leg to pending first.
+    public static function retryVendorLeg(BookingPayout $leg): void
+    {
+        $leg->loadMissing('vendor');
+        $leg->update(['status' => 'pending', 'failure_reason' => null, 'reference' => null]);
+        self::processVendorLeg($leg, $leg->vendor);
+    }
+
     private static function disburseSplit(Booking $booking, Vendor $vendor, float $amount): void
     {
         $commissionRate = $vendor->plan === 'plus' ? 0.08 : 0.12;
@@ -56,9 +65,15 @@ class BookingPayoutService
     private static function processVendorLeg(BookingPayout $leg, Vendor $vendor): void
     {
         if ($vendor->payout_method !== 'mobile' || !$vendor->payout_details) {
-            $leg->update(['failure_reason' => "Vendor's payout method is bank transfer — not automatable via M-Pesa B2C, needs manual processing."]);
+            $leg->update([
+                'status' => 'manual',
+                'destination' => $vendor->payout_bank_name,
+                'failure_reason' => 'Bank transfer — processed manually by Erranza.',
+            ]);
             return;
         }
+
+        $leg->update(['destination' => $vendor->payout_details]);
 
         $phone = MpesaClient::normalizePhone($vendor->payout_details);
         if (!$phone) {
