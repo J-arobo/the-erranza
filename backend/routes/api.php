@@ -50,6 +50,8 @@ use App\Http\Controllers\Api\BookingExtraChargeController;
 // KCB Buni
 // Ensure the BuniController class exists in the specified namespace
 use App\Http\Controllers\Api\BuniController;
+// Team invite
+use App\Http\Controllers\Api\TeamInviteController;
 
 Route::prefix('auth')->group(function () {
     Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:6,1');
@@ -57,12 +59,19 @@ Route::prefix('auth')->group(function () {
     //Password reset
     Route::post('/forgot-password', [PasswordResetController::class, 'sendResetLink'])->middleware('throttle:6,1');
     Route::post('/reset-password', [PasswordResetController::class, 'reset'])->middleware('throttle:6,1');
+    Route::get('/email/verify/{token}', [AuthController::class, 'verifyEmailByToken'])->middleware('throttle:15,1');
 
     Route::middleware('auth:sanctum')->group(function () {
         Route::post('/logout', [AuthController::class, 'logout']);
         Route::get('/me', [AuthController::class, 'me']);
         Route::patch('/me', [AuthController::class, 'updateProfile']);
+        // Deletng an account
+        Route::delete('/me', [AuthController::class, 'deleteAccount']);
         Route::post('/verify-password', [AuthController::class, 'verifyPassword']);
+        Route::post('/change-password', [AuthController::class, 'changePassword']);
+        Route::post('/change-email', [AuthController::class, 'changeEmail']);
+        Route::post('/email/send-verification', [AuthController::class, 'sendEmailVerification']);
+        Route::post('/email/change-unverified', [AuthController::class, 'changeUnverifiedEmail']);
     });
 });
 
@@ -90,6 +99,14 @@ Route::post('/public/bookings/payment-callback', [PublicBookingPaymentController
 // Organization payment
 Route::post('/public/bookings/{token}/pay-card/initialize', [PublicBookingPaymentController::class, 'initializeCard']);
 Route::post('/public/bookings/{token}/pay-card/verify', [PublicBookingPaymentController::class, 'verifyCard']);
+// Team invite routes
+Route::get('/team-invite/{token}', [TeamInviteController::class, 'show']);
+Route::post('/team-invite/{token}/register', [TeamInviteController::class, 'registerAndAccept']);
+
+Route::middleware('auth:sanctum')->group(function () {
+    Route::post('/team-invite/{token}/link', [TeamInviteController::class, 'link']);
+    // ...keep whatever's already in this group
+});
 
 
 // Traveller-facing — any authenticated account.
@@ -130,7 +147,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/extra-charges/{charge}/pay', [BookingExtraChargeController::class, 'pay']);
     Route::post('/extra-charges/{charge}/decline', [BookingExtraChargeController::class, 'decline']);
     Route::get('/extra-charges/{charge}/status', [BookingExtraChargeController::class, 'status']);
-
 });
 
 Route::prefix('vendor')->middleware(['auth:sanctum', 'vendor'])->group(function () {
@@ -158,7 +174,7 @@ Route::prefix('vendor')->middleware(['auth:sanctum', 'vendor'])->group(function 
     Route::post('/messages/{booking}', [VendorMessageController::class, 'store']);
     Route::get('/listing-messages/{listing}/{traveller}', [VendorMessageController::class, 'showListingThread']);
     Route::post('/listing-messages/{listing}/{traveller}', [VendorMessageController::class, 'storeListingThread']);
-    
+
 
     Route::get('/reviews', [VendorReviewController::class, 'index']);
     Route::post('/reviews/{review}/reply', [VendorReviewController::class, 'reply']);
@@ -195,7 +211,6 @@ Route::prefix('vendor')->middleware(['auth:sanctum', 'vendor'])->group(function 
     // vendor booking creation for someone else
     Route::post('/bookings', [VendorBookingController::class, 'store']);
     Route::get('/travellers/search', [VendorBookingController::class, 'searchTravellers']);
-
 });
 
 Route::prefix('admin')->middleware(['auth:sanctum', 'admin'])->group(function () {

@@ -107,6 +107,7 @@ export async function apiFetch<T>(path: string, options: RequestInit = {}): Prom
 export function apiErrorMessage(err: unknown): string {
   if (err instanceof ApiError) {
     if (err.status === 401) return 'Please log in to continue.'
+    if (err.status >= 500) return 'Something went wrong on our end. Please try again in a moment.'
     const firstFieldError = err.errors ? Object.values(err.errors)[0]?.[0] : undefined
     return firstFieldError ?? err.message
   }

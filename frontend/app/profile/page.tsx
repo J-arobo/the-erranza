@@ -5,13 +5,14 @@ import Image from 'next/image'
 import {
   Bell, Settings, HelpCircle, User, Shield,
   ChevronRight, LogOut, Gift, FileText, Users,
-  Menu, MapPin, Camera, Plane, Heart, Calendar,
+  Menu, MapPin, Camera, Plane, Heart, Trash2, Calendar,
 } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { apiFetch } from '@/lib/api'
 import FooterSection from '@/components/FooterSection'
 import BottomNav from '@/components/BottomNav'
 import ListingCard from '@/components/ListingCard'
+import DeleteAccountModal from '@/components/DeleteAccountModal'
 
 const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1547471080-7cc2caa01a7e?w=400&q=80'
 
@@ -324,6 +325,7 @@ export default function ProfilePage() {
     await updateProfile({ avatarUrl: dataUrl })
   }
   const router = useRouter()
+  const [showDeleteAccount, setShowDeleteAccount] = useState(false)
 
   //Desktop display of the tabs
   const [desktopTab, setDesktopTab] = useState<'about' | 'trips' | 'saved'>('about')
@@ -633,6 +635,13 @@ export default function ProfilePage() {
                     <LogOut size={22} color="#1a1a1a" />
                     <span className="text-sm font-medium text-[#1a1a1a]">Log out</span>
                   </button>
+                  {/* Delete account — red text, no chevron */}
+                  <button
+                    onClick={() => setShowDeleteAccount(true)}
+                    className="w-full flex items-center gap-4 py-4">
+                    <Trash2 size={22} color="#dc2626" />
+                    <span className="text-sm font-medium text-red-600">Delete account</span>
+                  </button>
 
                   <p className="text-xs text-gray-400 mt-4">Erranza v1.0 · © 2026 Erranza Inc.</p>
                 </div>
@@ -731,6 +740,9 @@ export default function ProfilePage() {
         </div>
       </div>
 
+            {/* Modals */}
+      {/* Delete account modal */}
+      {showDeleteAccount && <DeleteAccountModal onClose={() => setShowDeleteAccount(false)} />}
       <BottomNav active="Profile" onSelect={() => { }} scrollingDown={false} scrolled={false} />
       <FooterSection />
     </div>

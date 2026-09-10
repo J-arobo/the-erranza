@@ -45,7 +45,23 @@ class VendorProfileController extends Controller
             'tax_pin.regex' => 'Enter a valid KRA PIN (e.g. P051234567X).',
         ]);               
 
+        $fieldLabels = [
+            'business_name' => 'Business name', 'phone' => 'Phone number', 'bio' => 'Bio',
+            'logo_url' => 'Logo', 'license_number' => 'License number', 'tax_pin' => 'Tax PIN',
+            'payout_method' => 'Payout method', 'payout_bank_name' => 'Bank name', 'payout_details' => 'Payout details',
+            'categories' => 'Categories', 'regions' => 'Operating regions',
+        ];
+
         $vendor->update($validated);
+
+        $changes = collect($vendor->getChanges())->keys()
+            ->reject(fn ($k) => $k === 'updated_at')
+            ->map(fn ($k) => $fieldLabels[$k] ?? \Illuminate\Support\Str::headline($k))
+            ->values()->all();
+
+        if (!empty($changes)) {
+            \App\Services\VendorChangeNotifier::notify($vendor, 'Your account details were updated', $changes);
+        }
 
         return response()->json(['vendor' => $vendor]);
     }

@@ -11,6 +11,8 @@ type User = {
   id: number
   name: string
   email: string
+  emailVerified: boolean
+  pendingEmail: string | null
   phone?: string | null
   avatar?: string | null
   onboardingComplete?: boolean
@@ -64,8 +66,10 @@ type AuthContextType = {
   ready: boolean
   register: (name: string, email: string, password: string, phone?: string, avatarUrl?: string) => Promise<void>
   updateProfile: (updates: { name?: string; phone?: string; avatarUrl?: string }) => Promise<void>
+  refreshUser: () => Promise<void>
   login: (email: string, password: string) => Promise<User>
   logout: () => void
+  deleteAccount: (password: string) => Promise<void>
   isLoggedIn: boolean
   completeOnboarding: () => void
   markCelebrationSeen: () => void
@@ -87,9 +91,11 @@ const AuthContext = createContext<AuthContextType>({
   user: null,
   ready: false,
   updateProfile: async () => { },
+  refreshUser: async () => { },
   register: async () => { },
   login: async () => ({} as User),
   logout: () => { },
+  deleteAccount: async () => { },
   isLoggedIn: false,
   completeOnboarding: () => { },
   markCelebrationSeen: () => { },
@@ -159,6 +165,8 @@ type ApiUser = {
   id: number
   name: string
   email: string
+  emailVerified: boolean
+  pendingEmail: string | null
   phone: string | null
   avatarUrl: string | null
   roles: string[]
@@ -176,6 +184,8 @@ function mapUser(apiUser: ApiUser): User {
     id: apiUser.id,
     name: apiUser.name,
     email: apiUser.email,
+    emailVerified: apiUser.emailVerified,
+    pendingEmail: apiUser.pendingEmail,
     phone: apiUser.phone,
     avatar: apiUser.avatarUrl ?? undefined,
     roles: apiUser.roles as Role[],
@@ -264,6 +274,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(mapUser(user))
   }, [])
 
+  const refreshUser = useCallback(async () => {
+    const { user } = await apiFetch<{ user: ApiUser }>('/auth/me')
+    setUser(mapUser(user))
+  }, [])
+
   const login = useCallback(async (email: string, password: string) => {
     const { user, token } = await apiFetch<{ user: ApiUser; token: string }>('/auth/login', {
       method: 'POST',
@@ -278,6 +293,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Autologout 
   const logout = useCallback(() => {
     apiFetch('/auth/logout', { method: 'POST' }).catch(() => { })
+    setToken(null)
+    setUser(null)
+    setWishlists([])
+    sessionStorage.removeItem('erranza_admin_verified')
+    sessionStorage.removeItem('erranza_super_admin_verified')
+  }, [])
+
+  const deleteAccount = useCallback(async (password: string) => {
+    await apiFetch('/auth/me', { method: 'DELETE', body: JSON.stringify({ password }) })
     setToken(null)
     setUser(null)
     setWishlists([])
@@ -385,7 +409,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     ready,
     register,
     updateProfile,
+    refreshUser,
     login,
+    deleteAccount,
     logout,
     isLoggedIn: !!user,
     completeOnboarding,
@@ -403,7 +429,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     addTrip,
     messages: MOCK_MESSAGES,
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [user, ready, wishlists, wishlistsReady, trips, register, updateProfile, login, logout, becomePartner, markCelebrationSeen, markTourSeen])
+  }), [user, ready, wishlists, wishlistsReady, trips, register, updateProfile, refreshUser, login, logout, deleteAccount, becomePartner, markCelebrationSeen, markTourSeen])
 
   return (
     <AuthContext.Provider value={value}>

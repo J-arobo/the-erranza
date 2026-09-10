@@ -36,6 +36,12 @@ class VendorVerificationController extends Controller
             'status' => 'pending',
         ]);
 
+        \App\Services\VendorChangeNotifier::notify(
+            $vendor,
+            'A new document was uploaded to your account',
+            ["{$validated['doc_type']} submitted for review"]
+        );
+
         return response()->json(['submission' => $submission], 201);
     }
 

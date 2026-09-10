@@ -82,6 +82,12 @@ class VendorPayoutVerificationController extends Controller
             'payout_changed_at' => now(),
         ]);
 
+        \App\Services\VendorChangeNotifier::notify(
+            Vendor::find($verification->vendor_id),
+            'Your payout number was changed',
+            ["New M-Pesa number: {$verification->phone}"]
+        );
+
         $this->triggerRefund($verification);
 
         return response()->json(['ResultCode' => 0, 'ResultDesc' => 'Accepted']);

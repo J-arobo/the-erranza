@@ -7,6 +7,7 @@ use App\Models\Listing;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use App\Services\VendorChangeNotifier;
 
 class VendorListingController extends Controller
 {
@@ -114,7 +115,7 @@ class VendorListingController extends Controller
             $listing = $vendor->listings()->create([
                 ...collect($validated)->only([
                     'title', 'category', 'location', 'description', 'price', 'child_price',
-                    'extra_guest_price', 'min_guests', 'max_guests', 'min_nights', 'min_lead_time_days',
+                    'extra_guest_price', 'included_guests', 'min_guests', 'max_guests', 'min_nights', 'min_lead_time_days',
                     'cancellation_policy', 'custom_cancellation_text', 'amenities', 'excluded',
                     'house_rules', 'safety_info', 'allow_custom_dates',
                     //Room details
@@ -253,7 +254,7 @@ class VendorListingController extends Controller
         DB::transaction(function () use ($listing, $validated) {
             $listing->update(collect($validated)->only([
                 'title', 'category', 'location', 'description', 'price', 'child_price',
-                'extra_guest_price', 'status', 'min_guests', 'max_guests', 'min_nights', 'min_lead_time_days',
+                'extra_guest_price', 'included_guests', 'status', 'min_guests', 'max_guests', 'min_nights', 'min_lead_time_days',
                 'cancellation_policy', 'custom_cancellation_text', 'amenities', 'excluded',
                 'house_rules', 'safety_info', 'allow_custom_dates',
                 // Room details
@@ -349,7 +350,43 @@ class VendorListingController extends Controller
             'seasonalRates', 'departures', 'blockedDates', 'extras',
         ]);
 
+        $fieldLabels = [
+            'title' => 'Title', 'category' => 'Category', 'location' => 'Location',
+            'description' => 'Description', 'price' => 'Base price', 'child_price' => 'Child price',
+            'extra_guest_price' => 'Price per additional guest', 'included_guests' => 'Included guests',
+            'status' => 'Status', 'min_guests' => 'Min guests', 'max_guests' => 'Max guests',
+            'min_nights' => 'Minimum nights', 'min_lead_time_days' => 'Minimum lead time',
+            'cancellation_policy' => 'Cancellation policy', 'custom_cancellation_text' => 'Custom cancellation text',
+            'amenities' => "What's included", 'excluded' => 'Excluded items',
+            'house_rules' => 'House/tour rules', 'safety_info' => 'Safety info',
+            'allow_custom_dates' => 'Allow custom dates',
+            'bedrooms' => 'Bedrooms', 'beds' => 'Beds', 'bathrooms' => 'Bathrooms',
+            'lat' => 'Map location', 'lng' => 'Map location',
+        ];
+        $relatedLabels = [
+            'images' => 'Photos', 'itinerary' => 'Itinerary', 'duration_options' => 'Duration options',
+            'group_discounts' => 'Group discounts', 'group_pricing_tiers' => 'Group pricing',
+            'seasonal_rates' => 'Seasonal rates', 'departures' => 'Departures', 'blocked_dates' => 'Blocked dates',
+            'extras' => 'Extras & add-ons',
+        ];
+
+        $changes = collect($listing->getChanges())->keys()
+            ->reject(fn ($k) => $k === 'updated_at')
+            ->map(fn ($k) => $fieldLabels[$k] ?? \Illuminate\Support\Str::headline($k));
+
+        foreach ($relatedLabels as $key => $label) {
+            if (array_key_exists($key, $validated)) {
+                $changes->push($label);
+            }
+        }
+
+        $changes = $changes->unique()->values()->all();
+        if (!empty($changes)) {
+            VendorChangeNotifier::notify($listing->vendor, "Your listing \"{$listing->title}\" was updated", $changes);
+        }
+
         return response()->json(['listing' => $listing]);
+
     }
 
     public function destroy(Request $request, Listing $listing)

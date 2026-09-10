@@ -101,6 +101,7 @@ export default function VendorOnboardingPage() {
 
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState('')
+
   // Upload progress
   const [idUploadProgress, setIdUploadProgress] = useState<number | null>(null)
   const [insuranceUploadProgress, setInsuranceUploadProgress] = useState<number | null>(null)

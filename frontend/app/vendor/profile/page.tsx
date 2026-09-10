@@ -1,11 +1,13 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { LogOut, Star, TrendingUp, List, Check, ShieldCheck, Users, UserPlus, X, FileClock, Camera } from 'lucide-react'
+import { LogOut, Star, TrendingUp, List, Check, ShieldCheck, Users, UserPlus, X, FileClock, Camera, Eye, EyeOff } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { apiFetch, apiErrorMessage } from '@/lib/api'
 import Toast from '@/components/Toast'
 import CountdownBanner from '@/components/CountdownBanner'
+import DeleteAccountModal from '@/components/DeleteAccountModal'
+
 
 type Role = 'Manager' | 'Co-host' | 'Support'
 const ROLES: Role[] = ['Manager', 'Co-host', 'Support']
@@ -82,8 +84,25 @@ type ApiSubmission = {
 
 type ApiListing = { id: number; status: string; earnings: string | null }
 
+// Password input
+function PasswordInput({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder: string }) {
+  const [show, setShow] = useState(false)
+  return (
+    <div className="relative">
+      <input type={show ? 'text' : 'password'} value={value} onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="w-full border border-gray-200 rounded-xl pl-4 pr-10 py-2.5 text-sm outline-none focus:border-[#2c4a1e] transition-colors" />
+      <button type="button" onClick={() => setShow(s => !s)}
+        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+        {show ? <EyeOff size={16} /> : <Eye size={16} />}
+      </button>
+    </div>
+  )
+}
+
 export default function VendorProfilePage() {
   const { user, logout } = useAuth()
+  const [showDeleteAccount, setShowDeleteAccount] = useState(false)
   const router = useRouter()
 
   const [vendor, setVendor] = useState<ApiVendor | null>(null)
@@ -97,6 +116,7 @@ export default function VendorProfilePage() {
   const [bio, setBio] = useState('')
   const [phone, setPhone] = useState('')
   const [saving, setSaving] = useState(false)
+
 
   const [uploading, setUploading] = useState<string | null>(null)
 
@@ -130,6 +150,7 @@ export default function VendorProfilePage() {
   const [inviteRole, setInviteRole] = useState<Role>('Co-host')
   const [inviteBusy, setInviteBusy] = useState(false)
   const [removingId, setRemovingId] = useState<number | null>(null)
+  const [cancelTarget, setCancelTarget] = useState<{ id: number; name: string; status: string } | null>(null)
   // Logo
   const [pendingLogo, setPendingLogo] = useState<string | null>(null)
   const [savingLogo, setSavingLogo] = useState(false)
@@ -139,6 +160,58 @@ export default function VendorProfilePage() {
     : null
   const inPayoutCooldown = payoutCooldownUntil !== null && payoutCooldownUntil > new Date()
 
+  const [showPasswordForm, setShowPasswordForm] = useState(false)
+  const [currentPasswordForPw, setCurrentPasswordForPw] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [newPasswordConfirm, setNewPasswordConfirm] = useState('')
+  const [changingPassword, setChangingPassword] = useState(false)
+  const [passwordError, setPasswordError] = useState('')
+
+  const [showEmailForm, setShowEmailForm] = useState(false)
+  const [currentPasswordForEmail, setCurrentPasswordForEmail] = useState('')
+  const [newEmail, setNewEmail] = useState('')
+  const [changingEmail, setChangingEmail] = useState(false)
+  const [emailError, setEmailError] = useState('')
+
+  async function handleChangePassword() {
+    setChangingPassword(true)
+    setPasswordError('')
+    try {
+      await apiFetch('/auth/change-password', {
+        method: 'POST',
+        body: JSON.stringify({
+          current_password: currentPasswordForPw,
+          new_password: newPassword,
+          new_password_confirmation: newPasswordConfirm,
+        }),
+      })
+      setCurrentPasswordForPw(''); setNewPassword(''); setNewPasswordConfirm('')
+      setShowPasswordForm(false)
+      setToast('Password updated. Other devices have been logged out.')
+    } catch (err) {
+      setPasswordError(apiErrorMessage(err))
+    } finally {
+      setChangingPassword(false)
+    }
+  }
+
+  async function handleChangeEmail() {
+    setChangingEmail(true)
+    setEmailError('')
+    try {
+      await apiFetch('/auth/change-email', {
+        method: 'POST',
+        body: JSON.stringify({ current_password: currentPasswordForEmail, new_email: newEmail }),
+      })
+      setCurrentPasswordForEmail(''); setNewEmail('')
+      setShowEmailForm(false)
+      setToast('A verification code was sent to your new email address. Check the banner at the top of the page to confirm it.')
+    } catch (err) {
+      setEmailError(apiErrorMessage(err))
+    } finally {
+      setChangingEmail(false)
+    }
+  }
 
   useEffect(() => {
     Promise.all([
@@ -389,18 +462,22 @@ export default function VendorProfilePage() {
     }
   }
 
-  async function removeTeamMember(id: number) {
-    setRemovingId(id)
+  async function confirmRemoveTeamMember() {
+    if (!cancelTarget) return
+    const member = cancelTarget
+    setRemovingId(member.id)
     setError('')
     try {
-      await apiFetch(`/vendor/team-members/${id}`, { method: 'DELETE' })
-      setVendor(v => v ? { ...v, team_members: v.team_members.filter(m => m.id !== id) } : v)
+      await apiFetch(`/vendor/team-members/${member.id}`, { method: 'DELETE' })
+      setVendor(v => v ? { ...v, team_members: v.team_members.filter(m => m.id !== member.id) } : v)
+      setCancelTarget(null)
     } catch (err) {
       setError(apiErrorMessage(err))
     } finally {
       setRemovingId(null)
     }
   }
+
 
   if (loading || !vendor) {
     return (
@@ -980,14 +1057,95 @@ export default function VendorProfilePage() {
                     Pending
                   </span>
                 )}
-                <button onClick={() => removeTeamMember(member.id)} disabled={removingId === member.id}>
-                  <X size={14} color="#888" />
-                </button>
+                {member.status !== 'active' && (
+                  <button onClick={() => setCancelTarget(member)} disabled={removingId === member.id}>
+
+                    <X size={14} color="#888" />
+                  </button>
+                )}
               </div>
             </div>
           ))}
         </div>
       </div>
+
+      {/* Account security */}
+      <div className="bg-white border border-[#e0d9cc] rounded-2xl p-5 mb-4">
+        <h2 className="text-base font-bold text-[#1a1a1a] mb-1">Account security</h2>
+        <p className="text-sm text-gray-500 mb-4">Manage your password and login email.</p>
+
+        <div className="flex flex-col divide-y divide-gray-100">
+          <div className="py-3">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-semibold text-[#1a1a1a]">Password</p>
+              <button onClick={() => setShowPasswordForm(s => !s)}
+                className="text-xs font-semibold text-[#2c4a1e] hover:underline">
+                {showPasswordForm ? 'Cancel' : 'Change'}
+              </button>
+            </div>
+            {showPasswordForm && (
+              <div className="flex flex-col gap-2 mt-3">
+                <PasswordInput value={currentPasswordForPw} onChange={setCurrentPasswordForPw} placeholder="Current password" />
+                <PasswordInput value={newPassword} onChange={setNewPassword} placeholder="New password (min. 8 characters)" />
+                <PasswordInput value={newPasswordConfirm} onChange={setNewPasswordConfirm} placeholder="Confirm new password" />
+                {passwordError && <p className="text-xs text-red-500">{passwordError}</p>}
+                <button onClick={handleChangePassword}
+                  disabled={changingPassword || !currentPasswordForPw || newPassword.length < 8 || newPassword !== newPasswordConfirm}
+                  className="self-start px-4 py-2 rounded-xl bg-[#2c4a1e] text-white text-sm font-semibold
+                             hover:bg-[#3d6b28] transition-colors disabled:opacity-40">
+                  {changingPassword ? 'Updating…' : 'Update password'}
+                </button>
+                <p className="text-xs text-gray-400">This will log you out of any other device you're signed in on.</p>
+              </div>
+            )}
+          </div>
+
+          <div className="py-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-semibold text-[#1a1a1a]">Email address</p>
+                <p className="text-xs text-gray-400">{user?.email}</p>
+              </div>
+              <button onClick={() => setShowEmailForm(s => !s)}
+                className="text-xs font-semibold text-[#2c4a1e] hover:underline">
+                {showEmailForm ? 'Cancel' : 'Change'}
+              </button>
+            </div>
+            {showEmailForm && (
+              <div className="flex flex-col gap-2 mt-3">
+                <PasswordInput value={currentPasswordForEmail} onChange={setCurrentPasswordForEmail} placeholder="Current password" />
+
+                <input type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)}
+                  placeholder="New email address"
+                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#2c4a1e] transition-colors" />
+                {emailError && <p className="text-xs text-red-500">{emailError}</p>}
+                <button onClick={handleChangeEmail}
+                  disabled={changingEmail || !currentPasswordForEmail || !newEmail.trim()}
+                  className="self-start px-4 py-2 rounded-xl bg-[#2c4a1e] text-white text-sm font-semibold
+                             hover:bg-[#3d6b28] transition-colors disabled:opacity-40">
+                  {changingEmail ? 'Updating…' : 'Update email'}
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Delete account */}
+          <div className="py-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-semibold text-red-600">Delete account</p>
+                <p className="text-xs text-gray-400">Permanently remove your account and business.</p>
+              </div>
+              <button onClick={() => setShowDeleteAccount(true)}
+                className="text-xs font-semibold text-red-600 hover:underline">
+                Delete
+              </button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
 
       <button
         onClick={() => { logout(); router.push('/') }}
@@ -998,6 +1156,34 @@ export default function VendorProfilePage() {
         <LogOut size={16} />
         Log out
       </button>
+      {/* Modals and toasts */}
+
+      {/* Cancel invite / remove team member modal */}
+      {cancelTarget && (
+        <div className="fixed inset-0 z-[500] flex items-end sm:items-center justify-center"
+          style={{ background: 'rgba(0,0,0,0.45)' }}
+          onClick={(e) => { if (e.target === e.currentTarget && removingId === null) setCancelTarget(null) }}>
+          <div className="bg-white w-full sm:max-w-sm rounded-t-3xl sm:rounded-2xl p-6">
+            <h2 className="text-lg font-bold text-[#1a1a1a] mb-2">
+              {cancelTarget.status === 'pending' ? 'Cancel this invite?' : 'Remove team member?'}
+            </h2>
+            <p className="text-sm text-gray-500 mb-5">
+              {cancelTarget.status === 'pending'
+                ? <>The invite for <span className="font-semibold text-[#1a1a1a]">{cancelTarget.name}</span> will stop working — they won't be able to accept it. This can't be undone.</>
+                : <><span className="font-semibold text-[#1a1a1a]">{cancelTarget.name}</span> loses dashboard access immediately. This can't be undone.</>}
+            </p>
+            <button onClick={confirmRemoveTeamMember} disabled={removingId !== null}
+              className="w-full py-3 rounded-xl bg-red-600 text-white text-sm font-semibold hover:bg-red-700 transition-colors disabled:opacity-40 mb-2">
+              {removingId !== null ? 'Working…' : cancelTarget.status === 'pending' ? 'Cancel invite' : 'Remove'}
+            </button>
+            <button onClick={() => setCancelTarget(null)} disabled={removingId !== null}
+              className="w-full py-2 text-sm font-semibold text-gray-400">Keep</button>
+          </div>
+        </div>
+      )}
+
+      {/* Delete account modal */}
+      {showDeleteAccount && <DeleteAccountModal onClose={() => setShowDeleteAccount(false)} />}
 
       {toast && <Toast message={toast} onDone={() => setToast(null)} />}
       {verifiedBanner && <CountdownBanner message={verifiedBanner} onDone={() => setVerifiedBanner(null)} />}
