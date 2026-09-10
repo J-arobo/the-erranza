@@ -11,6 +11,8 @@ type ApiEarnings = {
   monthly: { month: string; full_month: string; year: string; amount: number }[]
   total_earned: number
   this_month: number
+  in_transit: number
+  needs_attention: number
   completed_trips: number
   total_views: number
   commission_rate: number
@@ -72,8 +74,7 @@ export default function VendorEarningsPage() {
   const [retryingId, setRetryingId] = useState<number | null>(null)
   const [showAllPayouts, setShowAllPayouts] = useState(false)
   const [payoutsOpen, setPayoutsOpen] = useState(true)
-
-
+  const [payoutMsg, setPayoutMsg] = useState<{ ok: boolean; text: string } | null>(null)
 
   useEffect(() => {
     setHideEarnings(localStorage.getItem('erranza_hide_earnings_page') === '1')
@@ -89,6 +90,7 @@ export default function VendorEarningsPage() {
   // Vendor Payouts: Retry failed payout
   async function retryPayout(id: number) {
     setRetryingId(id)
+    setPayoutMsg(null)
     try {
       const { payout } = await apiFetch<{ payout: { id: number; status: ApiPayout['status'] } }>(
         `/vendor/payouts/${id}/retry`, { method: 'POST' },
@@ -99,13 +101,17 @@ export default function VendorEarningsPage() {
           ? { ...p, status: payout.status, failure_reason: payout.status === 'failed' ? p.failure_reason : null }
           : p),
       } : d)
+      setPayoutMsg(
+        payout.status === 'failed'
+          ? { ok: false, text: 'Retry failed — check your saved M-Pesa number in Profile, then try again.' }
+          : { ok: true, text: "Payout resent — it's now processing. It'll update here shortly." },
+      )
     } catch (err) {
-      setError(apiErrorMessage(err))
+      setPayoutMsg({ ok: false, text: apiErrorMessage(err) })
     } finally {
       setRetryingId(null)
     }
   }
-
 
   useEffect(() => {
     Promise.all([
@@ -121,6 +127,20 @@ export default function VendorEarningsPage() {
       .catch((err) => setError(apiErrorMessage(err)))
       .finally(() => setLoading(false))
   }, [])
+
+  // Jump to payouts section if URL has #payouts
+  useEffect(() => {
+    if (loading) return
+    function jump() {
+      if (window.location.hash === '#payouts') {
+        setPayoutsOpen(true)
+        setTimeout(() => document.getElementById('payouts')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50)
+      }
+    }
+    jump()
+    window.addEventListener('hashchange', jump)
+    return () => window.removeEventListener('hashchange', jump)
+  }, [loading])
 
   if (loading) {
     return (
@@ -158,9 +178,8 @@ export default function VendorEarningsPage() {
         </button>
       </div>
       <p className="text-xs text-gray-400 mb-6">
-        Shown after Erranza's {Math.round(earnings.commission_rate * 100)}% commission — what you actually receive.
+        What Erranza has actually paid out to you, after the {Math.round(earnings.commission_rate * 100)}% commission.
       </p>
-
 
       {error && (
         <div className="mb-4 px-4 py-3 rounded-xl bg-red-50 text-red-600 text-sm">{error}</div>
@@ -181,6 +200,22 @@ export default function VendorEarningsPage() {
           </div>
         ))}
       </div>
+
+      {/* In transit / Needs attention */}
+      {(earnings.in_transit > 0 || earnings.needs_attention > 0) && (
+        <div className="flex flex-wrap gap-x-5 gap-y-1 -mt-3 mb-6 text-xs">
+          {earnings.in_transit > 0 && (
+            <span className="text-amber-700">
+              On the way: {hideEarnings ? '••••' : `Ksh ${earnings.in_transit.toLocaleString()}`}
+            </span>
+          )}
+          {earnings.needs_attention > 0 && (
+            <span className="text-red-600 font-semibold">
+              Needs attention: {hideEarnings ? '••••' : `Ksh ${earnings.needs_attention.toLocaleString()}`} — see Payouts below
+            </span>
+          )}
+        </div>
+      )}
 
       {/* Bar chart */}
       <div className="bg-white rounded-2xl border border-[#e0d9cc] shadow-sm p-5 mb-5">
@@ -289,7 +324,7 @@ export default function VendorEarningsPage() {
       </div>
 
       {/* Payouts */}
-      <div className="bg-white rounded-2xl border border-[#e0d9cc] shadow-sm p-5 mt-5">
+      <div id="payouts" className="bg-white rounded-2xl border border-[#e0d9cc] shadow-sm p-5 mt-5">
         <button onClick={() => setPayoutsOpen(o => !o)}
           className="w-full flex items-center gap-2.5 text-left focus:outline-none">
           <div className="w-8 h-8 rounded-lg bg-[#eaf5e4] flex items-center justify-center flex-shrink-0">
@@ -310,6 +345,11 @@ export default function VendorEarningsPage() {
 
         {payoutsOpen && (
           <div className="mt-4">
+            {payoutMsg && (
+              <div className={`mb-3 px-3 py-2 rounded-xl text-sm ${payoutMsg.ok ? 'bg-[#eaf5e4] text-[#2c4a1e]' : 'bg-red-50 text-red-600'}`}>
+                {payoutMsg.text}
+              </div>
+            )}
             {payoutData && (payoutData.summary.pending > 0 || payoutData.summary.failed > 0) && (
               <div className="flex gap-3 mb-4">
                 {payoutData.summary.pending > 0 && (
@@ -374,7 +414,6 @@ export default function VendorEarningsPage() {
           </div>
         )}
       </div>
-
 
     </div>
   )

@@ -41,6 +41,14 @@ class MpesaBookingPayoutController extends Controller
             'paid_at' => now(),
         ]);
 
+        $payout->update([
+            'status' => 'paid',
+            'reference' => $receiptNumber ?? $payout->reference,
+            'paid_at' => now(),
+        ]);
+
+        \App\Services\BookingPayoutService::notifyVendorLegPaid($payout->fresh());
+
         return response()->json(['ResultCode' => 0, 'ResultDesc' => 'Accepted']);
     }
 

@@ -34,6 +34,53 @@ class BookingPayoutService
         self::processVendorLeg($leg, $leg->vendor);
     }
 
+        // Fires once a vendor B2C payout is confirmed by Safaricom — notifies the
+    // vendor in-app + by email, and emails Erranza ops a settlement summary
+    // (vendor net + the commission taken on the same booking).
+    public static function notifyVendorLegPaid(BookingPayout $leg): void
+    {
+        if ($leg->leg !== 'vendor' || $leg->status !== 'paid') {
+            return;
+        }
+
+        $leg->loadMissing('vendor', 'booking.listing:id,title', 'booking.traveller:id,name');
+
+        $vendor = $leg->vendor;
+        $listingTitle = $leg->booking?->listing?->title ?? "Booking #{$leg->booking_id}";
+        $travellerName = $leg->booking?->traveller?->name ?? 'a guest';
+        $net = (float) $leg->amount;
+
+        $commission = (float) BookingPayout::where('booking_id', $leg->booking_id)
+            ->where('leg', 'commission')
+            ->value('amount');
+
+        $vendor->notifications()->create([
+            'type' => 'system',
+            'title' => 'You\'ve been paid',
+            'message' => 'KES ' . number_format($net) . " for {$listingTitle} ({$travellerName}), sent to {$leg->destination}. Ref {$leg->reference}.",
+            'link' => '/vendor/earnings#payouts',
+        ]);
+
+        $opsEmail = config('services.erranza.ops_email');
+
+        defer(function () use ($vendor, $leg, $listingTitle, $travellerName, $net, $commission, $opsEmail) {
+            try {
+                \Illuminate\Support\Facades\Mail::to($vendor->email)
+                    ->send(new \App\Mail\VendorPayoutPaidMail($vendor->business_name, $net, $listingTitle, $leg->reference, $leg->destination));
+
+                if ($opsEmail) {
+                    \Illuminate\Support\Facades\Mail::to($opsEmail)
+                        ->send(new \App\Mail\PlatformPayoutSettledMail(
+                            $vendor->business_name, $leg->booking_id, $listingTitle, $travellerName,
+                            $net, $commission, $leg->reference, $leg->destination,
+                        ));
+                }
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::error('Failed to send payout settlement emails', ['error' => $e->getMessage(), 'payout_id' => $leg->id]);
+            }
+        });
+    }
+
     private static function disburseSplit(Booking $booking, Vendor $vendor, float $amount): void
     {
         $commissionRate = $vendor->plan === 'plus' ? 0.08 : 0.12;

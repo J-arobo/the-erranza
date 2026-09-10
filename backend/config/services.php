@@ -62,6 +62,10 @@ return [
         'earnings_payout_timeout_url' => env('MPESA_EARNINGS_PAYOUT_TIMEOUT_URL'),
         'commission_account' => env('ERRANZA_COMMISSION_ACCOUNT'),
     ],
+    // Erranza configuration
+    'erranza' => [
+        'ops_email' => env('ERRANZA_OPS_EMAIL', env('MAIL_FROM_ADDRESS')),
+    ],
 
     // KCB
     'buni' => [

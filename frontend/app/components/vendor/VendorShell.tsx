@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import {
   LayoutDashboard, List, Calendar, MessageCircle,
-  TrendingUp, Star, User, LogOut, Menu, X, Bell, Info, LifeBuoy
+  TrendingUp, Star, User, LogOut, Menu, X, Bell, Info, LifeBuoy, ChevronDown
 } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { apiFetch } from '@/lib/api'
@@ -13,7 +13,13 @@ const NAV_ITEMS = [
   { label: 'Listings', Icon: List, path: '/vendor/listings', tour: 'nav-listings' },
   { label: 'Bookings', Icon: Calendar, path: '/vendor/bookings', tour: 'nav-bookings' },
   { label: 'Messages', Icon: MessageCircle, path: '/vendor/messages', tour: 'nav-messages' },
-  { label: 'Earnings', Icon: TrendingUp, path: '/vendor/earnings', tour: 'nav-earnings' },
+  {
+    label: 'Earnings', Icon: TrendingUp, path: '/vendor/earnings', tour: 'nav-earnings',
+    children: [
+      { label: 'Overview', path: '/vendor/earnings' },
+      { label: 'Payouts', path: '/vendor/earnings', hash: 'payouts' },
+    ],
+  },
   { label: 'Reviews', Icon: Star, path: '/vendor/reviews' },
   { label: 'Support', Icon: LifeBuoy, path: '/vendor/support' },
   { label: 'Profile', Icon: User, path: '/vendor/profile', tour: 'nav-profile' },
@@ -50,6 +56,14 @@ export default function VendorShell({ children }: { children: React.ReactNode })
   const router = useRouter()
   const { user, logout, setActiveRole } = useAuth()
   const [mobileOpen, setMobileOpen] = useState(false)
+
+  // Earnings submenu state
+  const [earningsExpanded, setEarningsExpanded] = useState(pathname.startsWith('/vendor/earnings'))
+
+  useEffect(() => {
+    if (pathname.startsWith('/vendor/earnings')) setEarningsExpanded(true)
+  }, [pathname])
+
   const [notifOpen, setNotifOpen] = useState(false)
 
   const [pendingCount, setPendingCount] = useState(0)
@@ -120,6 +134,48 @@ export default function VendorShell({ children }: { children: React.ReactNode })
   }
 
   const currentLabel = NAV_ITEMS.find(i => isActive(i.path))?.label ?? 'Dashboard'
+
+  // Earnings submenu state
+  const renderNavItems = () => NAV_ITEMS.map(({ label, Icon, path, tour, children }) => {
+    if (children) {
+      return (
+        <div key={path}>
+          <button data-tour={tour} onClick={() => setEarningsExpanded(e => !e)}
+            className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all text-left w-full
+              ${isActive(path) ? 'bg-white/15 text-white' : 'text-white/60 hover:bg-white/10 hover:text-white'}`}>
+            <Icon size={18} />
+            {label}
+            <ChevronDown size={16} className={`ml-auto transition-transform ${earningsExpanded ? 'rotate-180' : ''}`} />
+          </button>
+          {earningsExpanded && (
+            <div className="mt-1 ml-5 flex flex-col gap-0.5 border-l border-white/15 pl-3">
+              {children.map((c) => (
+                <button key={c.label}
+                  onClick={() => navigate(c.hash ? `${c.path}#${c.hash}` : c.path)}
+                  className="text-left text-xs font-medium py-2 px-3 rounded-lg text-white/55 hover:bg-white/10 hover:text-white transition-all">
+                  {c.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )
+    }
+    return (
+      <button key={path} data-tour={tour} onClick={() => navigate(path)}
+        className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all text-left w-full
+          ${isActive(path) ? 'bg-white/15 text-white' : 'text-white/60 hover:bg-white/10 hover:text-white'}`}>
+        <Icon size={18} />
+        {label}
+        {label === 'Bookings' && pendingCount > 0 && (
+          <span className="ml-auto bg-[#EAF98E] text-[#2c4a1e] text-[10px] font-bold px-1.5 py-0.5 rounded-full">{pendingCount}</span>
+        )}
+        {label === 'Messages' && unreadMessages > 0 && (
+          <span className="ml-auto bg-[#EAF98E] text-[#2c4a1e] text-[10px] font-bold px-1.5 py-0.5 rounded-full">{unreadMessages > 9 ? '9+' : unreadMessages}</span>
+        )}
+      </button>
+    )
+  })
 
   const RoleSwitcher = () => (
     <div className="flex bg-white/10 rounded-full p-1">
@@ -223,25 +279,7 @@ export default function VendorShell({ children }: { children: React.ReactNode })
 
         {/* Nav */}
         <nav className="flex-1 px-3 py-4 flex flex-col gap-1 overflow-y-auto">
-          {NAV_ITEMS.map(({ label, Icon, path, tour }) => (
-            <button
-              key={path}
-              data-tour={tour}
-              onClick={() => navigate(path)}
-              className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm
-                          font-medium transition-all text-left w-full
-                ${isActive(path)
-                  ? 'bg-white/15 text-white'
-                  : 'text-white/60 hover:bg-white/10 hover:text-white'}`}
-            >
-              <Icon size={18} />
-              {label}
-              {label === 'Bookings' && pendingCount > 0 && (
-                <span className="ml-auto bg-[#EAF98E] text-[#2c4a1e] text-[10px]
-                                 font-bold px-1.5 py-0.5 rounded-full">{pendingCount}</span>
-              )}
-            </button>
-          ))}
+          {renderNavItems()}
         </nav>
 
         {/* User + logout */}
@@ -291,25 +329,7 @@ export default function VendorShell({ children }: { children: React.ReactNode })
             </div>
 
             <nav className="flex-1 px-3 py-4 flex flex-col gap-1 overflow-y-auto">
-              {NAV_ITEMS.map(({ label, Icon, path, tour }) => (
-                <button key={path} data-tour={tour} onClick={() => navigate(path)}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm
-                              font-medium transition-all text-left w-full
-                    ${isActive(path)
-                      ? 'bg-white/15 text-white'
-                      : 'text-white/60 hover:bg-white/10 hover:text-white'}`}>
-                  <Icon size={18} />
-                  {label}
-                  {label === 'Bookings' && pendingCount > 0 && (
-                    <span className="ml-auto bg-[#EAF98E] text-[#2c4a1e] text-[10px]
-                                     font-bold px-1.5 py-0.5 rounded-full">{pendingCount}</span>
-                  )}
-                  {label === 'Messages' && unreadMessages > 0 && (
-                    <span className="ml-auto bg-[#EAF98E] text-[#2c4a1e] text-[10px]
-                                     font-bold px-1.5 py-0.5 rounded-full">{unreadMessages > 9 ? '9+' : unreadMessages}</span>
-                  )}
-                </button>
-              ))}
+              {renderNavItems()}
             </nav>
             <div className="px-3 py-4 border-t border-white/10">
               <button onClick={() => { logout(); router.push('/') }}
