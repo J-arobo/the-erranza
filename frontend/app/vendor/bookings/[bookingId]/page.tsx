@@ -503,7 +503,7 @@ export default function BookingDetailPage({ params }: Props) {
             Complete trip
           </button>
           <button
-            onClick={() => router.push('/vendor/messages')}
+            onClick={() => router.push(`/vendor/messages?traveller=${booking.traveller.id}`)}
             className="w-full py-3 rounded-xl bg-white border border-gray-200 text-sm
                        font-semibold text-[#1a1a1a] hover:bg-gray-50 transition-colors">
             Message guest
@@ -580,7 +580,7 @@ export default function BookingDetailPage({ params }: Props) {
         </div>
       )}
 
-{booking.status === 'completed' && booking.extra_charges.length > 0 && (
+      {booking.status === 'completed' && booking.extra_charges.length > 0 && (
         <div className="bg-white rounded-2xl border border-[#e0d9cc] shadow-sm p-5 mb-5">
           <p className="text-sm font-semibold text-[#1a1a1a] mb-3">Extra charges</p>
           <div className="flex flex-col divide-y divide-gray-100">
@@ -608,7 +608,8 @@ export default function BookingDetailPage({ params }: Props) {
             Request extra charge
           </button>
           <button
-            onClick={() => router.push('/vendor/messages')}
+            onClick={() => router.push(`/vendor/messages?traveller=${booking.traveller.id}`)}
+
             className="w-full py-3 rounded-xl bg-white border border-gray-200 text-sm
                        font-semibold text-[#1a1a1a] hover:bg-gray-50 transition-colors">
             Message guest
@@ -641,7 +642,8 @@ export default function BookingDetailPage({ params }: Props) {
 
       {(booking.status === 'cancelled' || booking.status === 'alternative_proposed') && (
         <button
-          onClick={() => router.push('/vendor/messages')}
+          onClick={() => router.push(`/vendor/messages?traveller=${booking.traveller.id}`)}
+
           className="w-full py-3 rounded-xl bg-white border border-gray-200 text-sm
                      font-semibold text-[#1a1a1a] hover:bg-gray-50 transition-colors">
           Message guest

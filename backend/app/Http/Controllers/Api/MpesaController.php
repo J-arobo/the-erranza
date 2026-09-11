@@ -231,18 +231,13 @@ class MpesaController extends Controller
                 return $booking;
             });
 
-            $listing->vendor->notifications()->create([
-                'type' => 'booking',
-                'title' => 'New booking request',
-                'message' => "A traveller requested to book \"{$listing->title}\".",
-                'link' => "/vendor/bookings/{$booking->id}",
-            ]);
-
             $stkRequest->update([
                 'status' => 'success',
                 'mpesa_receipt_number' => $receiptNumber,
                 'booking_id' => $booking->id,
             ]);
+
+            \App\Services\BookingNotifier::notifyPaid($booking->fresh());
         } catch (\Throwable $e) {
             $stkRequest->update(['status' => 'failed', 'result_desc' => $e->getMessage()]);
         }

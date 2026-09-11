@@ -36,7 +36,7 @@ export default function VendorLayout({ children }: { children: React.ReactNode }
       return
     }
     if (!isPartner) {
-      router.push('/partner')
+      router.push('/')
       return
     }
     if (!user?.onboardingComplete && !isOnboardingRoute) {
