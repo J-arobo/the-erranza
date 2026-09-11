@@ -72,39 +72,38 @@ class VendorStatsController extends Controller
         ]);
     }
 
-    // Real, commission-adjusted earnings — a vendor's plan determines Erranza's
-    // cut (12% Standard, 8% Plus), so "earnings" here always means what the
-    // vendor actually receives, not the gross amount the traveller paid.
+    // Money figures come straight from the payout ledger — what Erranza has
+    // disbursed (or, for bank transfers, will disburse) — not a recalculation
+    // of booking totals. Paid-out extra charges are included automatically.
     public function earnings(Request $request)
     {
         $vendor = $request->attributes->get('vendor');
         $commissionRate = $vendor->plan === 'plus' ? 0.08 : 0.12;
-        $netOf = fn ($gross) => round($gross * (1 - $commissionRate));
 
-        // Bucketed by check_out (falling back to check_in, then created_at for
-        // listings with neither) — the date the trip actually concluded is the
-        // most meaningful "when was this revenue earned" for a travel platform.
-        $completedBookings = Booking::whereHas('listing', fn ($q) => $q->where('vendor_id', $vendor->id))
-            ->where('status', 'completed')
-            ->get(['id', 'total', 'check_in', 'check_out', 'created_at']);
+        $legs = \App\Models\BookingPayout::where('vendor_id', $vendor->id)
+            ->where('leg', 'vendor')
+            ->get(['amount', 'status', 'paid_at', 'created_at']);
 
-        $monthly = collect(range(11, 0))->map(function ($monthsAgo) use ($completedBookings, $netOf) {
+        $earnedLegs = $legs->whereIn('status', ['paid', 'manual']);
+
+        $monthly = collect(range(11, 0))->map(function ($monthsAgo) use ($earnedLegs) {
             $date = now()->subMonths($monthsAgo);
-            $gross = $completedBookings->filter(function ($b) use ($date) {
-                $effective = $b->check_out ?? $b->check_in ?? $b->created_at;
-                return $effective->isSameMonth($date) && $effective->isSameYear($date);
-            })->sum('total');
+            $amount = $earnedLegs->filter(function ($l) use ($date) {
+                $when = $l->paid_at ?? $l->created_at;
+                return $when && $when->isSameMonth($date) && $when->isSameYear($date);
+            })->sum('amount');
 
             return [
                 'month' => $date->format('M'),
                 'full_month' => $date->format('F'),
                 'year' => $date->format('Y'),
-                'amount' => $netOf($gross),
+                'amount' => round($amount),
             ];
         })->values();
 
-        $totalEarned = $netOf($completedBookings->sum('total'));
-        $thisMonth = $monthly->last()['amount'] ?? 0;
+        $completedTrips = Booking::whereHas('listing', fn ($q) => $q->where('vendor_id', $vendor->id))
+            ->where('status', 'completed')
+            ->count();
 
         $listings = $vendor->listings()
             ->with('images')
@@ -120,9 +119,11 @@ class VendorStatsController extends Controller
 
         return response()->json([
             'monthly' => $monthly,
-            'total_earned' => $totalEarned,
-            'this_month' => $thisMonth,
-            'completed_trips' => $completedBookings->count(),
+            'total_earned' => round($earnedLegs->sum('amount')),
+            'this_month' => $monthly->last()['amount'] ?? 0,
+            'in_transit' => round($legs->whereIn('status', ['pending', 'processing'])->sum('amount')),
+            'needs_attention' => round($legs->where('status', 'failed')->sum('amount')),
+            'completed_trips' => $completedTrips,
             'total_views' => $listings->sum('views'),
             'commission_rate' => $commissionRate,
             'listings' => $listings,
