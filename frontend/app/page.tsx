@@ -64,6 +64,38 @@ const SECTION_META = [
   { title: 'Travel Packages', slug: 'packages', category: 'Packages', listingCategory: 'packages', color: '#163a4a', map: mapItem, sectionTitle: 'curated' },
 ]
 
+{/* Images skeletons before data loads */ }
+function SectionSkeleton({ title }: { title: string }) {
+  return (
+    <div>
+      <div className="flex items-center justify-between px-6 sm:px-12 md:px-16 lg:px-20 pt-5 pb-2">
+        <h2 className="text-[15px] sm:text-[17px] font-bold text-[#1a1a1a]">{title}</h2>
+      </div>
+      <div className="sm:px-12 md:px-16 lg:px-20 pb-2">
+        <div className="overflow-x-auto scrollbar-hide">
+          <div className="flex gap-3 px-6">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="flex-shrink-0
+                w-[calc((100vw-60px)/2)]
+                sm:w-[calc((100vw-120px)/3)]
+                md:w-[calc((100vw-164px)/4)]
+                lg:w-[calc((100vw-196px)/4)]
+                xl:w-[calc((100vw-208px)/5)]">
+                <div className="aspect-[5/4] rounded-xl bg-gray-200 animate-pulse" />
+                <div className="pt-2">
+                  <div className="h-[13px] w-4/5 rounded bg-gray-200 animate-pulse mb-1.5" />
+                  <div className="h-[11px] w-2/5 rounded bg-gray-200 animate-pulse mb-1.5" />
+                  <div className="h-[11px] w-1/3 rounded bg-gray-200 animate-pulse" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function Home() {
   const router = useRouter()
   const [sectionData, setSectionData] = useState<Record<string, SectionItem[]>>({})
@@ -82,7 +114,9 @@ export default function Home() {
 
       {SECTION_META.map(({ title, slug, color, listingCategory, sectionTitle }) => {
         const data = sectionData[slug]
-        if (!data || data.length === 0) return null
+        if (data === undefined) return <SectionSkeleton key={slug} title={title} />
+        if (data.length === 0) return null
+
         const seeAllHref = sectionTitle ? `/destinations/${slug}?section=${encodeURIComponent(sectionTitle)}` : `/destinations/${slug}`
 
         return (
