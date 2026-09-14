@@ -17,6 +17,7 @@ import {
 import { useAuth } from '@/context/AuthContext'
 import { apiFetch, apiErrorMessage } from '@/lib/api'
 import FooterSection from '@/components/FooterSection'
+import VirtualTourViewer from '@/components/VirtualTourViewer'
 
 const MapComponent = dynamic(() => import('@/components/MapComponent'), {
   ssr: false,
@@ -165,6 +166,14 @@ type ApiListingDetail = {
   safety_info: { key: string; note: string | null }[] | null
   // Unavailable dates
   unavailable_dates: { start: string; end: string }[]
+}
+
+type ApiTourScene = {
+  id: number
+  name: string
+  panorama_url: string
+  position: number
+  links: { id: number; target_scene_id: number; yaw: number; pitch: number }[]
 }
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
@@ -449,6 +458,16 @@ export default function StayDetailPage({ params }: Props) {
   const [showLoginPrompt, setShowLoginPrompt] = useState(false)
   const [dateWarning, setDateWarning] = useState(false)
   const [otherListings, setOtherListings] = useState<ApiListingSummary[]>([])
+  // House tour
+  const [tourScenes, setTourScenes] = useState<ApiTourScene[] | null>(null)
+  const [showVirtualTour, setShowVirtualTour] = useState(false)
+
+  // House Tour
+  useEffect(() => {
+    apiFetch<{ scenes: ApiTourScene[] }>(`/listings/${id}/virtual-tour`)
+      .then(({ scenes }) => setTourScenes(scenes))
+      .catch(() => setTourScenes([])) // no published tour for this listing — not an error
+  }, [id])
 
   useEffect(() => {
     apiFetch<{ listing: ApiListingDetail }>(`/listings/${id}`)
@@ -882,14 +901,31 @@ export default function StayDetailPage({ params }: Props) {
                     className="object-cover transition-transform duration-500 group-hover:scale-[1.03]" priority />
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gridTemplateRows: '1fr 1fr', gap: 3 }}>
-                  {[1, 2, 3, 4].map((imgIdx) => (
-                    <div key={imgIdx} className="relative overflow-hidden group cursor-pointer"
-                      onClick={() => { setActiveImg(imgIdx); setShowGallery(true) }}>
-                      <Image src={images[imgIdx] ?? images[0]} alt="" fill
-                        sizes="(min-width: 1280px) 280px, 25vw"
-                        className="object-cover transition-transform duration-500 group-hover:scale-[1.04]" />
-                    </div>
-                  ))}
+                  {[1, 2, 3, 4].map((imgIdx) => {
+                    if (imgIdx === 4 && tourScenes && tourScenes.length > 0) {
+                      return (
+                        <button key="tour" onClick={() => setShowVirtualTour(true)}
+                          className="relative overflow-hidden group cursor-pointer">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={tourScenes[0].panorama_url} alt=""
+                            className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.04]" />
+                          <div className="absolute inset-0 bg-black/35 flex items-center justify-center">
+                            <span className="text-white text-xs font-semibold text-center px-2 leading-snug">
+                              360° tour<br />{tourScenes.length} room{tourScenes.length === 1 ? '' : 's'}
+                            </span>
+                          </div>
+                        </button>
+                      )
+                    }
+                    return (
+                      <div key={imgIdx} className="relative overflow-hidden group cursor-pointer"
+                        onClick={() => { setActiveImg(imgIdx); setShowGallery(true) }}>
+                        <Image src={images[imgIdx] ?? images[0]} alt="" fill
+                          sizes="(min-width: 1280px) 280px, 25vw"
+                          className="object-cover transition-transform duration-500 group-hover:scale-[1.04]" />
+                      </div>
+                    )
+                  })}
                 </div>
               </div>
               <button onClick={() => setShowGallery(true)}
@@ -901,520 +937,510 @@ export default function StayDetailPage({ params }: Props) {
 
             <div className="md:hidden relative rounded-2xl overflow-hidden" style={{ height: 320 }}>
               <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 3, height: '100%' }}>
-                {images.slice(0, 3).map((img: string, i: number) => (
-                  <div key={i} className="relative overflow-hidden group cursor-pointer"
-                    onClick={() => { setActiveImg(i); setShowGallery(true) }}>
-                    <Image src={img} alt="" fill sizes="33vw"
-                      className="object-cover transition-transform duration-300 group-hover:scale-105" priority={i === 0} />
-                  </div>
-                ))}
+                {images.slice(0, 3).map((img: string, i: number) => {
+                  if (i === 2 && tourScenes && tourScenes.length > 0) {
+                    return (
+                      <button key="tour" onClick={() => setShowVirtualTour(true)}
+                        className="relative overflow-hidden group cursor-pointer">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={tourScenes[0].panorama_url} alt="" className="absolute inset-0 w-full h-full object-cover" />
+                        <div className="absolute inset-0 bg-black/35 flex items-center justify-center">
+                          <span className="text-white text-[10px] font-semibold text-center px-1">360° tour</span>
+                        </div>
+                      </button>
+                    )
+                  }
+                  return (
+                    <div key={i} className="relative overflow-hidden group cursor-pointer"
+                      onClick={() => { setActiveImg(i); setShowGallery(true) }}>
+                      <Image src={img} alt="" fill sizes="33vw"
+                        className="object-cover transition-transform duration-300 group-hover:scale-105" priority={i === 0} />
+                    </div>
+                  )
+                })}
+
+                <button onClick={() => setShowGallery(true)}
+                  className="absolute bottom-3 right-3 flex items-center gap-1.5 bg-white rounded-xl px-3 py-2 text-xs font-semibold text-[#304333] hover:bg-[#f5f0e6] transition-colors z-10"
+                  style={{ cursor: 'pointer', WebkitTapHighlightColor: 'transparent', border: '1px solid #d4cfc8' }}>
+                  <Grid2X2 size={13} /> Show all
+                </button>
               </div>
-              <button onClick={() => setShowGallery(true)}
-                className="absolute bottom-3 right-3 flex items-center gap-1.5 bg-white rounded-xl px-3 py-2 text-xs font-semibold text-[#304333] hover:bg-[#f5f0e6] transition-colors z-10"
-                style={{ cursor: 'pointer', WebkitTapHighlightColor: 'transparent', border: '1px solid #d4cfc8' }}>
-                <Grid2X2 size={13} /> Show all
-              </button>
             </div>
           </div>
-        </div>
+          </div>
 
-        {/* ══════════════════════════════════════════════════════
+          {/* ══════════════════════════════════════════════════════
             PAGE LAYOUT — 2-col desktop, single col mobile
         ══════════════════════════════════════════════════════ */}
-        <div className="sm:px-6 lg:px-8 xl:px-20 max-w-7xl mx-auto -mt-5 sm:mt-0 rounded-t-3xl sm:rounded-none bg-[#FEFDFC] sm:bg-transparent relative">
-          <div className="md:grid md:gap-12" style={{ gridTemplateColumns: '1fr 380px' }}>
+          <div className="sm:px-6 lg:px-8 xl:px-20 max-w-7xl mx-auto -mt-5 sm:mt-0 rounded-t-3xl sm:rounded-none bg-[#FEFDFC] sm:bg-transparent relative">
+            <div className="md:grid md:gap-12" style={{ gridTemplateColumns: '1fr 380px' }}>
 
-            {/* ══ LEFT COLUMN ══ */}
-            <div>
+              {/* ══ LEFT COLUMN ══ */}
+              <div>
 
-              {/* ── Title + meta ── */}
-              <div className="pt-5 pb-1 sm:pt-6 sm:px-0" style={{ ...MOB_PAD }}>
-                <h1 className="text-2xl sm:text-[28px] font-semibold text-[#304333] leading-tight mb-1 text-center sm:text-left">{title}</h1>
-                <p className="hidden sm:block text-base text-[#304333] mb-1">{location}</p>
-                <p className="hidden sm:block text-sm text-[#304333] mb-2">
-                  {detail.guests} guests · {detail.bedrooms} bedroom{detail.bedrooms !== 1 ? 's' : ''} · {detail.beds} bed{detail.beds !== 1 ? 's' : ''} · {detail.baths} bath{detail.baths !== 1 ? 's' : ''}
-                </p>
-                <p className="sm:hidden text-base text-[#78716c] mb-2 text-center">{location}</p>
-                <p className="sm:hidden text-sm text-[#78716c] mb-2 text-center">
-                  {detail.guests} guests · {detail.bedrooms} bedroom{detail.bedrooms !== 1 ? 's' : ''} · {detail.beds} bed{detail.beds !== 1 ? 's' : ''} · {detail.baths} bath{detail.baths !== 1 ? 's' : ''}
-                </p>
-                <div className="flex items-center gap-2 justify-center sm:justify-start">
-                  <Star size={14} fill="#F5D06E" color="#304333" />
-                  <span className="text-sm font-semibold text-[#304333]">{rating}</span>
-                  <button onClick={() => setShowAllReviewsPage(true)}
-                    className="text-sm text-[#304333] font-semibold underline" style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
-                    {reviewCount} reviews
-                  </button>
-                  {detail.isSuperhost && (
-                    <>
-                      <span className="text-[#a8a29e]">·</span>
-                      <span className="text-sm font-semibold text-[#304333]">Superhost</span>
-                    </>
-                  )}
-                </div>
-              </div>
-
-              <Divider />
-
-              {/* ── Host row ── */}
-              <div className="flex items-center gap-4 pb-1 sm:px-0" style={{ ...MOB_PAD }}>
-                <div className="relative flex-shrink-0">
-                  <div className="w-12 h-12 rounded-full bg-[#2c4a1e] flex items-center justify-center text-white text-lg font-semibold"
-                    style={detail.hostLogo ? { backgroundImage: `url(${detail.hostLogo})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}>
-                    {!detail.hostLogo && detail.hostName[0]}
-                  </div>
-                  {detail.isSuperhost && (
-                    <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-red-500 flex items-center justify-center">
-                      <Award size={10} color="white" />
-                    </div>
-                  )}
-                </div>
-                <div>
-                  <p className="text-base font-semibold text-[#304333]">Hosted by {detail.hostName}</p>
-                  <p className="text-sm text-[#78716c]">
-                    {detail.yearsHosting > 0 ? `${detail.yearsHosting} year${detail.yearsHosting !== 1 ? 's' : ''} hosting` : 'New host'}
+                {/* ── Title + meta ── */}
+                <div className="pt-5 pb-1 sm:pt-6 sm:px-0" style={{ ...MOB_PAD }}>
+                  <h1 className="text-2xl sm:text-[28px] font-semibold text-[#304333] leading-tight mb-1 text-center sm:text-left">{title}</h1>
+                  <p className="hidden sm:block text-base text-[#304333] mb-1">{location}</p>
+                  <p className="hidden sm:block text-sm text-[#304333] mb-2">
+                    {detail.guests} guests · {detail.bedrooms} bedroom{detail.bedrooms !== 1 ? 's' : ''} · {detail.beds} bed{detail.beds !== 1 ? 's' : ''} · {detail.baths} bath{detail.baths !== 1 ? 's' : ''}
                   </p>
-                </div>
-              </div>
-
-              <Divider />
-
-              {/* ── Description ── */}
-              <div className="pb-1 sm:px-0" style={{ ...MOB_PAD }}>
-                <div className="hidden sm:block">
-                  <p className="text-base text-[#304333] leading-relaxed whitespace-pre-line"
-                    style={!showFullDesc ? { display: '-webkit-box', WebkitLineClamp: 5, WebkitBoxOrient: 'vertical' as any, overflow: 'hidden' } : {}}>
-                    {detail.description}
+                  <p className="sm:hidden text-base text-[#78716c] mb-2 text-center">{location}</p>
+                  <p className="sm:hidden text-sm text-[#78716c] mb-2 text-center">
+                    {detail.guests} guests · {detail.bedrooms} bedroom{detail.bedrooms !== 1 ? 's' : ''} · {detail.beds} bed{detail.beds !== 1 ? 's' : ''} · {detail.baths} bath{detail.baths !== 1 ? 's' : ''}
                   </p>
-                  <button onClick={() => setShowFullDesc(s => !s)}
-                    className="mt-4 px-8 py-3.5 rounded-xl text-sm font-semibold text-[#304333] transition-colors hover:bg-[#ede8df]"
-                    style={{ background: '#F1F5E4', cursor: 'pointer', WebkitTapHighlightColor: 'transparent', border: 'none', color: '#304333', fontFamily: 'inherit' }}>
-                    {showFullDesc ? 'Show less' : 'Show more'}
-                  </button>
-                </div>
-                <div className="sm:hidden">
-                  <p className="text-base text-[#304333] leading-relaxed whitespace-pre-line"
-                    style={{ display: '-webkit-box', WebkitLineClamp: 5, WebkitBoxOrient: 'vertical' as any, overflow: 'hidden' }}>
-                    {detail.description}
-                  </p>
-                  <button onClick={() => setShowDescModal(true)}
-                    className="mt-4 w-full py-3 rounded-xl text-sm font-semibold text-center transition-colors hover:bg-[#ede8df]"
-                    style={{ background: '#F1F5E4', border: 'none', cursor: 'pointer', WebkitTapHighlightColor: 'transparent', color: '#304333' }}>
-                    Show more
-                  </button>
-                </div>
-              </div>
-
-              <Divider />
-
-              {/* ── Amenities ── */}
-              <div className="pb-1 sm:px-0" style={{ ...MOB_PAD }}>
-                <h2 className="text-xl font-semibold text-[#304333] mb-5">What this place offers</h2>
-
-                <div className="hidden sm:grid grid-cols-2 gap-x-8 gap-y-4">
-                  {detail.amenities.slice(0, 10).map((label: string) => (
-                    <div key={label} className="flex items-center gap-3">
-                      <span className="text-[#304333] flex-shrink-0">{getIcon(label)}</span>
-                      <span className="text-sm text-[#304333]">{label}</span>
-                    </div>
-                  ))}
-                </div>
-                <div className="sm:hidden flex flex-col gap-4">
-                  {detail.amenities.slice(0, 5).map((label: string) => (
-                    <div key={label} className="flex items-center gap-4">
-                      <span className="text-[#304333]">{getIcon(label)}</span>
-                      <span className="text-base text-[#304333]">{label}</span>
-                    </div>
-                  ))}
-                </div>
-
-                {detail.amenities.length > 5 && (
-                  <button onClick={() => setShowAmenitiesModal(true)}
-                    className="mt-6 px-8 py-3.5 rounded-xl text-sm font-semibold text-[#304333] transition-colors hover:bg-[#ede8df]"
-                    style={{ background: '#F1F5E4', cursor: 'pointer', WebkitTapHighlightColor: 'transparent', border: 'none', color: '#304333', fontFamily: 'inherit' }}>
-                    {`Show all ${detail.amenities.length} amenities`}
-                  </button>
-                )}
-              </div>
-
-              {showAmenitiesModal && (
-                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
-                  style={{ background: 'rgba(0,0,0,0.4)' }}
-                  onClick={(e) => { if (e.target === e.currentTarget) setShowAmenitiesModal(false) }}>
-                  <div className="bg-white w-full sm:max-w-lg rounded-t-3xl sm:rounded-2xl p-6 max-h-[85vh] overflow-y-auto"
-                    style={{ fontFamily: "Georgia, 'Times New Roman', serif" }}>
-                    <div className="flex items-center justify-between mb-5">
-                      <h2 className="text-xl font-bold text-[#304333]">What this place offers</h2>
-                      <button onClick={() => setShowAmenitiesModal(false)}
-                        className="w-9 h-9 rounded-full flex items-center justify-center"
-                        style={{ background: '#f5f0e6', border: 'none', cursor: 'pointer' }}>
-                        <X size={18} color="#304333" />
-                      </button>
-                    </div>
-                    <div className="flex flex-col gap-4 mb-6">
-                      {detail.amenities.map((label: string) => (
-                        <div key={label} className="flex items-center gap-4">
-                          <span className="text-[#304333]">{getIcon(label)}</span>
-                          <span className="text-sm text-[#304333]">{label}</span>
-                        </div>
-                      ))}
-                    </div>
-                    {detail.excluded.length > 0 && (
+                  <div className="flex items-center gap-2 justify-center sm:justify-start">
+                    <Star size={14} fill="#F5D06E" color="#304333" />
+                    <span className="text-sm font-semibold text-[#304333]">{rating}</span>
+                    <button onClick={() => setShowAllReviewsPage(true)}
+                      className="text-sm text-[#304333] font-semibold underline" style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                      {reviewCount} reviews
+                    </button>
+                    {detail.isSuperhost && (
                       <>
-                        <div className="border-t border-[#e8e0d0] pt-5 mb-1">
-                          <p className="text-sm font-semibold text-[#78716c] mb-4">Not included</p>
-                        </div>
-                        <div className="flex flex-col gap-4">
-                          {detail.excluded.map((label: string) => (
-                            <div key={label} className="flex items-center gap-4">
-                              <X size={18} color="#a8a29e" />
-                              <span className="text-sm text-[#a8a29e] line-through">{label}</span>
-                            </div>
-                          ))}
-                        </div>
+                        <span className="text-[#a8a29e]">·</span>
+                        <span className="text-sm font-semibold text-[#304333]">Superhost</span>
                       </>
                     )}
                   </div>
                 </div>
-              )}
 
-              {/* ── Active info modal ── */}
-              {activeInfo && (
-                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
-                  style={{ background: 'rgba(0,0,0,0.4)' }}
-                  onClick={(e) => { if (e.target === e.currentTarget) setActiveInfo(null) }}>
-                  <div className="bg-white w-full sm:max-w-xl rounded-t-3xl sm:rounded-2xl h-[92vh] sm:h-auto sm:max-h-[85vh] overflow-y-auto flex flex-col">
-                    <div className="sm:hidden flex items-center px-5 pt-6 pb-2 sticky top-0 bg-white z-10">
-                      <button onClick={() => setActiveInfo(null)}
-                        style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
-                        <ArrowLeft size={20} color="#304333" />
-                      </button>
+                <Divider />
+
+                {/* ── Host row ── */}
+                <div className="flex items-center gap-4 pb-1 sm:px-0" style={{ ...MOB_PAD }}>
+                  <div className="relative flex-shrink-0">
+                    <div className="w-12 h-12 rounded-full bg-[#2c4a1e] flex items-center justify-center text-white text-lg font-semibold"
+                      style={detail.hostLogo ? { backgroundImage: `url(${detail.hostLogo})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}>
+                      {!detail.hostLogo && detail.hostName[0]}
                     </div>
-                    <div className="hidden sm:flex items-center justify-between px-8 pt-8">
-                      <h2 className="text-2xl font-bold text-[#304333]">{activeInfo.title}</h2>
-                      <button onClick={() => setActiveInfo(null)}
-                        className="w-9 h-9 flex items-center justify-center rounded-full"
-                        style={{ background: '#f5f5f5', border: 'none', cursor: 'pointer' }}>
-                        <X size={18} color="#304333" />
-                      </button>
-                    </div>
-                    <div className="px-5 sm:px-8 pb-8 sm:pb-10 pt-2 sm:pt-6">
-                      <h2 className="text-2xl sm:hidden font-bold text-[#304333] mb-4">{activeInfo.title}</h2>
-                      {activeInfo.body}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-            </div>
-
-            {/* ══ DESKTOP BOOKING SIDEBAR ══ */}
-            <div className="hidden md:block">
-              <div className="sticky top-24 mt-6">
-                <div className="rounded-2xl shadow-xl p-6 bg-white" style={{ border: '1px solid #e8e0d0' }}>
-
-                  {checkIn && checkOut ? (
-                    <div className="mb-4">
-                      <div className="flex items-baseline gap-2">
-                        <span className="text-2xl font-semibold text-[#304333] underline cursor-pointer">
-                          Ksh {(total + fee).toLocaleString()}
-                        </span>
-                        <span className="text-base text-[#304333]">for {calNights} night{calNights !== 1 ? 's' : ''}</span>
-                      </div>
-                      <div className="flex items-center gap-1 mt-1">
-                        <Star size={12} fill="#F5D06E" color="#304333" />
-                        <span className="text-xs font-semibold text-[#304333]">{rating}</span>
-                        <span className="text-xs text-[#78716c]">· {reviewCount} reviews</span>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex items-end gap-2 mb-4">
-                      <span className="text-2xl font-semibold text-[#304333]">{price}</span>
-                      <span className="text-base text-[#78716c]">/ night</span>
-                      <div className="flex items-center gap-1 ml-auto">
-                        <Star size={13} fill="#F5D06E" color="#304333" />
-                        <span className="text-sm font-semibold text-[#304333]">{rating}</span>
-                        <span className="text-sm text-[#78716c]">({reviewCount})</span>
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="relative mb-4">
-                    <div className="rounded-xl overflow-hidden" style={{ border: '1px solid #b0a898' }}>
-                      <div className="grid grid-cols-2" style={{ borderBottom: '1px solid #b0a898' }}>
-                        <div className="p-3 cursor-pointer hover:bg-[#f9f5ef] transition-colors"
-                          style={{ borderRight: '1px solid #b0a898' }}
-                          onClick={() => { setSidebarActiveField('checkin'); setShowSidebarCal(true) }}>
-                          <p className="text-[10px] font-bold uppercase tracking-widest text-[#304333] mb-0.5">Check-in</p>
-                          <p className="text-sm font-semibold" style={{ color: checkIn ? '#304333' : '#78716c' }}>
-                            {checkIn ? checkIn.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' }) : 'Add date'}
-                          </p>
-                        </div>
-                        <div className="p-3 cursor-pointer hover:bg-[#f9f5ef] transition-colors"
-                          onClick={() => { setSidebarActiveField('checkout'); setShowSidebarCal(true) }}>
-                          <p className="text-[10px] font-bold uppercase tracking-widest text-[#304333] mb-0.5">Checkout</p>
-                          <p className="text-sm font-semibold" style={{ color: checkOut ? '#304333' : '#78716c' }}>
-                            {checkOut ? checkOut.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' }) : 'Add date'}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="p-3 flex items-center justify-between cursor-pointer hover:bg-[#f9f5ef] transition-colors"
-                        onClick={() => setShowGuestPanel(s => !s)}>
-                        <div>
-                          <p className="text-[10px] font-bold uppercase tracking-widest text-[#304333] mb-0.5">Guests</p>
-                          <p className="text-sm font-semibold text-[#304333]">{guestLabel}</p>
-                        </div>
-                        <ChevronRight size={16} color="#78716c"
-                          style={{ transform: showGuestPanel ? 'rotate(-90deg)' : 'rotate(90deg)', transition: 'transform 0.2s' }} />
-                      </div>
-
-                    </div>
-
-                    {showSidebarCal && (
-                      <div className="absolute bg-white rounded-xl shadow-xl z-50 p-4"
-                        style={{ top: 60, marginTop: 0, border: '1px solid #e8e0d0', right: 0, width: 660 }}>
-                        <p className="text-sm font-semibold text-[#304333] mb-3">
-                          {checkIn && !checkOut
-                            ? 'Select checkout date'
-                            : checkIn && checkOut
-                              ? `${fmtDateFull(checkIn)} – ${fmtDateFull(checkOut)}`
-                              : 'Select check-in date'}
-                        </p>
-                        <DesktopCalendar checkIn={checkIn} checkOut={checkOut} onSelect={handleSidebarCalSelect} disabledRanges={disabledRanges} />
-
-                        <div className="flex justify-between items-center mt-3 pt-3" style={{ borderTop: '1px solid #e8e0d0' }}>
-                          <button onClick={() => { setCheckIn(null); setCheckOut(null); setSidebarActiveField('checkin') }}
-                            className="text-sm font-semibold text-[#304333] underline"
-                            style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
-                            Clear dates
-                          </button>
-                          <button onClick={() => setShowSidebarCal(false)}
-                            className="px-5 py-2 rounded-xl text-sm font-semibold text-white"
-                            style={{ background: '#304333', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
-                            Close
-                          </button>
-                        </div>
+                    {detail.isSuperhost && (
+                      <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-red-500 flex items-center justify-center">
+                        <Award size={10} color="white" />
                       </div>
                     )}
-                    {showGuestPanel && (
-                      <div className="absolute bg-white rounded-xl shadow-xl z-50 p-5"
-                        style={{ top: '100%', marginTop: 4, border: '1px solid #e8e0d0', left: 0, right: 0 }}>
-                        {[
-                          { label: 'Adults', sub: 'Age 13+', count: adults, set: setAdults, min: 1, max: detail.guests },
-                          { label: 'Children', sub: 'Ages 2–12', count: children, set: setChildren, min: 0, max: Math.max(0, detail.guests - adults) },
-                          { label: 'Infants', sub: 'Under 2', count: infants, set: setInfants, min: 0, max: 5 },
-                          { label: 'Pets', sub: 'Bringing a service animal?', count: pets, set: setPets, min: 0, max: 5 },
-                        ].map(({ label, sub, count, set, min, max }) => (
-                          <div key={label} className="flex items-center justify-between py-4"
-                            style={{ borderBottom: label !== 'Pets' ? '1px solid #f0ede8' : 'none' }}>
-                            <div>
-                              <p className="text-sm font-semibold text-[#304333]">{label}</p>
-                              <p className="text-sm text-[#78716c]">{sub}</p>
-                            </div>
-                            <div className="flex items-center gap-3">
-                              <button onClick={() => set((c: number) => Math.max(min, c - 1))}
-                                className="w-8 h-8 rounded-full flex items-center justify-center"
-                                style={{
-                                  border: '1px solid #b0a898', background: 'none', cursor: count <= min ? 'not-allowed' : 'pointer',
-                                  opacity: count <= min ? 0.4 : 1, fontFamily: 'inherit', color: '#304333', fontSize: 18
-                                }}>
-                                −
-                              </button>
-                              <span className="text-sm font-semibold text-[#304333] w-4 text-center">{count}</span>
-                              <button onClick={() => set((c: number) => Math.min(max, c + 1))}
-                                className="w-8 h-8 rounded-full flex items-center justify-center"
-                                style={{
-                                  border: '1px solid #b0a898', background: 'none', cursor: count >= max ? 'not-allowed' : 'pointer',
-                                  opacity: count >= max ? 0.4 : 1, fontFamily: 'inherit', color: '#304333', fontSize: 18
-                                }}>
-                                +
-                              </button>
-                            </div>
-                          </div>
-                        ))}
-                        <p className="text-xs text-[#78716c] mt-4 mb-3">
-                          This place has a maximum of {detail.guests} guests, not including infants. Pets aren't allowed.
-                        </p>
-                        <div className="flex justify-end">
-                          <button onClick={() => setShowGuestPanel(false)}
-                            className="text-sm font-semibold text-[#304333]"
-                            style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
-                            Close
-                          </button>
-                        </div>
-                      </div>
-                    )}
-
                   </div>
-
-                  <button onClick={handleReserveClick}
-                    className="w-full py-3.5 rounded-xl font-semibold text-sm text-white mb-3 transition-opacity hover:opacity-90"
-                    style={{ background: 'linear-gradient(to right, #e8612a, #d44d1a)', border: 'none', cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}>
-                    Reserve
-                  </button>
-                  <p className="text-xs text-center text-[#78716c] mb-4">You won't be charged yet</p>
-
-                  {checkIn && checkOut ? (
-                    <div className="flex flex-col gap-2.5">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-[#304333] underline cursor-pointer">{price} × {calNights} night{calNights !== 1 ? 's' : ''}</span>
-                        <span className="text-[#304333]">Ksh {total.toLocaleString()}</span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-[#304333] underline cursor-pointer">Erranza service fee</span>
-                        <span className="text-[#304333]">Ksh {fee.toLocaleString()}</span>
-                      </div>
-                      <div className="flex justify-between pt-3" style={{ borderTop: '1px solid #e8e0d0' }}>
-                        <span className="text-sm font-semibold text-[#304333]">Total before taxes</span>
-                        <span className="text-sm font-semibold text-[#304333]">Ksh {(total + fee).toLocaleString()}</span>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col gap-2.5">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-[#78716c] underline cursor-pointer">{price} × {nights} nights</span>
-                        <span className="text-[#304333]">Ksh {(priceNum * nights).toLocaleString()}</span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-[#78716c] underline cursor-pointer">Erranza service fee</span>
-                        <span className="text-[#304333]">Ksh {Math.round(priceNum * nights * 0.12).toLocaleString()}</span>
-                      </div>
-                      <div className="flex justify-between pt-3" style={{ borderTop: '1px solid #e8e0d0' }}>
-                        <span className="text-sm font-semibold text-[#304333]">Total before taxes</span>
-                        <span className="text-sm font-semibold text-[#304333]">
-                          Ksh {(priceNum * nights + Math.round(priceNum * nights * 0.12)).toLocaleString()}
-                        </span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <Divider />
-
-        <div className="sm:px-6 md:px-8 xl:px-20 max-w-7xl mx-auto">
-
-          {/* ── Calendar ── */}
-          <div ref={calendarSectionRef} className="pb-1 sm:px-0" style={{ ...MOB_PAD }}>
-            <h2 className="text-xl font-semibold text-[#304333] mb-1">
-              {checkIn && checkOut
-                ? `${calNights} night${calNights !== 1 ? 's' : ''} in ${location.split(',')[0]}`
-                : checkIn ? 'Select checkout date' : 'Select dates'}
-            </h2>
-            {checkIn && checkOut && (
-              <p className="text-sm text-[#78716c] mb-3">
-                {fmtDateFull(checkIn)} – {fmtDateFull(checkOut)}
-              </p>
-            )}
-            {checkIn && !checkOut && (
-              <p className="text-sm font-semibold mb-4" style={{ color: '#e8612a' }}>
-                Check-in {fmtDateFull(checkIn)} — now choose your checkout date
-              </p>
-            )}
-            {!checkIn && (
-              <p className={`text-sm mb-4 ${dateWarning ? 'font-semibold' : 'text-[#78716c]'}`}
-                style={dateWarning ? { color: '#e8612a' } : undefined}>
-                {dateWarning ? 'Please select your check-in and check-out dates to continue.' : 'Add your travel dates for exact pricing'}
-              </p>
-            )}
-
-            <div className="hidden sm:block mt-4">
-              <DesktopCalendar checkIn={checkIn} checkOut={checkOut} onSelect={handleSidebarCalSelect} disabledRanges={disabledRanges} />
-            </div>
-            <div className="sm:hidden mt-4">
-              <MiniCalendar checkIn={checkIn} checkOut={checkOut} onSelect={handleSidebarCalSelect} disabledRanges={disabledRanges} />
-            </div>
-            {(checkIn || checkOut) && (
-              <button onClick={() => { setCheckIn(null); setCheckOut(null) }}
-                className="mt-3 text-sm font-semibold text-[#304333] underline"
-                style={{ background: 'none', border: 'none', cursor: 'pointer', WebkitTapHighlightColor: 'transparent', padding: 0 }}>
-                Clear dates
-              </button>
-            )}
-          </div>
-
-          <Divider />
-
-          {/* ── Map ── */}
-          <div className="pb-1 sm:px-0" style={{ ...MOB_PAD }}>
-            <h2 className="text-xl font-semibold text-[#304333] mb-1">Where you'll be</h2>
-            <p className="text-sm text-[#78716c] mb-4 flex items-center gap-1">
-              <MapPin size={13} /> {location}
-            </p>
-            <div style={{ position: 'relative', isolation: 'isolate' }}>
-              <MapComponent lat={detail.lat} lng={detail.lng} label={title} />
-            </div>
-
-            <p className="text-sm text-[#78716c] mt-3">{location} · Exact address provided after booking</p>
-          </div>
-
-          <Divider />
-
-          {/* ── Reviews ── */}
-          {detail.reviews.length === 0 ? (
-            <div className="pb-1 sm:px-0" style={{ ...MOB_PAD }}>
-              <div className="rounded-2xl px-4 py-8 text-center" style={{ background: '#F1F5E4' }}>
-                <p className="text-sm font-semibold text-[#304333]">No reviews yet</p>
-              </div>
-            </div>
-          ) : (
-            <div className="pb-1">
-              <button onClick={() => setShowAllReviewsPage(true)}
-                className="flex items-center gap-2 mb-5 sm:px-0" style={{ ...MOB_PAD, background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' }}>
-                <Star size={18} fill="#F5D06E" color="#304333" />
-                <span className="text-xl font-semibold text-[#304333]">{rating}</span>
-                <span className="text-[#a8a29e]">·</span>
-                <span className="text-xl font-semibold text-[#304333] underline">{reviewCount} reviews</span>
-              </button>
-
-              <div className="hidden sm:grid grid-cols-2 gap-6">
-                {detail.reviews.map((rev, i: number) => (
-                  <div key={i} className="flex flex-col gap-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-[#2c4a1e] flex items-center justify-center text-white text-sm font-semibold flex-shrink-0"
-                        style={rev.avatarUrl ? { backgroundImage: `url(${rev.avatarUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}>
-                        {!rev.avatarUrl && rev.avatar}
-                      </div>
-                      <div>
-                        <p className="text-sm font-semibold text-[#304333]">{rev.name}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="flex gap-0.5">
-                        {Array.from({ length: rev.rating }).map((_: unknown, j: number) => (
-                          <Star key={j} size={11} fill="#304333" color="#304333" />
-                        ))}
-                      </div>
-                      <span className="text-xs text-[#78716c]">· {rev.date}</span>
-                    </div>
-                    <p className="text-sm text-[#304333] leading-relaxed"
-                      style={{ display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                      {rev.text}
+                  <div>
+                    <p className="text-base font-semibold text-[#304333]">Hosted by {detail.hostName}</p>
+                    <p className="text-sm text-[#78716c]">
+                      {detail.yearsHosting > 0 ? `${detail.yearsHosting} year${detail.yearsHosting !== 1 ? 's' : ''} hosting` : 'New host'}
                     </p>
                   </div>
-                ))}
+                </div>
+
+                <Divider />
+
+                {/* ── Description ── */}
+                <div className="pb-1 sm:px-0" style={{ ...MOB_PAD }}>
+                  <div className="hidden sm:block">
+                    <p className="text-base text-[#304333] leading-relaxed whitespace-pre-line"
+                      style={!showFullDesc ? { display: '-webkit-box', WebkitLineClamp: 5, WebkitBoxOrient: 'vertical' as any, overflow: 'hidden' } : {}}>
+                      {detail.description}
+                    </p>
+                    <button onClick={() => setShowFullDesc(s => !s)}
+                      className="mt-4 px-8 py-3.5 rounded-xl text-sm font-semibold text-[#304333] transition-colors hover:bg-[#ede8df]"
+                      style={{ background: '#F1F5E4', cursor: 'pointer', WebkitTapHighlightColor: 'transparent', border: 'none', color: '#304333', fontFamily: 'inherit' }}>
+                      {showFullDesc ? 'Show less' : 'Show more'}
+                    </button>
+                  </div>
+                  <div className="sm:hidden">
+                    <p className="text-base text-[#304333] leading-relaxed whitespace-pre-line"
+                      style={{ display: '-webkit-box', WebkitLineClamp: 5, WebkitBoxOrient: 'vertical' as any, overflow: 'hidden' }}>
+                      {detail.description}
+                    </p>
+                    <button onClick={() => setShowDescModal(true)}
+                      className="mt-4 w-full py-3 rounded-xl text-sm font-semibold text-center transition-colors hover:bg-[#ede8df]"
+                      style={{ background: '#F1F5E4', border: 'none', cursor: 'pointer', WebkitTapHighlightColor: 'transparent', color: '#304333' }}>
+                      Show more
+                    </button>
+                  </div>
+                </div>
+
+                <Divider />
+
+                {/* ── Amenities ── */}
+                <div className="pb-1 sm:px-0" style={{ ...MOB_PAD }}>
+                  <h2 className="text-xl font-semibold text-[#304333] mb-5">What this place offers</h2>
+
+                  <div className="hidden sm:grid grid-cols-2 gap-x-8 gap-y-4">
+                    {detail.amenities.slice(0, 10).map((label: string) => (
+                      <div key={label} className="flex items-center gap-3">
+                        <span className="text-[#304333] flex-shrink-0">{getIcon(label)}</span>
+                        <span className="text-sm text-[#304333]">{label}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="sm:hidden flex flex-col gap-4">
+                    {detail.amenities.slice(0, 5).map((label: string) => (
+                      <div key={label} className="flex items-center gap-4">
+                        <span className="text-[#304333]">{getIcon(label)}</span>
+                        <span className="text-base text-[#304333]">{label}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  {detail.amenities.length > 5 && (
+                    <button onClick={() => setShowAmenitiesModal(true)}
+                      className="mt-6 px-8 py-3.5 rounded-xl text-sm font-semibold text-[#304333] transition-colors hover:bg-[#ede8df]"
+                      style={{ background: '#F1F5E4', cursor: 'pointer', WebkitTapHighlightColor: 'transparent', border: 'none', color: '#304333', fontFamily: 'inherit' }}>
+                      {`Show all ${detail.amenities.length} amenities`}
+                    </button>
+                  )}
+                </div>
+
+                {showAmenitiesModal && (
+                  <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
+                    style={{ background: 'rgba(0,0,0,0.4)' }}
+                    onClick={(e) => { if (e.target === e.currentTarget) setShowAmenitiesModal(false) }}>
+                    <div className="bg-white w-full sm:max-w-lg rounded-t-3xl sm:rounded-2xl p-6 max-h-[85vh] overflow-y-auto"
+                      style={{ fontFamily: "Georgia, 'Times New Roman', serif" }}>
+                      <div className="flex items-center justify-between mb-5">
+                        <h2 className="text-xl font-bold text-[#304333]">What this place offers</h2>
+                        <button onClick={() => setShowAmenitiesModal(false)}
+                          className="w-9 h-9 rounded-full flex items-center justify-center"
+                          style={{ background: '#f5f0e6', border: 'none', cursor: 'pointer' }}>
+                          <X size={18} color="#304333" />
+                        </button>
+                      </div>
+                      <div className="flex flex-col gap-4 mb-6">
+                        {detail.amenities.map((label: string) => (
+                          <div key={label} className="flex items-center gap-4">
+                            <span className="text-[#304333]">{getIcon(label)}</span>
+                            <span className="text-sm text-[#304333]">{label}</span>
+                          </div>
+                        ))}
+                      </div>
+                      {detail.excluded.length > 0 && (
+                        <>
+                          <div className="border-t border-[#e8e0d0] pt-5 mb-1">
+                            <p className="text-sm font-semibold text-[#78716c] mb-4">Not included</p>
+                          </div>
+                          <div className="flex flex-col gap-4">
+                            {detail.excluded.map((label: string) => (
+                              <div key={label} className="flex items-center gap-4">
+                                <X size={18} color="#a8a29e" />
+                                <span className="text-sm text-[#a8a29e] line-through">{label}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* ── Active info modal ── */}
+                {activeInfo && (
+                  <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
+                    style={{ background: 'rgba(0,0,0,0.4)' }}
+                    onClick={(e) => { if (e.target === e.currentTarget) setActiveInfo(null) }}>
+                    <div className="bg-white w-full sm:max-w-xl rounded-t-3xl sm:rounded-2xl h-[92vh] sm:h-auto sm:max-h-[85vh] overflow-y-auto flex flex-col">
+                      <div className="sm:hidden flex items-center px-5 pt-6 pb-2 sticky top-0 bg-white z-10">
+                        <button onClick={() => setActiveInfo(null)}
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                          <ArrowLeft size={20} color="#304333" />
+                        </button>
+                      </div>
+                      <div className="hidden sm:flex items-center justify-between px-8 pt-8">
+                        <h2 className="text-2xl font-bold text-[#304333]">{activeInfo.title}</h2>
+                        <button onClick={() => setActiveInfo(null)}
+                          className="w-9 h-9 flex items-center justify-center rounded-full"
+                          style={{ background: '#f5f5f5', border: 'none', cursor: 'pointer' }}>
+                          <X size={18} color="#304333" />
+                        </button>
+                      </div>
+                      <div className="px-5 sm:px-8 pb-8 sm:pb-10 pt-2 sm:pt-6">
+                        <h2 className="text-2xl sm:hidden font-bold text-[#304333] mb-4">{activeInfo.title}</h2>
+                        {activeInfo.body}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {showVirtualTour && tourScenes && (
+                  <VirtualTourViewer scenes={tourScenes} onClose={() => setShowVirtualTour(false)} />
+                )}
+
               </div>
 
-              <div className="sm:hidden overflow-x-auto -mx-4 px-4" style={{ scrollbarWidth: 'none' }}>
-                <div className="flex gap-4" style={{ width: 'max-content' }}>
-                  {detail.reviews.slice(0, 5).map((rev, i: number) => (
-                    <div key={i} className="flex-shrink-0 p-4 rounded-2xl bg-white"
-                      style={{ width: 300, border: '1px solid #e8e0d0' }}>
-                      <div className="flex items-center gap-3 mb-3">
-                        <div className="w-10 h-10 rounded-full bg-[#2c4a1e] flex items-center justify-center text-white text-sm font-semibold flex-shrink-0">
-                          {rev.avatar}
+              {/* ══ DESKTOP BOOKING SIDEBAR ══ */}
+              <div className="hidden md:block">
+                <div className="sticky top-24 mt-6">
+                  <div className="rounded-2xl shadow-xl p-6 bg-white" style={{ border: '1px solid #e8e0d0' }}>
+
+                    {checkIn && checkOut ? (
+                      <div className="mb-4">
+                        <div className="flex items-baseline gap-2">
+                          <span className="text-2xl font-semibold text-[#304333] underline cursor-pointer">
+                            Ksh {(total + fee).toLocaleString()}
+                          </span>
+                          <span className="text-base text-[#304333]">for {calNights} night{calNights !== 1 ? 's' : ''}</span>
+                        </div>
+                        <div className="flex items-center gap-1 mt-1">
+                          <Star size={12} fill="#F5D06E" color="#304333" />
+                          <span className="text-xs font-semibold text-[#304333]">{rating}</span>
+                          <span className="text-xs text-[#78716c]">· {reviewCount} reviews</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-end gap-2 mb-4">
+                        <span className="text-2xl font-semibold text-[#304333]">{price}</span>
+                        <span className="text-base text-[#78716c]">/ night</span>
+                        <div className="flex items-center gap-1 ml-auto">
+                          <Star size={13} fill="#F5D06E" color="#304333" />
+                          <span className="text-sm font-semibold text-[#304333]">{rating}</span>
+                          <span className="text-sm text-[#78716c]">({reviewCount})</span>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="relative mb-4">
+                      <div className="rounded-xl overflow-hidden" style={{ border: '1px solid #b0a898' }}>
+                        <div className="grid grid-cols-2" style={{ borderBottom: '1px solid #b0a898' }}>
+                          <div className="p-3 cursor-pointer hover:bg-[#f9f5ef] transition-colors"
+                            style={{ borderRight: '1px solid #b0a898' }}
+                            onClick={() => { setSidebarActiveField('checkin'); setShowSidebarCal(true) }}>
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-[#304333] mb-0.5">Check-in</p>
+                            <p className="text-sm font-semibold" style={{ color: checkIn ? '#304333' : '#78716c' }}>
+                              {checkIn ? checkIn.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' }) : 'Add date'}
+                            </p>
+                          </div>
+                          <div className="p-3 cursor-pointer hover:bg-[#f9f5ef] transition-colors"
+                            onClick={() => { setSidebarActiveField('checkout'); setShowSidebarCal(true) }}>
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-[#304333] mb-0.5">Checkout</p>
+                            <p className="text-sm font-semibold" style={{ color: checkOut ? '#304333' : '#78716c' }}>
+                              {checkOut ? checkOut.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' }) : 'Add date'}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="p-3 flex items-center justify-between cursor-pointer hover:bg-[#f9f5ef] transition-colors"
+                          onClick={() => setShowGuestPanel(s => !s)}>
+                          <div>
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-[#304333] mb-0.5">Guests</p>
+                            <p className="text-sm font-semibold text-[#304333]">{guestLabel}</p>
+                          </div>
+                          <ChevronRight size={16} color="#78716c"
+                            style={{ transform: showGuestPanel ? 'rotate(-90deg)' : 'rotate(90deg)', transition: 'transform 0.2s' }} />
+                        </div>
+
+                      </div>
+
+                      {showSidebarCal && (
+                        <div className="absolute bg-white rounded-xl shadow-xl z-50 p-4"
+                          style={{ top: 60, marginTop: 0, border: '1px solid #e8e0d0', right: 0, width: 660 }}>
+                          <p className="text-sm font-semibold text-[#304333] mb-3">
+                            {checkIn && !checkOut
+                              ? 'Select checkout date'
+                              : checkIn && checkOut
+                                ? `${fmtDateFull(checkIn)} – ${fmtDateFull(checkOut)}`
+                                : 'Select check-in date'}
+                          </p>
+                          <DesktopCalendar checkIn={checkIn} checkOut={checkOut} onSelect={handleSidebarCalSelect} disabledRanges={disabledRanges} />
+
+                          <div className="flex justify-between items-center mt-3 pt-3" style={{ borderTop: '1px solid #e8e0d0' }}>
+                            <button onClick={() => { setCheckIn(null); setCheckOut(null); setSidebarActiveField('checkin') }}
+                              className="text-sm font-semibold text-[#304333] underline"
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
+                              Clear dates
+                            </button>
+                            <button onClick={() => setShowSidebarCal(false)}
+                              className="px-5 py-2 rounded-xl text-sm font-semibold text-white"
+                              style={{ background: '#304333', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
+                              Close
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                      {showGuestPanel && (
+                        <div className="absolute bg-white rounded-xl shadow-xl z-50 p-5"
+                          style={{ top: '100%', marginTop: 4, border: '1px solid #e8e0d0', left: 0, right: 0 }}>
+                          {[
+                            { label: 'Adults', sub: 'Age 13+', count: adults, set: setAdults, min: 1, max: detail.guests },
+                            { label: 'Children', sub: 'Ages 2–12', count: children, set: setChildren, min: 0, max: Math.max(0, detail.guests - adults) },
+                            { label: 'Infants', sub: 'Under 2', count: infants, set: setInfants, min: 0, max: 5 },
+                            { label: 'Pets', sub: 'Bringing a service animal?', count: pets, set: setPets, min: 0, max: 5 },
+                          ].map(({ label, sub, count, set, min, max }) => (
+                            <div key={label} className="flex items-center justify-between py-4"
+                              style={{ borderBottom: label !== 'Pets' ? '1px solid #f0ede8' : 'none' }}>
+                              <div>
+                                <p className="text-sm font-semibold text-[#304333]">{label}</p>
+                                <p className="text-sm text-[#78716c]">{sub}</p>
+                              </div>
+                              <div className="flex items-center gap-3">
+                                <button onClick={() => set((c: number) => Math.max(min, c - 1))}
+                                  className="w-8 h-8 rounded-full flex items-center justify-center"
+                                  style={{
+                                    border: '1px solid #b0a898', background: 'none', cursor: count <= min ? 'not-allowed' : 'pointer',
+                                    opacity: count <= min ? 0.4 : 1, fontFamily: 'inherit', color: '#304333', fontSize: 18
+                                  }}>
+                                  −
+                                </button>
+                                <span className="text-sm font-semibold text-[#304333] w-4 text-center">{count}</span>
+                                <button onClick={() => set((c: number) => Math.min(max, c + 1))}
+                                  className="w-8 h-8 rounded-full flex items-center justify-center"
+                                  style={{
+                                    border: '1px solid #b0a898', background: 'none', cursor: count >= max ? 'not-allowed' : 'pointer',
+                                    opacity: count >= max ? 0.4 : 1, fontFamily: 'inherit', color: '#304333', fontSize: 18
+                                  }}>
+                                  +
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                          <p className="text-xs text-[#78716c] mt-4 mb-3">
+                            This place has a maximum of {detail.guests} guests, not including infants. Pets aren't allowed.
+                          </p>
+                          <div className="flex justify-end">
+                            <button onClick={() => setShowGuestPanel(false)}
+                              className="text-sm font-semibold text-[#304333]"
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
+                              Close
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                    </div>
+
+                    <button onClick={handleReserveClick}
+                      className="w-full py-3.5 rounded-xl font-semibold text-sm text-white mb-3 transition-opacity hover:opacity-90"
+                      style={{ background: 'linear-gradient(to right, #e8612a, #d44d1a)', border: 'none', cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}>
+                      Reserve
+                    </button>
+                    <p className="text-xs text-center text-[#78716c] mb-4">You won't be charged yet</p>
+
+                    {checkIn && checkOut ? (
+                      <div className="flex flex-col gap-2.5">
+                        <div className="flex justify-between text-sm">
+                          <span className="text-[#304333] underline cursor-pointer">{price} × {calNights} night{calNights !== 1 ? 's' : ''}</span>
+                          <span className="text-[#304333]">Ksh {total.toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-[#304333] underline cursor-pointer">Erranza service fee</span>
+                          <span className="text-[#304333]">Ksh {fee.toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between pt-3" style={{ borderTop: '1px solid #e8e0d0' }}>
+                          <span className="text-sm font-semibold text-[#304333]">Total before taxes</span>
+                          <span className="text-sm font-semibold text-[#304333]">Ksh {(total + fee).toLocaleString()}</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col gap-2.5">
+                        <div className="flex justify-between text-sm">
+                          <span className="text-[#78716c] underline cursor-pointer">{price} × {nights} nights</span>
+                          <span className="text-[#304333]">Ksh {(priceNum * nights).toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-[#78716c] underline cursor-pointer">Erranza service fee</span>
+                          <span className="text-[#304333]">Ksh {Math.round(priceNum * nights * 0.12).toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between pt-3" style={{ borderTop: '1px solid #e8e0d0' }}>
+                          <span className="text-sm font-semibold text-[#304333]">Total before taxes</span>
+                          <span className="text-sm font-semibold text-[#304333]">
+                            Ksh {(priceNum * nights + Math.round(priceNum * nights * 0.12)).toLocaleString()}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <Divider />
+
+          <div className="sm:px-6 md:px-8 xl:px-20 max-w-7xl mx-auto">
+
+            {/* ── Calendar ── */}
+            <div ref={calendarSectionRef} className="pb-1 sm:px-0" style={{ ...MOB_PAD }}>
+              <h2 className="text-xl font-semibold text-[#304333] mb-1">
+                {checkIn && checkOut
+                  ? `${calNights} night${calNights !== 1 ? 's' : ''} in ${location.split(',')[0]}`
+                  : checkIn ? 'Select checkout date' : 'Select dates'}
+              </h2>
+              {checkIn && checkOut && (
+                <p className="text-sm text-[#78716c] mb-3">
+                  {fmtDateFull(checkIn)} – {fmtDateFull(checkOut)}
+                </p>
+              )}
+              {checkIn && !checkOut && (
+                <p className="text-sm font-semibold mb-4" style={{ color: '#e8612a' }}>
+                  Check-in {fmtDateFull(checkIn)} — now choose your checkout date
+                </p>
+              )}
+              {!checkIn && (
+                <p className={`text-sm mb-4 ${dateWarning ? 'font-semibold' : 'text-[#78716c]'}`}
+                  style={dateWarning ? { color: '#e8612a' } : undefined}>
+                  {dateWarning ? 'Please select your check-in and check-out dates to continue.' : 'Add your travel dates for exact pricing'}
+                </p>
+              )}
+
+              <div className="hidden sm:block mt-4">
+                <DesktopCalendar checkIn={checkIn} checkOut={checkOut} onSelect={handleSidebarCalSelect} disabledRanges={disabledRanges} />
+              </div>
+              <div className="sm:hidden mt-4">
+                <MiniCalendar checkIn={checkIn} checkOut={checkOut} onSelect={handleSidebarCalSelect} disabledRanges={disabledRanges} />
+              </div>
+              {(checkIn || checkOut) && (
+                <button onClick={() => { setCheckIn(null); setCheckOut(null) }}
+                  className="mt-3 text-sm font-semibold text-[#304333] underline"
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', WebkitTapHighlightColor: 'transparent', padding: 0 }}>
+                  Clear dates
+                </button>
+              )}
+            </div>
+
+            <Divider />
+
+            {/* ── Map ── */}
+            <div className="pb-1 sm:px-0" style={{ ...MOB_PAD }}>
+              <h2 className="text-xl font-semibold text-[#304333] mb-1">Where you'll be</h2>
+              <p className="text-sm text-[#78716c] mb-4 flex items-center gap-1">
+                <MapPin size={13} /> {location}
+              </p>
+              <div style={{ position: 'relative', isolation: 'isolate' }}>
+                <MapComponent lat={detail.lat} lng={detail.lng} label={title} />
+              </div>
+
+              <p className="text-sm text-[#78716c] mt-3">{location} · Exact address provided after booking</p>
+            </div>
+
+            <Divider />
+
+            {/* ── Reviews ── */}
+            {detail.reviews.length === 0 ? (
+              <div className="pb-1 sm:px-0" style={{ ...MOB_PAD }}>
+                <div className="rounded-2xl px-4 py-8 text-center" style={{ background: '#F1F5E4' }}>
+                  <p className="text-sm font-semibold text-[#304333]">No reviews yet</p>
+                </div>
+              </div>
+            ) : (
+              <div className="pb-1">
+                <button onClick={() => setShowAllReviewsPage(true)}
+                  className="flex items-center gap-2 mb-5 sm:px-0" style={{ ...MOB_PAD, background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' }}>
+                  <Star size={18} fill="#F5D06E" color="#304333" />
+                  <span className="text-xl font-semibold text-[#304333]">{rating}</span>
+                  <span className="text-[#a8a29e]">·</span>
+                  <span className="text-xl font-semibold text-[#304333] underline">{reviewCount} reviews</span>
+                </button>
+
+                <div className="hidden sm:grid grid-cols-2 gap-6">
+                  {detail.reviews.map((rev, i: number) => (
+                    <div key={i} className="flex flex-col gap-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-[#2c4a1e] flex items-center justify-center text-white text-sm font-semibold flex-shrink-0"
+                          style={rev.avatarUrl ? { backgroundImage: `url(${rev.avatarUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}>
+                          {!rev.avatarUrl && rev.avatar}
                         </div>
                         <div>
                           <p className="text-sm font-semibold text-[#304333]">{rev.name}</p>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2 mb-2">
+                      <div className="flex items-center gap-2">
                         <div className="flex gap-0.5">
                           {Array.from({ length: rev.rating }).map((_: unknown, j: number) => (
-                            <Star key={j} size={12} fill="#F5D06E" color="#304333" />
+                            <Star key={j} size={11} fill="#304333" color="#304333" />
                           ))}
                         </div>
                         <span className="text-xs text-[#78716c]">· {rev.date}</span>
@@ -1425,75 +1451,186 @@ export default function StayDetailPage({ params }: Props) {
                       </p>
                     </div>
                   ))}
-                  <button onClick={() => setShowAllReviewsPage(true)}
-                    className="flex-shrink-0 flex flex-col items-center justify-center gap-2 rounded-2xl"
-                    style={{ width: 160, border: '1px solid #e8e0d0', background: 'white', cursor: 'pointer' }}>
-                    <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: '#F1F5E4' }}>
-                      <ChevronRight size={18} color="#304333" />
-                    </div>
-                    <span className="text-sm font-semibold text-[#304333]">See all {reviewCount} reviews</span>
-                  </button>
+                </div>
+
+                <div className="sm:hidden overflow-x-auto -mx-4 px-4" style={{ scrollbarWidth: 'none' }}>
+                  <div className="flex gap-4" style={{ width: 'max-content' }}>
+                    {detail.reviews.slice(0, 5).map((rev, i: number) => (
+                      <div key={i} className="flex-shrink-0 p-4 rounded-2xl bg-white"
+                        style={{ width: 300, border: '1px solid #e8e0d0' }}>
+                        <div className="flex items-center gap-3 mb-3">
+                          <div className="w-10 h-10 rounded-full bg-[#2c4a1e] flex items-center justify-center text-white text-sm font-semibold flex-shrink-0">
+                            {rev.avatar}
+                          </div>
+                          <div>
+                            <p className="text-sm font-semibold text-[#304333]">{rev.name}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className="flex gap-0.5">
+                            {Array.from({ length: rev.rating }).map((_: unknown, j: number) => (
+                              <Star key={j} size={12} fill="#F5D06E" color="#304333" />
+                            ))}
+                          </div>
+                          <span className="text-xs text-[#78716c]">· {rev.date}</span>
+                        </div>
+                        <p className="text-sm text-[#304333] leading-relaxed"
+                          style={{ display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                          {rev.text}
+                        </p>
+                      </div>
+                    ))}
+                    <button onClick={() => setShowAllReviewsPage(true)}
+                      className="flex-shrink-0 flex flex-col items-center justify-center gap-2 rounded-2xl"
+                      style={{ width: 160, border: '1px solid #e8e0d0', background: 'white', cursor: 'pointer' }}>
+                      <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: '#F1F5E4' }}>
+                        <ChevronRight size={18} color="#304333" />
+                      </div>
+                      <span className="text-sm font-semibold text-[#304333]">See all {reviewCount} reviews</span>
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            )}
 
 
-          <Divider />
+            <Divider />
 
-          {/* ── Meet your host ── */}
-          <div className="pb-1 sm:px-0" style={{ ...MOB_PAD }}>
-            <h2 className="text-xl font-semibold text-[#304333] mb-5">Meet your host</h2>
+            {/* ── Meet your host ── */}
+            <div className="pb-1 sm:px-0" style={{ ...MOB_PAD }}>
+              <h2 className="text-xl font-semibold text-[#304333] mb-5">Meet your host</h2>
 
-            <div className='hidden sm:flex gap-10 items-start'>
-              <div className="flex-shrink-0" style={{ width: 450 }}>
-                <div className="rounded-2xl p-5" style={{ border: '1px solid #e8e0d0', background: 'white' }}>
+              <div className='hidden sm:flex gap-10 items-start'>
+                <div className="flex-shrink-0" style={{ width: 450 }}>
+                  <div className="rounded-2xl p-5" style={{ border: '1px solid #e8e0d0', background: 'white' }}>
+                    <div className="flex items-center">
+
+                      <div className="w-1/2 flex flex-col items-center">
+                        <div className="relative mb-3">
+                          <div className="w-24 h-24 rounded-full bg-[#2c4a1e] flex items-center justify-center text-white text-4xl font-bold"
+                            style={detail.hostLogo ? { backgroundImage: `url(${detail.hostLogo})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}>
+                            {!detail.hostLogo && detail.hostName[0]}
+                          </div>
+                          {detail.isSuperhost && (
+                            <div className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-red-500 flex items-center justify-center">
+                              <Award size={14} color="white" />
+                            </div>
+                          )}
+                        </div>
+                        <p className="text-xl font-bold text-[#304333] text-center">{detail.hostName}</p>
+                        <p className="text-sm text-[#78716c]">Host</p>
+                      </div>
+
+                      <div className="w-1/2 pl-4">
+                        <div className="py-2.5" style={{ borderBottom: '1px solid #e8e0d0' }}>
+                          <p className="text-xl font-bold text-[#304333]">{reviewCount}</p>
+                          <p className="text-xs text-[#78716c]">Reviews</p>
+                        </div>
+                        <div className="py-3" style={{ borderBottom: '1px solid #e8e0d0' }}>
+                          <p className="text-xl font-bold text-[#304333]">{rating} <span className="text-base">★</span></p>
+                          <p className="text-xs text-[#78716c]">Rating</p>
+                        </div>
+                        <div className="py-2.5">
+                          <p className="text-xl font-bold text-[#304333]">{detail.yearsHosting * 12}</p>
+                          <p className="text-xs text-[#78716c]">Months hosting</p>
+                        </div>
+                      </div>
+
+                    </div>
+                  </div>
+                  {detail.hostSpeaks && (
+                    <div className="flex items-center gap-2.5 mt-4">
+                      <Globe size={18} strokeWidth={1.5} color="#304333" />
+                      <p className="text-sm text-[#304333]">Speaks {detail.hostSpeaks}</p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex-1">
+                  {detail.cohostName && (
+                    <div className="mb-6">
+                      <p className="text-base font-semibold text-[#304333] mb-3">Co-hosts</p>
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-[#2c4a1e] flex items-center justify-center text-white text-sm font-bold">
+                          {detail.cohostName[0]}
+                        </div>
+                        <p className="text-sm font-semibold text-[#304333]">{detail.cohostName}</p>
+                      </div>
+                    </div>
+                  )}
+                  <div className="mb-6">
+                    <p className="text-base font-semibold text-[#304333] mb-2">Host details</p>
+                    {detail.responseRate !== null ? (
+                      <>
+                        <p className="text-sm text-[#304333]">Response rate: {detail.responseRate}%</p>
+                        <p className="text-sm text-[#304333]">Responds {detail.responseTime}</p>
+                      </>
+                    ) : (
+                      <p className="text-sm text-[#78716c]">No message history yet.</p>
+                    )}
+                  </div>
+                  <button onClick={handleMessageHost} disabled={messaging}
+                    className="px-8 py-3.5 rounded-xl text-sm font-semibold transition-colors hover:bg-[#ede8df] disabled:opacity-60"
+                    style={{ background: '#F1F5E4', border: 'none', cursor: 'pointer', fontFamily: 'inherit', color: '#304333' }}>
+                    {messaging ? 'Opening…' : 'Message host'}
+                  </button>
+                  <div className="flex items-start gap-3 mt-6 pt-6" style={{ borderTop: '1px solid #e8e0d0' }}>
+                    <Shield size={20} strokeWidth={1.5} color="#78716c" />
+                    <p className="text-xs text-[#78716c]">To help protect your payment, always use Erranza to send money and communicate with hosts.</p>
+                  </div>
+                </div>
+
+              </div>
+
+              <div className="sm:hidden">
+                <div className="bg-white rounded-2xl p-4 mb-4" style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.12)', maxWidth: 380 }}>
                   <div className="flex items-center">
 
                     <div className="w-1/2 flex flex-col items-center">
-                      <div className="relative mb-3">
-                        <div className="w-24 h-24 rounded-full bg-[#2c4a1e] flex items-center justify-center text-white text-4xl font-bold"
+                      <div className="relative mb-1.5">
+                        <div className="w-24 h-24 rounded-full bg-[#2c4a1e] flex items-center justify-center text-white text-3xl font-bold"
                           style={detail.hostLogo ? { backgroundImage: `url(${detail.hostLogo})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}>
                           {!detail.hostLogo && detail.hostName[0]}
                         </div>
                         {detail.isSuperhost && (
                           <div className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-red-500 flex items-center justify-center">
-                            <Award size={14} color="white" />
+                            <Award size={10} color="white" />
                           </div>
                         )}
                       </div>
-                      <p className="text-xl font-bold text-[#304333] text-center">{detail.hostName}</p>
-                      <p className="text-sm text-[#78716c]">Host</p>
+                      <p className="text-base font-bold text-[#304333] text-center">{detail.hostName}</p>
+                      <p className="text-xs text-[#78716c]">Host</p>
                     </div>
 
-                    <div className="w-1/2 pl-4">
-                      <div className="py-2.5" style={{ borderBottom: '1px solid #e8e0d0' }}>
-                        <p className="text-xl font-bold text-[#304333]">{reviewCount}</p>
+                    <div className="w-1/2 pl-3">
+                      <div className="py-2" style={{ borderBottom: '1px solid #e8e0d0' }}>
+                        <p className="text-base font-bold text-[#304333]">{reviewCount}</p>
                         <p className="text-xs text-[#78716c]">Reviews</p>
                       </div>
-                      <div className="py-3" style={{ borderBottom: '1px solid #e8e0d0' }}>
-                        <p className="text-xl font-bold text-[#304333]">{rating} <span className="text-base">★</span></p>
+                      <div className="py-2" style={{ borderBottom: '1px solid #e8e0d0' }}>
+                        <p className="text-base font-bold text-[#304333]">{rating} <span className="text-sm">★</span></p>
                         <p className="text-xs text-[#78716c]">Rating</p>
                       </div>
-                      <div className="py-2.5">
-                        <p className="text-xl font-bold text-[#304333]">{detail.yearsHosting * 12}</p>
+                      <div className="py-2">
+                        <p className="text-base font-bold text-[#304333]">{detail.yearsHosting * 12}</p>
                         <p className="text-xs text-[#78716c]">Months hosting</p>
                       </div>
                     </div>
 
                   </div>
                 </div>
+
                 {detail.hostSpeaks && (
-                  <div className="flex items-center gap-2.5 mt-4">
+                  <div className="flex items-center gap-2.5 mt-4 mb-2">
                     <Globe size={18} strokeWidth={1.5} color="#304333" />
                     <p className="text-sm text-[#304333]">Speaks {detail.hostSpeaks}</p>
                   </div>
                 )}
-              </div>
 
-              <div className="flex-1">
+                <Divider />
+
                 {detail.cohostName && (
-                  <div className="mb-6">
+                  <div className="mb-5">
                     <p className="text-base font-semibold text-[#304333] mb-3">Co-hosts</p>
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-full bg-[#2c4a1e] flex items-center justify-center text-white text-sm font-bold">
@@ -1503,7 +1640,7 @@ export default function StayDetailPage({ params }: Props) {
                     </div>
                   </div>
                 )}
-                <div className="mb-6">
+                <div className="mb-5">
                   <p className="text-base font-semibold text-[#304333] mb-2">Host details</p>
                   {detail.responseRate !== null ? (
                     <>
@@ -1515,194 +1652,131 @@ export default function StayDetailPage({ params }: Props) {
                   )}
                 </div>
                 <button onClick={handleMessageHost} disabled={messaging}
-                  className="px-8 py-3.5 rounded-xl text-sm font-semibold transition-colors hover:bg-[#ede8df] disabled:opacity-60"
+                  className="w-full py-3.5 rounded-xl text-sm font-semibold transition-colors hover:bg-[#ede8df] mb-5"
                   style={{ background: '#F1F5E4', border: 'none', cursor: 'pointer', fontFamily: 'inherit', color: '#304333' }}>
                   {messaging ? 'Opening…' : 'Message host'}
                 </button>
-                <div className="flex items-start gap-3 mt-6 pt-6" style={{ borderTop: '1px solid #e8e0d0' }}>
-                  <Shield size={20} strokeWidth={1.5} color="#78716c" />
+                <div className="flex items-start gap-3 pt-5" >
+                  <Shield size={18} strokeWidth={1.5} color="#78716c" />
                   <p className="text-xs text-[#78716c]">To help protect your payment, always use Erranza to send money and communicate with hosts.</p>
                 </div>
-              </div>
 
+              </div>
             </div>
 
-            <div className="sm:hidden">
-              <div className="bg-white rounded-2xl p-4 mb-4" style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.12)', maxWidth: 380 }}>
-                <div className="flex items-center">
+            <Divider />
 
-                  <div className="w-1/2 flex flex-col items-center">
-                    <div className="relative mb-1.5">
-                      <div className="w-24 h-24 rounded-full bg-[#2c4a1e] flex items-center justify-center text-white text-3xl font-bold"
-                        style={detail.hostLogo ? { backgroundImage: `url(${detail.hostLogo})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}>
-                        {!detail.hostLogo && detail.hostName[0]}
-                      </div>
-                      {detail.isSuperhost && (
-                        <div className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-red-500 flex items-center justify-center">
-                          <Award size={10} color="white" />
-                        </div>
-                      )}
-                    </div>
-                    <p className="text-base font-bold text-[#304333] text-center">{detail.hostName}</p>
-                    <p className="text-xs text-[#78716c]">Host</p>
+            {/* ── Things to know ── */}
+            <div className="pb-1 sm:px-0" style={{ ...MOB_PAD }}>
+              <h2 className="text-xl font-semibold text-[#304333] mb-6">Things to know</h2>
+
+              <div className="hidden sm:grid grid-cols-3 gap-8">
+                {[
+                  {
+                    icon: <CalendarX2 size={32} strokeWidth={1.5} />, title: 'Cancellation policy',
+                    items: checkIn && checkOut ? [`${cancellationPolicy.label}: ${cancellationDescription}`] : ['Add your dates to see the cancellation policy for your trip.'],
+                    modalKey: 'cancellation' as const, needsDates: !checkIn || !checkOut,
+                  },
+                  {
+                    icon: <Key size={32} strokeWidth={1.5} />, title: 'House rules',
+                    items: listing.house_rules && listing.house_rules.selected.length > 0
+                      ? listing.house_rules.selected.slice(0, 3).map(k => HOUSE_RULES_CATALOG[k]?.label).filter((v): v is string => !!v)
+                      : ['Check-in after 2:00 PM', 'Checkout before 11:00 AM', `${detail.guests} guests maximum`],
+                    modalKey: 'rules' as const, needsDates: false,
+                  },
+                  {
+                    icon: <ShieldHalf size={32} strokeWidth={1.5} />, title: 'Safety & property',
+                    items: listing.safety_info && listing.safety_info.length > 0
+                      ? listing.safety_info.slice(0, 3).map(({ key }) => SAFETY_CATALOG[key]?.label).filter((v): v is string => !!v)
+                      : ['Smoke alarm not reported', 'Exterior security cameras on property', 'Carbon monoxide alarm'],
+                    modalKey: 'safety' as const, needsDates: false,
+                  },
+                ].map(({ icon, title: st, items, modalKey, needsDates }) => (
+                  <div key={st}>
+                    <div className="mb-4 text-[#222]">{icon}</div>
+                    <p className="text-base font-semibold text-[#222] mb-3">{st}</p>
+                    {items.map(item => <p key={item} className="text-sm text-[#78716c] mb-0.5">{item}</p>)}
+                    <button onClick={() => needsDates ? scrollToDates() : setActiveInfo(infoModals[modalKey])}
+                      className="text-sm text-[#78716c] underline mt-2"
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                      {needsDates ? 'Add dates' : 'Learn more'}
+                    </button>
                   </div>
-
-                  <div className="w-1/2 pl-3">
-                    <div className="py-2" style={{ borderBottom: '1px solid #e8e0d0' }}>
-                      <p className="text-base font-bold text-[#304333]">{reviewCount}</p>
-                      <p className="text-xs text-[#78716c]">Reviews</p>
-                    </div>
-                    <div className="py-2" style={{ borderBottom: '1px solid #e8e0d0' }}>
-                      <p className="text-base font-bold text-[#304333]">{rating} <span className="text-sm">★</span></p>
-                      <p className="text-xs text-[#78716c]">Rating</p>
-                    </div>
-                    <div className="py-2">
-                      <p className="text-base font-bold text-[#304333]">{detail.yearsHosting * 12}</p>
-                      <p className="text-xs text-[#78716c]">Months hosting</p>
-                    </div>
-                  </div>
-
-                </div>
+                ))}
               </div>
 
-              {detail.hostSpeaks && (
-                <div className="flex items-center gap-2.5 mt-4 mb-2">
-                  <Globe size={18} strokeWidth={1.5} color="#304333" />
-                  <p className="text-sm text-[#304333]">Speaks {detail.hostSpeaks}</p>
-                </div>
-              )}
+              <div className="sm:hidden">
+                {[
+                  {
+                    icon: <Calendar size={22} strokeWidth={1.5} />, title: 'Cancellation policy',
+                    items: checkIn && checkOut ? [`${cancellationPolicy.label}: ${cancellationDescription}`] : ['Add your dates to see the cancellation policy for your trip.'],
+                    modalKey: 'cancellation' as const, needsDates: !checkIn || !checkOut,
+                  },
+                  {
+                    icon: <Home size={22} strokeWidth={1.5} />, title: 'House rules',
+                    items: listing.house_rules && listing.house_rules.selected.length > 0
+                      ? listing.house_rules.selected.slice(0, 3).map(k => HOUSE_RULES_CATALOG[k]?.label).filter((v): v is string => !!v)
+                      : ['Check-in after 2:00 PM', 'Checkout before 11:00 AM', `${detail.guests} guests maximum`],
+                    modalKey: 'rules' as const, needsDates: false,
+                  },
+                  {
+                    icon: <Shield size={22} strokeWidth={1.5} />, title: 'Safety & property',
+                    items: listing.safety_info && listing.safety_info.length > 0
+                      ? listing.safety_info.slice(0, 3).map(({ key }) => SAFETY_CATALOG[key]?.label).filter((v): v is string => !!v)
+                      : ['Smoke alarm not reported', 'Exterior security cameras on property', 'Carbon monoxide alarm'],
+                    modalKey: 'safety' as const, needsDates: false,
+                  },
 
-              <Divider />
+                ].map(({ icon, title: st, items, modalKey, needsDates }, idx, arr) => (
+                  <div key={st} onClick={() => needsDates ? scrollToDates() : setActiveInfo(infoModals[modalKey])}
+                    className="flex items-start gap-4 py-4 cursor-pointer" style={idx < arr.length - 1 ? { borderBottom: '1px solid #e8e0d0' } : {}}>
 
-              {detail.cohostName && (
-                <div className="mb-5">
-                  <p className="text-base font-semibold text-[#304333] mb-3">Co-hosts</p>
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-[#2c4a1e] flex items-center justify-center text-white text-sm font-bold">
-                      {detail.cohostName[0]}
+                    <span className="text-[#304333] flex-shrink-0 mt-0.5">{icon}</span>
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold text-[#304333] mb-1">{st}</p>
+                      {items.map(item => <p key={item} className="text-sm text-[#78716c]">{item}</p>)}
                     </div>
-                    <p className="text-sm font-semibold text-[#304333]">{detail.cohostName}</p>
+                    <ChevronRight size={18} color="#a8a29e" className="flex-shrink-0 mt-0.5" />
                   </div>
-                </div>
-              )}
-              <div className="mb-5">
-                <p className="text-base font-semibold text-[#304333] mb-2">Host details</p>
-                {detail.responseRate !== null ? (
-                  <>
-                    <p className="text-sm text-[#304333]">Response rate: {detail.responseRate}%</p>
-                    <p className="text-sm text-[#304333]">Responds {detail.responseTime}</p>
-                  </>
-                ) : (
-                  <p className="text-sm text-[#78716c]">No message history yet.</p>
-                )}
+                ))}
               </div>
-              <button onClick={handleMessageHost} disabled={messaging}
-                className="w-full py-3.5 rounded-xl text-sm font-semibold transition-colors hover:bg-[#ede8df] mb-5"
-                style={{ background: '#F1F5E4', border: 'none', cursor: 'pointer', fontFamily: 'inherit', color: '#304333' }}>
-                {messaging ? 'Opening…' : 'Message host'}
-              </button>
-              <div className="flex items-start gap-3 pt-5" >
-                <Shield size={18} strokeWidth={1.5} color="#78716c" />
-                <p className="text-xs text-[#78716c]">To help protect your payment, always use Erranza to send money and communicate with hosts.</p>
-              </div>
-
-            </div>
-          </div>
-
-          <Divider />
-
-          {/* ── Things to know ── */}
-          <div className="pb-1 sm:px-0" style={{ ...MOB_PAD }}>
-            <h2 className="text-xl font-semibold text-[#304333] mb-6">Things to know</h2>
-
-            <div className="hidden sm:grid grid-cols-3 gap-8">
-              {[
-                {
-                  icon: <CalendarX2 size={32} strokeWidth={1.5} />, title: 'Cancellation policy',
-                  items: checkIn && checkOut ? [`${cancellationPolicy.label}: ${cancellationDescription}`] : ['Add your dates to see the cancellation policy for your trip.'],
-                  modalKey: 'cancellation' as const, needsDates: !checkIn || !checkOut,
-                },
-                {
-                  icon: <Key size={32} strokeWidth={1.5} />, title: 'House rules',
-                  items: listing.house_rules && listing.house_rules.selected.length > 0
-                    ? listing.house_rules.selected.slice(0, 3).map(k => HOUSE_RULES_CATALOG[k]?.label).filter((v): v is string => !!v)
-                    : ['Check-in after 2:00 PM', 'Checkout before 11:00 AM', `${detail.guests} guests maximum`],
-                  modalKey: 'rules' as const, needsDates: false,
-                },
-                {
-                  icon: <ShieldHalf size={32} strokeWidth={1.5} />, title: 'Safety & property',
-                  items: listing.safety_info && listing.safety_info.length > 0
-                    ? listing.safety_info.slice(0, 3).map(({ key }) => SAFETY_CATALOG[key]?.label).filter((v): v is string => !!v)
-                    : ['Smoke alarm not reported', 'Exterior security cameras on property', 'Carbon monoxide alarm'],
-                  modalKey: 'safety' as const, needsDates: false,
-                },
-              ].map(({ icon, title: st, items, modalKey, needsDates }) => (
-                <div key={st}>
-                  <div className="mb-4 text-[#222]">{icon}</div>
-                  <p className="text-base font-semibold text-[#222] mb-3">{st}</p>
-                  {items.map(item => <p key={item} className="text-sm text-[#78716c] mb-0.5">{item}</p>)}
-                  <button onClick={() => needsDates ? scrollToDates() : setActiveInfo(infoModals[modalKey])}
-                    className="text-sm text-[#78716c] underline mt-2"
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
-                    {needsDates ? 'Add dates' : 'Learn more'}
-                  </button>
-                </div>
-              ))}
             </div>
 
-            <div className="sm:hidden">
-              {[
-                {
-                  icon: <Calendar size={22} strokeWidth={1.5} />, title: 'Cancellation policy',
-                  items: checkIn && checkOut ? [`${cancellationPolicy.label}: ${cancellationDescription}`] : ['Add your dates to see the cancellation policy for your trip.'],
-                  modalKey: 'cancellation' as const, needsDates: !checkIn || !checkOut,
-                },
-                {
-                  icon: <Home size={22} strokeWidth={1.5} />, title: 'House rules',
-                  items: listing.house_rules && listing.house_rules.selected.length > 0
-                    ? listing.house_rules.selected.slice(0, 3).map(k => HOUSE_RULES_CATALOG[k]?.label).filter((v): v is string => !!v)
-                    : ['Check-in after 2:00 PM', 'Checkout before 11:00 AM', `${detail.guests} guests maximum`],
-                  modalKey: 'rules' as const, needsDates: false,
-                },
-                {
-                  icon: <Shield size={22} strokeWidth={1.5} />, title: 'Safety & property',
-                  items: listing.safety_info && listing.safety_info.length > 0
-                    ? listing.safety_info.slice(0, 3).map(({ key }) => SAFETY_CATALOG[key]?.label).filter((v): v is string => !!v)
-                    : ['Smoke alarm not reported', 'Exterior security cameras on property', 'Carbon monoxide alarm'],
-                  modalKey: 'safety' as const, needsDates: false,
-                },
+            {otherListings.length > 0 && (
+              <>
+                <Divider />
+                <div className="pb-1 sm:px-0" style={{ ...MOB_PAD }}>
+                  <h2 className="text-xl font-semibold text-[#304333] mb-4">More stays nearby</h2>
 
-              ].map(({ icon, title: st, items, modalKey, needsDates }, idx, arr) => (
-                <div key={st} onClick={() => needsDates ? scrollToDates() : setActiveInfo(infoModals[modalKey])}
-                  className="flex items-start gap-4 py-4 cursor-pointer" style={idx < arr.length - 1 ? { borderBottom: '1px solid #e8e0d0' } : {}}>
-
-                  <span className="text-[#304333] flex-shrink-0 mt-0.5">{icon}</span>
-                  <div className="flex-1">
-                    <p className="text-sm font-semibold text-[#304333] mb-1">{st}</p>
-                    {items.map(item => <p key={item} className="text-sm text-[#78716c]">{item}</p>)}
+                  <div className="sm:hidden overflow-x-auto scrollbar-hide -mx-4 px-4">
+                    <div className="flex gap-3">
+                      {otherListings.map((l) => (
+                        <button
+                          key={l.id}
+                          onClick={() => router.push(`/listings/stays/${l.id}`)}
+                          className="relative flex-shrink-0 w-[45vw] h-[130px] rounded-2xl overflow-hidden active:scale-95 transition-transform"
+                          style={{ background: '#e8e0d0' }}
+                        >
+                          <Image src={l.images[0]?.url ?? FALLBACK_IMAGE} alt={l.title} fill className="object-cover" sizes="45vw" />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                          <div className="absolute bottom-0 left-0 right-0 p-2 text-left">
+                            <p className="text-white text-xs font-semibold truncate">{l.title}</p>
+                            <p className="text-white/70 text-[10px]">Ksh {Math.round(Number(l.price)).toLocaleString()}</p>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                  <ChevronRight size={18} color="#a8a29e" className="flex-shrink-0 mt-0.5" />
-                </div>
-              ))}
-            </div>
-          </div>
 
-          {otherListings.length > 0 && (
-            <>
-              <Divider />
-              <div className="pb-1 sm:px-0" style={{ ...MOB_PAD }}>
-                <h2 className="text-xl font-semibold text-[#304333] mb-4">More stays nearby</h2>
-
-                <div className="sm:hidden overflow-x-auto scrollbar-hide -mx-4 px-4">
-                  <div className="flex gap-3">
+                  <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
                     {otherListings.map((l) => (
                       <button
                         key={l.id}
                         onClick={() => router.push(`/listings/stays/${l.id}`)}
-                        className="relative flex-shrink-0 w-[45vw] h-[130px] rounded-2xl overflow-hidden active:scale-95 transition-transform"
+                        className="relative h-[130px] rounded-2xl overflow-hidden active:scale-95 transition-transform"
                         style={{ background: '#e8e0d0' }}
                       >
-                        <Image src={l.images[0]?.url ?? FALLBACK_IMAGE} alt={l.title} fill className="object-cover" sizes="45vw" />
+                        <Image src={l.images[0]?.url ?? FALLBACK_IMAGE} alt={l.title} fill className="object-cover" sizes="50vw" />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                         <div className="absolute bottom-0 left-0 right-0 p-2 text-left">
                           <p className="text-white text-xs font-semibold truncate">{l.title}</p>
@@ -1712,155 +1786,136 @@ export default function StayDetailPage({ params }: Props) {
                     ))}
                   </div>
                 </div>
+              </>
+            )}
 
-                <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                  {otherListings.map((l) => (
-                    <button
-                      key={l.id}
-                      onClick={() => router.push(`/listings/stays/${l.id}`)}
-                      className="relative h-[130px] rounded-2xl overflow-hidden active:scale-95 transition-transform"
-                      style={{ background: '#e8e0d0' }}
-                    >
-                      <Image src={l.images[0]?.url ?? FALLBACK_IMAGE} alt={l.title} fill className="object-cover" sizes="50vw" />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                      <div className="absolute bottom-0 left-0 right-0 p-2 text-left">
-                        <p className="text-white text-xs font-semibold truncate">{l.title}</p>
-                        <p className="text-white/70 text-[10px]">Ksh {Math.round(Number(l.price)).toLocaleString()}</p>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </>
-          )}
+            <Divider />
 
-          <Divider />
+            {/* ── Explore nearby ── */}
 
-          {/* ── Explore nearby ── */}
-
-          <div className="pb-4 sm:px-0" style={{ ...MOB_PAD }}>
-            <h2 className="text-xl font-semibold text-[#304333] mb-4">
-              Explore other options in and around {location.split(',')[0]}
-            </h2>
-            <div className="grid grid-cols-2 gap-x-8 gap-y-3">
-              {['Nairobi', 'Diani Beach', 'Mombasa', 'Zanzibar', 'Malindi', 'Watamu', 'Karen', 'Westlands'].map(place => (
-                <button key={place} className="text-left"
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, WebkitTapHighlightColor: 'transparent' }}>
-                  <p className="text-sm font-semibold text-[#304333]">{place}</p>
-                  <p className="text-xs text-[#78716c]">Vacation rentals</p>
-                </button>
-              ))}
-            </div>
-          </div>
-
-        </div>
-
-        <FooterSection />
-      </div>
-
-      {/* ══ MOBILE STICKY BOTTOM BAR ══ */}
-      <div className="md:hidden flex-shrink-0 bg-white flex items-center justify-between px-5"
-        style={{ borderTop: '1px solid #e8e0d0', paddingTop: 14, paddingBottom: 'calc(14px + env(safe-area-inset-bottom, 0px))', zIndex: 50 }}>
-        <div>
-          <div className="flex items-baseline gap-1">
-            <span className="text-base font-semibold text-[#304333]">{price}</span>
-            <span className="text-sm text-[#78716c]">/ night</span>
-          </div>
-          {checkIn && checkOut ? (
-            <p className="text-xs font-semibold" style={{ color: '#2c4a1e' }}>
-              {fmtDate(checkIn)} – {fmtDate(checkOut)} · Ksh {total.toLocaleString()}
-            </p>
-          ) : (
-            <button className="text-sm text-[#304333] underline font-semibold"
-              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
-              {reviewCount} reviews
-            </button>
-          )}
-        </div>
-        <button onClick={handleReserveClick}
-          className="px-7 py-3 rounded-xl font-semibold text-sm text-white transition-opacity hover:opacity-90"
-          style={{ background: 'linear-gradient(to right, #e8612a, #d44d1a)', border: 'none', cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}>
-          Reserve
-        </button>
-      </div>
-
-      {/* ── Login prompt for message host ── */}
-      {showLoginPrompt && (
-                <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center"
-                  style={{ background: 'rgba(0,0,0,0.4)' }}
-                  onClick={(e) => { if (e.target === e.currentTarget) setShowLoginPrompt(false) }}>
-                  <div className="bg-white w-full sm:max-w-sm rounded-t-3xl sm:rounded-2xl p-6">
-                    <h2 className="text-lg font-bold text-[#1a1a1a] mb-2">Log in to continue</h2>
-                    <p className="text-sm text-gray-500 mb-5">
-                      You&apos;ll need to log in or create an account before you can message the host.
-                    </p>
-                    <div className="flex gap-2">
-                    <div className="flex gap-2">
-                      <button onClick={() => router.push(`/signup?redirect=${encodeURIComponent(`/listings/stays/${id}`)}`)}
-                        className="flex-1 py-3 rounded-xl border border-gray-200 text-sm font-semibold text-[#1a1a1a] hover:bg-gray-50 transition-colors">
-                        Create account
-                      </button>
-                      <button onClick={() => router.push(`/login?redirect=${encodeURIComponent(`/listings/stays/${id}`)}`)}
-                        className="flex-1 py-3 rounded-xl bg-[#1a1a1a] text-white text-sm font-semibold hover:bg-[#333] transition-colors">
-                        Log in
-                      </button>
-                    </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-      {/* ── Show all review modal ── */}
-      {showAllReviewsPage && (
-        <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center"
-          style={{ background: 'rgba(0,0,0,0.4)' }}
-          onClick={(e) => { if (e.target === e.currentTarget) setShowAllReviewsPage(false) }}>
-          <div className="bg-white w-full sm:max-w-lg rounded-t-3xl sm:rounded-2xl p-6 max-h-[85vh] overflow-y-auto"
-            style={{ fontFamily: "Georgia, 'Times New Roman', serif" }}>
-            <div className="flex items-center justify-between mb-5">
-              <div className="flex items-center gap-1.5">
-                <Star size={16} fill="#F5D06E" color="#304333" />
-                <span className="text-sm font-semibold text-[#304333]">{rating} · {reviewCount} reviews</span>
-              </div>
-              <button onClick={() => setShowAllReviewsPage(false)}
-                className="w-9 h-9 rounded-full flex items-center justify-center"
-                style={{ background: '#f5f5f5', border: 'none', cursor: 'pointer' }}>
-                <X size={18} color="#304333" />
-              </button>
-            </div>
-            {detail.reviews.length === 0 ? (
-              <div className="rounded-2xl px-4 py-10 text-center" style={{ background: '#F1F5E4' }}>
-                <p className="text-sm font-semibold text-[#304333]">No reviews yet</p>
-              </div>
-            ) : (
-              <div className="flex flex-col gap-6">
-
-                {detail.reviews.map((rev, i: number) => (
-                  <div key={i} className="flex flex-col gap-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-[#2c4a1e] flex items-center justify-center text-white text-sm font-semibold flex-shrink-0">
-                        {rev.avatar}
-                      </div>
-                      <div>
-                        <p className="text-sm font-semibold text-[#304333]">{rev.name}</p>
-                        <p className="text-xs text-[#78716c]">{rev.date}</p>
-                      </div>
-                    </div>
-                    <div className="flex gap-0.5">
-                      {Array.from({ length: rev.rating }).map((_: unknown, j: number) => (
-                        <Star key={j} size={12} fill="#F5D06E" color="#304333" />
-                      ))}
-                    </div>
-                    <p className="text-sm text-[#304333] leading-relaxed">{rev.text}</p>
-                  </div>
+            <div className="pb-4 sm:px-0" style={{ ...MOB_PAD }}>
+              <h2 className="text-xl font-semibold text-[#304333] mb-4">
+                Explore other options in and around {location.split(',')[0]}
+              </h2>
+              <div className="grid grid-cols-2 gap-x-8 gap-y-3">
+                {['Nairobi', 'Diani Beach', 'Mombasa', 'Zanzibar', 'Malindi', 'Watamu', 'Karen', 'Westlands'].map(place => (
+                  <button key={place} className="text-left"
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, WebkitTapHighlightColor: 'transparent' }}>
+                    <p className="text-sm font-semibold text-[#304333]">{place}</p>
+                    <p className="text-xs text-[#78716c]">Vacation rentals</p>
+                  </button>
                 ))}
               </div>
+            </div>
+
+          </div>
+
+          <FooterSection />
+        </div>
+
+        {/* ══ MOBILE STICKY BOTTOM BAR ══ */}
+        <div className="md:hidden flex-shrink-0 bg-white flex items-center justify-between px-5"
+          style={{ borderTop: '1px solid #e8e0d0', paddingTop: 14, paddingBottom: 'calc(14px + env(safe-area-inset-bottom, 0px))', zIndex: 50 }}>
+          <div>
+            <div className="flex items-baseline gap-1">
+              <span className="text-base font-semibold text-[#304333]">{price}</span>
+              <span className="text-sm text-[#78716c]">/ night</span>
+            </div>
+            {checkIn && checkOut ? (
+              <p className="text-xs font-semibold" style={{ color: '#2c4a1e' }}>
+                {fmtDate(checkIn)} – {fmtDate(checkOut)} · Ksh {total.toLocaleString()}
+              </p>
+            ) : (
+              <button className="text-sm text-[#304333] underline font-semibold"
+                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                {reviewCount} reviews
+              </button>
             )}
           </div>
+          <button onClick={handleReserveClick}
+            className="px-7 py-3 rounded-xl font-semibold text-sm text-white transition-opacity hover:opacity-90"
+            style={{ background: 'linear-gradient(to right, #e8612a, #d44d1a)', border: 'none', cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}>
+            Reserve
+          </button>
         </div>
-      )}
+
+        {/* ── Login prompt for message host ── */}
+        {showLoginPrompt && (
+          <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center"
+            style={{ background: 'rgba(0,0,0,0.4)' }}
+            onClick={(e) => { if (e.target === e.currentTarget) setShowLoginPrompt(false) }}>
+            <div className="bg-white w-full sm:max-w-sm rounded-t-3xl sm:rounded-2xl p-6">
+              <h2 className="text-lg font-bold text-[#1a1a1a] mb-2">Log in to continue</h2>
+              <p className="text-sm text-gray-500 mb-5">
+                You&apos;ll need to log in or create an account before you can message the host.
+              </p>
+              <div className="flex gap-2">
+                <div className="flex gap-2">
+                  <button onClick={() => router.push(`/signup?redirect=${encodeURIComponent(`/listings/stays/${id}`)}`)}
+                    className="flex-1 py-3 rounded-xl border border-gray-200 text-sm font-semibold text-[#1a1a1a] hover:bg-gray-50 transition-colors">
+                    Create account
+                  </button>
+                  <button onClick={() => router.push(`/login?redirect=${encodeURIComponent(`/listings/stays/${id}`)}`)}
+                    className="flex-1 py-3 rounded-xl bg-[#1a1a1a] text-white text-sm font-semibold hover:bg-[#333] transition-colors">
+                    Log in
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── Show all review modal ── */}
+        {showAllReviewsPage && (
+          <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center"
+            style={{ background: 'rgba(0,0,0,0.4)' }}
+            onClick={(e) => { if (e.target === e.currentTarget) setShowAllReviewsPage(false) }}>
+            <div className="bg-white w-full sm:max-w-lg rounded-t-3xl sm:rounded-2xl p-6 max-h-[85vh] overflow-y-auto"
+              style={{ fontFamily: "Georgia, 'Times New Roman', serif" }}>
+              <div className="flex items-center justify-between mb-5">
+                <div className="flex items-center gap-1.5">
+                  <Star size={16} fill="#F5D06E" color="#304333" />
+                  <span className="text-sm font-semibold text-[#304333]">{rating} · {reviewCount} reviews</span>
+                </div>
+                <button onClick={() => setShowAllReviewsPage(false)}
+                  className="w-9 h-9 rounded-full flex items-center justify-center"
+                  style={{ background: '#f5f5f5', border: 'none', cursor: 'pointer' }}>
+                  <X size={18} color="#304333" />
+                </button>
+              </div>
+              {detail.reviews.length === 0 ? (
+                <div className="rounded-2xl px-4 py-10 text-center" style={{ background: '#F1F5E4' }}>
+                  <p className="text-sm font-semibold text-[#304333]">No reviews yet</p>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-6">
+
+                  {detail.reviews.map((rev, i: number) => (
+                    <div key={i} className="flex flex-col gap-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-[#2c4a1e] flex items-center justify-center text-white text-sm font-semibold flex-shrink-0">
+                          {rev.avatar}
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold text-[#304333]">{rev.name}</p>
+                          <p className="text-xs text-[#78716c]">{rev.date}</p>
+                        </div>
+                      </div>
+                      <div className="flex gap-0.5">
+                        {Array.from({ length: rev.rating }).map((_: unknown, j: number) => (
+                          <Star key={j} size={12} fill="#F5D06E" color="#304333" />
+                        ))}
+                      </div>
+                      <p className="text-sm text-[#304333] leading-relaxed">{rev.text}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
 
-    </div>
-  )
+      </div>
+      )
 }

@@ -909,6 +909,19 @@ export default function EditListingPage({ params }: Props) {
               <PhotoManager images={images} onChange={setImages} />
             </EditableCard>
 
+            {category === 'Stays' && (
+              <div className="bg-white border border-[#e0d9cc] rounded-2xl p-4 sm:p-5 shadow-sm flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-[#1a1a1a]">Virtual tour <span className="text-gray-400 font-normal">(optional)</span></p>
+                  <p className="text-xs text-gray-400 mt-0.5">Let guests walk through your rooms with 360° photos.</p>
+                </div>
+                <button onClick={() => router.push(`/vendor/listings/${listingId}/virtual-tour`)}
+                  className="flex-shrink-0 px-4 py-2 rounded-xl border border-gray-200 text-sm font-semibold text-[#1a1a1a] hover:bg-gray-50 transition-colors">
+                  Manage
+                </button>
+              </div>
+            )}
+
             <EditableCard label="Description" summary={description}>
               <textarea value={description} onChange={(e) => setDescription(e.target.value)}
                 rows={4}

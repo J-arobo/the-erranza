@@ -54,6 +54,9 @@ use App\Http\Controllers\Api\BookingExtraChargeController;
 use App\Http\Controllers\Api\BuniController;
 // Team invite
 use App\Http\Controllers\Api\TeamInviteController;
+// Virual tour
+use App\Http\Controllers\Api\VirtualTourController;
+use App\Http\Controllers\Api\Vendor\VendorVirtualTourController;
 
 Route::prefix('auth')->group(function () {
     Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:6,1');
@@ -109,6 +112,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/team-invite/{token}/link', [TeamInviteController::class, 'link']);
     // ...keep whatever's already in this group
 });
+// Virtual Tour
+Route::get('/listings/{listing}/virtual-tour', [VirtualTourController::class, 'show']);
+// Image and media serving route — no auth required, but CORS headers are added for cross-origin use in WebGL.
+Route::get('/media/{path}', [\App\Http\Controllers\Api\MediaController::class, 'show'])->where('path', '.*');
 
 
 // Traveller-facing — any authenticated account.
@@ -216,6 +223,17 @@ Route::prefix('vendor')->middleware(['auth:sanctum', 'vendor'])->group(function 
     // vendor booking creation for someone else
     Route::post('/bookings', [VendorBookingController::class, 'store']);
     Route::get('/travellers/search', [VendorBookingController::class, 'searchTravellers']);
+
+    // Virtual Tour
+    Route::get('/listings/{listing}/virtual-tour', [VendorVirtualTourController::class, 'index']);
+    Route::post('/listings/{listing}/virtual-tour/scenes', [VendorVirtualTourController::class, 'storeScene']);
+    Route::patch('/listings/{listing}/virtual-tour/scenes/{scene}', [VendorVirtualTourController::class, 'updateScene']);
+    Route::delete('/listings/{listing}/virtual-tour/scenes/{scene}', [VendorVirtualTourController::class, 'destroyScene']);
+    Route::post('/listings/{listing}/virtual-tour/scenes/{scene}/links', [VendorVirtualTourController::class, 'storeLink']);
+    Route::delete('/listings/{listing}/virtual-tour/scenes/{scene}/links/{link}', [VendorVirtualTourController::class, 'destroyLink']);
+    Route::post('/listings/{listing}/virtual-tour/publish', [VendorVirtualTourController::class, 'publish']);
+    Route::post('/listings/{listing}/virtual-tour/unpublish', [VendorVirtualTourController::class, 'unpublish']);
+    Route::delete('/listings/{listing}/virtual-tour', [VendorVirtualTourController::class, 'destroy']);
 });
 
 Route::prefix('admin')->middleware(['auth:sanctum', 'admin'])->group(function () {
