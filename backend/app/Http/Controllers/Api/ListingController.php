@@ -46,9 +46,18 @@ class ListingController extends Controller
                 ->where(fn($q) => $q->whereNull('min_guests')->orWhere('min_guests', '<=', $guests));
         }
 
+        if ($request->boolean('deals')) {
+            $today = now()->toDateString();
+            $query->whereHas('seasonalRates', function ($q) use ($today) {
+                $q->where('start_date', '<=', $today)
+                    ->where('end_date', '>=', $today)
+                    ->whereColumn('listing_seasonal_rates.price', '<', 'listings.price');
+            });
+        }
+
         $perPage = min((int) $request->input('per_page', 12), 100);
 
-        $listings = $query->with(['images', 'itinerary', 'vendor:id,business_name,verification_status'])
+        $listings = $query->with(['images', 'itinerary', 'vendor:id,business_name,verification_status', 'seasonalRates'])
             ->withCount(['reviews' => fn($q) => $q->where('removed', false)])
             ->withAvg(['reviews' => fn($q) => $q->where('removed', false)], 'rating')
             ->paginate($perPage);

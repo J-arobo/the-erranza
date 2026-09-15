@@ -22,21 +22,21 @@ const MENU_SECTIONS_GUEST = [
     section: 'Help & support',
     items: [
       { icon: HelpCircle, label: 'Help Centre', path: '/help' },
-      { icon: Shield, label: 'Partner dispute', path: '/help' },
+      { icon: Shield, label: 'Partner dispute', path: '/partner-dispute' },
     ],
   },
   {
     section: 'Inspiration',
     items: [
-      { icon: Star, label: 'Seasonal deals', path: '/' },
-      { icon: Newspaper, label: 'Travel articles', path: '/' },
+      { icon: Star, label: 'Seasonal deals', path: '/deals' },
+      { icon: Newspaper, label: 'Travel articles', path: '/travel-articles' },
     ],
   },
   {
     section: 'Settings and legal',
     items: [
-      { icon: Home, label: 'About Erranza', path: '/' },
-      { icon: Briefcase, label: 'Careers', path: '/' },
+      { icon: Home, label: 'About Erranza', path: '/about' },
+      { icon: Briefcase, label: 'Careers', path: '/careers' },
       { icon: Globe, label: 'Language · English', path: '/' },
       { icon: Shield, label: 'Privacy Notice', path: '/' },
     ],
@@ -55,21 +55,21 @@ const MENU_SECTIONS_LOGGEDIN = [
     section: 'Help & support',
     items: [
       { icon: HelpCircle, label: 'Help Centre', path: '/help' },
-      { icon: Shield, label: 'Partner dispute', path: '/help' },
+      { icon: Shield, label: 'Partner dispute', path: '/partner-dispute' },
     ],
   },
   {
     section: 'Inspiration',
     items: [
-      { icon: Star, label: 'Seasonal deals', path: '/' },
-      { icon: Newspaper, label: 'Travel articles', path: '/' },
+      { icon: Star, label: 'Seasonal deals', path: '/deals' },
+      { icon: Newspaper, label: 'Travel articles', path: '/travel-articles' },
     ],
   },
   {
     section: 'Settings and legal',
     items: [
-      { icon: Home, label: 'About Erranza', path: '/' },
-      { icon: Briefcase, label: 'Careers', path: '/' },
+      { icon: Home, label: 'About Erranza', path: '/about' },
+      { icon: Briefcase, label: 'Careers', path: '/careers' },
       { icon: Globe, label: 'Language · English', path: '/' },
       { icon: Shield, label: 'Privacy Notice', path: '/' },
     ],
@@ -95,7 +95,6 @@ export default function Navbar({ categoryBar }: { categoryBar?: React.ReactNode 
 
   // Wait for client mount before rendering portal
   useEffect(() => { setMounted(true) }, [])
-
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
